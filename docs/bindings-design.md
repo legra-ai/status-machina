@@ -4,6 +4,16 @@ Python and Node bindings are useful for configuring, inspecting and driving mach
 
 The first binding should expose checked definitions, instance dispatch, accepted decisions, typed effect/output records, composition and diagram generation. Callers retain ownership of clocks, I/O, persistence, scheduling and serialized access to each instance.
 
+## Native language experience
+
+Users must not need Rust knowledge. Python exposes native Enum classes, typed dataclasses, type hints, Python exceptions, context-managed resource ownership and Python documentation. Node exposes normal JavaScript objects and errors, TypeScript discriminated unions/enums and declaration files, with explicit disposal and event-delivery semantics. All public Rust model roles need reviewed native equivalents; do not expose opaque Rust handles where domain values are appropriate.
+
+Construction, inspection, errors, return values and callback contracts must follow each language's conventions. Validate wheel/npm installation and complete examples without a Rust toolchain. The native interface is a product API, not a mechanical translation of Rust generic parameters or Result values.
+
+## Package-name checks (2026-11-06)
+
+Rust index `state-machine` returned 404. PyPI `state-machine` resolves to existing `state_machine` 0.2.10; npm `state-machine` exists at 1.0.4. PyPI and npm `state-machine-core` returned 404, as did npm `@legra-ai/state-machine`. PyPI `typed-state-machine` returned 404 but npm's name exists. These observations are not reservations or publishing authorization. Native package names remain an owner decision.
+
 ## Identity
 
 Python Enum values and TypeScript discriminated types should have explicit codecs to the core identity family. Wire strings or numbers are representations, not universal identities. Preserve distinct roles for state, event, Story and implementation identifiers. Do not turn callbacks into dynamically loaded code or equate a label with implementation identity.
