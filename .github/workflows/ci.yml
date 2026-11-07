@@ -21,7 +21,8 @@ jobs:
     permissions:
       contents: write
     outputs:
-      revision: ${{ steps.release.outputs.revision }}
+      # Read-only planning may describe an older draft; validate this source commit.
+      revision: ${{ github.sha }}
       version: ${{ steps.release.outputs.version }}
       release: ${{ steps.release.outputs.release }}
     steps:
