@@ -25,9 +25,10 @@ struct RouteKey<I: crate::MachineIds = crate::DefaultIds> {
 
 /// Bounded, explicit event composition. It never owns or dispatches instances.
 pub struct Composition<E, I: crate::MachineIds = crate::DefaultIds, J: crate::MachineIds = I> {
-    sources: InstanceRegistry<I>,
+    pub(super) sources: InstanceRegistry<I>,
+    pub(super) destinations: InstanceRegistry<J>,
     routes: HashMap<RouteKey<I>, Route<I, J>>,
-    max_batch: usize,
+    pub(super) max_batch: usize,
     payload: std::marker::PhantomData<fn(E)>,
 }
 
@@ -88,7 +89,7 @@ impl<E, I: crate::MachineIds, J: crate::MachineIds> Composition<E, I, J> {
         Ok(RoutedBatch { items })
     }
 
-    fn route_one(
+    pub(super) fn route_one(
         &self,
         source: &InstanceAddress<I>,
         intent: OutputEventIntent<E, I>,
@@ -238,6 +239,7 @@ impl<E, I: crate::MachineIds, J: crate::MachineIds> CompositionBuilder<E, I, J> 
         }
         Ok(Composition {
             sources: self.sources,
+            destinations: self.destinations,
             routes,
             max_batch: self.max_batch,
             payload: std::marker::PhantomData,

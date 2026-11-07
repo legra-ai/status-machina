@@ -41,6 +41,15 @@ impl<D: crate::CandidateData, E, F, X, O, I: crate::MachineIds>
         event: Event<E, I>,
         facts: &F,
     ) -> Result<MachineDecision<D, X, O, I>, DispatchError<I>> {
+        self.evaluate_borrowed_at(expected_revision, &event, facts)
+    }
+
+    pub(crate) fn evaluate_borrowed_at(
+        &self,
+        expected_revision: u64,
+        event: &Event<E, I>,
+        facts: &F,
+    ) -> Result<MachineDecision<D, X, O, I>, DispatchError<I>> {
         if expected_revision != self.revision {
             return Err(DispatchError::StaleRevision {
                 expected: expected_revision,

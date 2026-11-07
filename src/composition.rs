@@ -1,3 +1,4 @@
+mod bound;
 mod registry;
 mod route;
 mod router;
@@ -39,3 +40,17 @@ pub(super) const HARD_MAX_BATCH: usize = 256;
 pub(super) const HARD_MAX_CAPABILITY_OBSERVATIONS: usize = 1024;
 pub(super) const HARD_MAX_INSTANCE_EVENT_IDS: usize = 1024;
 pub(super) const HARD_MAX_REGISTRY_EVENT_ENTRIES: usize = 65_536;
+
+pub use bound::{
+    AddressedEffect,
+    BindingError,
+    BoundComposition,
+    BoundCompositionBuilder,
+    Delivery,
+    PropagationLimits,
+    PropagationLimitsBuilder,
+    PropagationLimitsError,
+    PropagationReport,
+    PropagationStatus,
+    PropagationStep,
+};

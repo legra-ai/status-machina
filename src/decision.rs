@@ -49,6 +49,15 @@ impl<D, X, O, I: MachineIds> MachineDecision<D, X, O, I> {
         }
     }
 
+    pub(crate) fn intent_counts(&self) -> (usize, usize) {
+        match &self.outcome {
+            DispatchOutcome::Transitioned {
+                effects, outputs, ..
+            } => (effects.len(), outputs.len()),
+            _ => (0, 0),
+        }
+    }
+
     /// Definition identity captured during evaluation.
     pub const fn definition_id(&self) -> &I::Definition {
         &self.definition

@@ -39,7 +39,7 @@ impl<I: crate::MachineIds> InstanceAddress<I> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub(super) struct InstanceSignature<I: crate::MachineIds = crate::DefaultIds> {
     pub(super) input_payload: TypeId,
     pub(super) output_payload: TypeId,
@@ -51,7 +51,7 @@ pub(super) struct InstanceSignature<I: crate::MachineIds = crate::DefaultIds> {
 #[derive(Clone)]
 pub struct InstanceRegistry<I: crate::MachineIds = crate::DefaultIds> {
     // bounded: entries are capped by HARD_MAX_INSTANCES.
-    entries: HashMap<InstanceAddress<I>, InstanceSignature<I>>,
+    pub(super) entries: HashMap<InstanceAddress<I>, InstanceSignature<I>>,
 }
 
 impl<I: crate::MachineIds> InstanceRegistry<I> {

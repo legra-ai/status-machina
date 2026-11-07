@@ -218,3 +218,11 @@ regression test keeps its Mermaid blocks synchronized with the definitions.
 ## License
 
 Licensed under either MIT or Apache-2.0, at your option.
+
+## Synchronous composition
+
+Validated connections can also be bound to exclusive mutable instance references
+with `Composition::bind`. Dispatch then propagates connected events synchronously
+within explicit work limits. Reports retain deferred or interrupted work and
+caller-owned effects. Release bindings and caller locks before executing external
+effects. This adds no background executor, persistence or clocks.
