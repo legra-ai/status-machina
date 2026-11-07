@@ -9,3 +9,5 @@ The Rust kernel depends only on thiserror and uuid. The repository-only hook ins
 Repository configuration target: squash-only merges; delete merged branches; issues enabled; wiki/projects disabled; inherited signed commits; required prepare/test/Conventional Commit checks; owner review; daily dependency/security updates. The workflow template uses the shared release actions and tests the packaged archive. No credentials, repository visibility changes or publication are implied by this local configuration.
 
 Before public publication, verify repository settings and release writer identity, review the complete public file tree, confirm package availability, obtain owner approval for publication and verify the exact published archive. Legra adoption and deletion of its in-tree implementation follow verification of the external package.
+
+Private extraction CI uses read-only release planning and validates the triggering source revision. Release activation must install the authorized release writer and switch validation/publication to its returned exact revision; existing draft tags must remain immutable.

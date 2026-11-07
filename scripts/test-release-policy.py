@@ -17,6 +17,12 @@ class ReleasePolicyTests(unittest.TestCase):
         self.assertIn('token: ${{ github.token }}', prepare)
         self.assertIn("plan-only: 'true'", prepare)
 
+    def test_read_only_validation_uses_current_source_revision(self):
+        workflow = (pathlib.Path(__file__).resolve().parent.parent / '.github/workflows/ci.yml').read_text()
+        prepare = workflow.split('  prepare:', 1)[1].split('  test:', 1)[0]
+        self.assertIn('revision: ${{ github.sha }}', prepare)
+        self.assertIn("plan-only: 'true'", prepare)
+
 
 if __name__ == '__main__':
     unittest.main()
