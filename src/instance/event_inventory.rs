@@ -3,7 +3,7 @@ use super::MachineInstance;
 impl<'definition, D, E, F, X, O, I: crate::MachineIds>
     MachineInstance<'definition, D, E, F, X, O, I>
 where
-    D: crate::CandidateData,
+    D: crate::FallibleCandidateData,
 {
     pub(crate) fn input_event_ids(&self) -> impl Iterator<Item = &I::Event> {
         self.definition()

@@ -41,7 +41,7 @@ pub struct MachineDefinition<D, E, F, X = (), O = (), I: crate::MachineIds = cra
 
 impl<D, E, F, I: crate::MachineIds> MachineDefinition<D, E, F, (), (), I>
 where
-    D: crate::CandidateData,
+    D: crate::FallibleCandidateData,
 {
     /// Start building a machine definition.
     #[must_use]
@@ -60,7 +60,7 @@ where
 
 impl<D, E, F, X, I: crate::MachineIds> MachineDefinition<D, E, F, X, (), I>
 where
-    D: crate::CandidateData,
+    D: crate::FallibleCandidateData,
 {
     /// Start building a machine definition that emits typed effect intents.
     #[must_use]
@@ -79,7 +79,7 @@ where
 
 impl<D, E, F, O, I: crate::MachineIds> MachineDefinition<D, E, F, (), O, I>
 where
-    D: crate::CandidateData,
+    D: crate::FallibleCandidateData,
 {
     /// Start building a machine definition that emits typed output events.
     #[must_use]
@@ -98,7 +98,7 @@ where
 
 impl<D, E, F, X, O, I: crate::MachineIds> MachineDefinition<D, E, F, X, O, I>
 where
-    D: crate::CandidateData,
+    D: crate::FallibleCandidateData,
 {
     /// Start building a machine definition that emits typed effect and
     /// output-event intents.

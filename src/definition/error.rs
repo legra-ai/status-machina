@@ -6,6 +6,13 @@ pub type DefinitionResult<T, I = crate::DefaultIds> = Result<T, DefinitionBuildE
 /// Invalid structure or configured bounds in a machine definition.
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum DefinitionBuildError<I: crate::MachineIds = crate::DefaultIds> {
+    /// Initial data evaluation raised an application error.
+    #[error("initial invariant evaluation failed: {error}")]
+    EvaluationFailed {
+        /// Original application failure.
+        #[source]
+        error: crate::EvaluationError,
+    },
     /// An entry or exit effect list exceeded its per-state bound.
     #[error("state {state:?} effect phase exceeds limit 16")]
     StateEffectLimitExceeded {

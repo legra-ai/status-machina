@@ -119,7 +119,7 @@ impl<I: crate::MachineIds> InstanceRegistryBuilder<I> {
         instance: &MachineInstance<'_, D, E, F, X, O, I>,
     ) -> Result<Self, InstanceRegistryBuildError>
     where
-        D: crate::CandidateData,
+        D: crate::FallibleCandidateData,
         E: 'static,
         O: 'static,
     {

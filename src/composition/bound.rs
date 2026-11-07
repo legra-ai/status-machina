@@ -23,7 +23,6 @@ use super::{
     InstanceRegistry,
 };
 use crate::{
-    CandidateData,
     MachineIds,
     MachineInstance,
 };
@@ -75,7 +74,7 @@ impl<'a, E: 'static, F, X, I: MachineIds> BoundCompositionBuilder<'a, E, F, X, I
     /// # Errors
     /// Refuses unknown/duplicate addresses, mismatched identities or
     /// signatures.
-    pub fn instance<D: CandidateData>(
+    pub fn instance<D: crate::FallibleCandidateData>(
         mut self,
         address: InstanceAddress<I>,
         instance: &'a mut MachineInstance<'_, D, E, F, X, E, I>,

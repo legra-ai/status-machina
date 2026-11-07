@@ -6,7 +6,6 @@ use super::{
 };
 use crate::{
     BehaviorRegistry,
-    CandidateData,
     DefaultIds,
     MachineDefinition,
     MachineIds,
@@ -62,7 +61,7 @@ impl<'a, I: MachineIds> DefinitionRecord<'a, I> {
     /// # Errors
     /// Rejects unknown or mismatched bindings and all native builder
     /// violations.
-    pub fn bind<D: CandidateData, E, F, X, O>(
+    pub fn bind<D: crate::FallibleCandidateData, E, F, X, O>(
         &self,
         registry: &BehaviorRegistry<D, E, F, X, O, I>,
     ) -> RecordBuildResult<MachineDefinition<D, E, F, X, O, I>, I> {

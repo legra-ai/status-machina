@@ -49,7 +49,7 @@ impl ScenarioReplay {
         assertions: impl IntoIterator<Item = ScenarioAssertion<I>>,
     ) -> Result<BoundedScenarioReport<I>, ScenarioReplayBuildError>
     where
-        D: crate::CandidateData,
+        D: crate::FallibleCandidateData,
     {
         let assertions = Self::bounded_assertions(assertions)?;
         let limits = scenarios.limits;
@@ -58,20 +58,32 @@ impl ScenarioReplay {
         let mut intent_count = 0;
 
         for scenario in scenarios.scenarios {
-            let mut instance =
-                match definition.instantiate(instance_id.clone(), initial_data.snapshot()) {
-                    Ok(instance) => instance,
-                    Err(_) => {
-                        return Ok(BoundedScenarioReport {
-                            result: ScenarioResult::ExecutionFailed {
-                                scenario: scenario.id,
-                                step: 0,
-                                failure: ScenarioFailure::InvalidInitialData,
-                                steps: Vec::new(),
-                            },
-                        });
-                    }
-                };
+            let data = match initial_data.try_snapshot() {
+                Ok(data) => data,
+                Err(_) => {
+                    return Ok(BoundedScenarioReport {
+                        result: ScenarioResult::ExecutionFailed {
+                            scenario: scenario.id,
+                            step: 0,
+                            failure: ScenarioFailure::EvaluationFailed,
+                            steps: Vec::new(),
+                        },
+                    });
+                }
+            };
+            let mut instance = match definition.instantiate(instance_id.clone(), data) {
+                Ok(instance) => instance,
+                Err(_) => {
+                    return Ok(BoundedScenarioReport {
+                        result: ScenarioResult::ExecutionFailed {
+                            scenario: scenario.id,
+                            step: 0,
+                            failure: ScenarioFailure::InvalidInitialData,
+                            steps: Vec::new(),
+                        },
+                    });
+                }
+            };
             // bounded: each scenario has at most max_steps_per_scenario steps,
             // and trace capacity is capped independently.
             let mut trace = Vec::with_capacity(scenario.steps.len().min(limits.max_trace_entries));

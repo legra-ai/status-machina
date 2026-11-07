@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-pub(crate) type EffectConstructor<D, E, F, X> = Arc<dyn Fn(&D, &E, &F) -> X + Send + Sync>;
+pub(crate) type EffectConstructor<D, E, F, X> =
+    Arc<dyn Fn(&D, &E, &F) -> Result<X, crate::EvaluationError> + Send + Sync>;
 
 /// A typed description of caller-owned external work.
 ///
@@ -59,6 +60,18 @@ impl<D, E, F, X, I: crate::MachineIds> EffectBuilder<D, E, F, X, I> {
     /// acceptance.
     #[must_use]
     pub fn describe(mut self, construct: impl Fn(&D, &E, &F) -> X + Send + Sync + 'static) -> Self {
+        self.construct = Some(Arc::new(move |data, event, facts| {
+            Ok(construct(data, event, facts))
+        }));
+        self
+    }
+
+    /// Bind an intent constructor that can return an application failure.
+    #[must_use]
+    pub fn try_describe(
+        mut self,
+        construct: impl Fn(&D, &E, &F) -> Result<X, crate::EvaluationError> + Send + Sync + 'static,
+    ) -> Self {
         self.construct = Some(Arc::new(construct));
         self
     }

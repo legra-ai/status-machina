@@ -17,6 +17,7 @@ mod decision;
 mod definition;
 mod diagram_labels;
 mod disposition;
+mod evaluation_error;
 mod identifier;
 mod identity_map;
 mod instance;
@@ -42,7 +43,10 @@ pub use behavior::{
     BoundInvariant,
     ImplementationId,
 };
-pub use candidate_data::CandidateData;
+pub use candidate_data::{
+    CandidateData,
+    FallibleCandidateData,
+};
 pub use capability::{
     Capability,
     CapabilityBuildError,
@@ -110,6 +114,10 @@ pub use disposition::{
     DispositionBuildError,
     EventDisposition,
     EventDispositionBuilder,
+};
+pub use evaluation_error::{
+    EvaluationError,
+    EvaluationPhase,
 };
 pub use identifier::{
     ActionId,

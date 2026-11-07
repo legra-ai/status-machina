@@ -79,6 +79,8 @@ pub enum ScenarioStepKind<I: crate::MachineIds = crate::DefaultIds> {
 /// Dispatch error category without callback-provided error text.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ScenarioFailure {
+    /// An application callback or snapshot raised an exception.
+    EvaluationFailed,
     /// Initial instance data violated its state invariant.
     InvalidInitialData,
     /// More than one transition or disposition matched.
@@ -102,6 +104,7 @@ pub enum ScenarioFailure {
 impl<I: crate::MachineIds> From<&DispatchError<I>> for ScenarioFailure {
     fn from(error: &DispatchError<I>) -> Self {
         match error {
+            DispatchError::EvaluationFailed { .. } => Self::EvaluationFailed,
             DispatchError::Ambiguous { .. } => Self::Ambiguous,
             DispatchError::InvariantFailed { .. } => Self::InvariantFailed,
             DispatchError::PostconditionFailed { .. } => Self::PostconditionFailed,

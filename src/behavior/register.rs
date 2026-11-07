@@ -33,7 +33,12 @@ impl<D, E, F, X, O, I: crate::MachineIds> BehaviorRegistryBuilder<D, E, F, X, O,
         reference: BehaviorRef<I>,
         callback: impl Fn(&D, &E, &F) -> bool + Send + Sync + 'static,
     ) -> Result<Self, BindingError<I>> {
-        self.insert(reference, Implementation::Condition(Arc::new(callback)))
+        self.insert(
+            reference,
+            Implementation::Condition(Arc::new(move |data, event, facts| {
+                Ok(callback(data, event, facts))
+            })),
+        )
     }
 
     /// Register a trusted effect implementation under typed
@@ -47,7 +52,12 @@ impl<D, E, F, X, O, I: crate::MachineIds> BehaviorRegistryBuilder<D, E, F, X, O,
         reference: BehaviorRef<I>,
         callback: impl Fn(&D, &E, &F) -> X + Send + Sync + 'static,
     ) -> Result<Self, BindingError<I>> {
-        self.insert(reference, Implementation::Effect(Arc::new(callback)))
+        self.insert(
+            reference,
+            Implementation::Effect(Arc::new(move |data, event, facts| {
+                Ok(callback(data, event, facts))
+            })),
+        )
     }
 
     /// Register a trusted output event implementation under typed
@@ -61,7 +71,12 @@ impl<D, E, F, X, O, I: crate::MachineIds> BehaviorRegistryBuilder<D, E, F, X, O,
         reference: BehaviorRef<I>,
         callback: impl Fn(&D, &E, &F) -> O + Send + Sync + 'static,
     ) -> Result<Self, BindingError<I>> {
-        self.insert(reference, Implementation::OutputEvent(Arc::new(callback)))
+        self.insert(
+            reference,
+            Implementation::OutputEvent(Arc::new(move |data, event, facts| {
+                Ok(callback(data, event, facts))
+            })),
+        )
     }
 
     /// Register a trusted invariant implementation under typed
@@ -75,7 +90,10 @@ impl<D, E, F, X, O, I: crate::MachineIds> BehaviorRegistryBuilder<D, E, F, X, O,
         reference: BehaviorRef<I>,
         callback: impl Fn(&D) -> bool + Send + Sync + 'static,
     ) -> Result<Self, BindingError<I>> {
-        self.insert(reference, Implementation::Invariant(Arc::new(callback)))
+        self.insert(
+            reference,
+            Implementation::Invariant(Arc::new(move |data| Ok(callback(data)))),
+        )
     }
 
     /// Register a trusted capability implementation under typed

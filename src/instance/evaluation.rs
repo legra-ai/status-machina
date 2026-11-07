@@ -6,13 +6,14 @@ use super::{
     TransitionRecord,
 };
 use crate::{
+    EvaluationPhase,
     Event,
     MachineDecision,
     OutputEventIntent,
     TransitionKind,
 };
 
-impl<D: crate::CandidateData, E, F, X, O, I: crate::MachineIds>
+impl<D: crate::FallibleCandidateData, E, F, X, O, I: crate::MachineIds>
     MachineInstance<'_, D, E, F, X, O, I>
 {
     /// Evaluate an event without changing the accepted instance.
@@ -61,10 +62,17 @@ impl<D: crate::CandidateData, E, F, X, O, I: crate::MachineIds>
             if transition.from != self.state || transition.event != *event.id() {
                 continue;
             }
-            let enabled = transition
-                .guard
-                .as_ref()
-                .is_none_or(|guard| guard.evaluate(&self.data, event.payload(), facts));
+            let enabled = match &transition.guard {
+                Some(guard) => {
+                    guard
+                        .evaluate(&self.data, event.payload(), facts)
+                        .map_err(|error| DispatchError::EvaluationFailed {
+                            phase: EvaluationPhase::Guard,
+                            error,
+                        })?
+                }
+                None => true,
+            };
             if !enabled {
                 continue;
             }
@@ -82,6 +90,10 @@ impl<D: crate::CandidateData, E, F, X, O, I: crate::MachineIds>
                 || !disposition
                     .condition
                     .evaluate(&self.data, event.payload(), facts)
+                    .map_err(|error| DispatchError::EvaluationFailed {
+                        phase: EvaluationPhase::Disposition,
+                        error,
+                    })?
             {
                 continue;
             }
@@ -114,21 +126,34 @@ impl<D: crate::CandidateData, E, F, X, O, I: crate::MachineIds>
             ));
         };
 
-        let mut candidate = self.data.snapshot();
+        let mut candidate =
+            self.data
+                .try_snapshot()
+                .map_err(|error| DispatchError::EvaluationFailed {
+                    phase: EvaluationPhase::Snapshot,
+                    error,
+                })?;
         self.apply_transition_actions(transition, &mut candidate, event.payload(), facts)?;
-        if let Some(failed) = transition
-            .postconditions
-            .iter()
-            .find(|condition| !condition.evaluate(&candidate, event.payload(), facts))
-        {
-            return Err(DispatchError::PostconditionFailed {
-                condition: failed.id().clone(),
-            });
+        for condition in &transition.postconditions {
+            if !condition
+                .evaluate(&candidate, event.payload(), facts)
+                .map_err(|error| DispatchError::EvaluationFailed {
+                    phase: EvaluationPhase::Postcondition,
+                    error,
+                })?
+            {
+                return Err(DispatchError::PostconditionFailed {
+                    condition: condition.id().clone(),
+                });
+            }
         }
-        if self
-            .definition()
-            .state(&transition.to)
-            .is_some_and(|state| !state.accepts(&candidate))
+        if let Some(state) = self.definition().state(&transition.to)
+            && !state
+                .accepts(&candidate)
+                .map_err(|error| DispatchError::EvaluationFailed {
+                    phase: EvaluationPhase::Invariant,
+                    error,
+                })?
         {
             return Err(DispatchError::InvariantFailed {
                 state: transition.to.clone(),
@@ -138,18 +163,30 @@ impl<D: crate::CandidateData, E, F, X, O, I: crate::MachineIds>
             .revision
             .checked_add(1)
             .ok_or(DispatchError::RevisionExhausted)?;
-        let effects = self.construct_effects(transition, &candidate, event.payload(), facts);
+        let effects = self.construct_effects(transition, &candidate, event.payload(), facts)?;
         // bounded: transition construction caps output events at 16.
         let outputs = transition
             .output_events
             .iter()
             .map(|output_event| {
-                OutputEventIntent::new(
+                Ok(OutputEventIntent::new(
                     output_event.id.clone(),
-                    (output_event.construct)(&candidate, event.payload(), facts),
-                )
+                    (output_event.construct)(&candidate, event.payload(), facts).map_err(
+                        |error| DispatchError::EvaluationFailed {
+                            phase: EvaluationPhase::Output,
+                            error,
+                        },
+                    )?,
+                ))
             })
-            .collect();
+            .collect::<Result<Vec<_>, DispatchError<I>>>()?;
+        let candidate =
+            candidate
+                .prepare_accept()
+                .map_err(|error| DispatchError::EvaluationFailed {
+                    phase: EvaluationPhase::Snapshot,
+                    error,
+                })?;
         let record = TransitionRecord {
             transition: transition.id.clone(),
             from: self.state.clone(),
@@ -188,7 +225,7 @@ impl<D: crate::CandidateData, E, F, X, O, I: crate::MachineIds>
         candidate: &D,
         payload: &E,
         facts: &F,
-    ) -> Vec<EffectIntent<X, I>> {
+    ) -> Result<Vec<EffectIntent<X, I>>, DispatchError<I>> {
         let (exits, entries) = if transition.kind == TransitionKind::External {
             let source = self
                 .definition()
@@ -207,9 +244,16 @@ impl<D: crate::CandidateData, E, F, X, O, I: crate::MachineIds>
             .iter()
             .chain(&transition.effects)
             .chain(entries)
-            .map(|effect| EffectIntent {
-                id: effect.id.clone(),
-                payload: (effect.construct)(candidate, payload, facts),
+            .map(|effect| {
+                Ok(EffectIntent {
+                    id: effect.id.clone(),
+                    payload: (effect.construct)(candidate, payload, facts).map_err(|error| {
+                        DispatchError::EvaluationFailed {
+                            phase: EvaluationPhase::Effect,
+                            error,
+                        }
+                    })?,
+                })
             })
             .collect()
     }

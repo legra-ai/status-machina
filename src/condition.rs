@@ -5,7 +5,8 @@ use std::sync::Arc;
 const MAX_CONDITION_OPERANDS: usize = 16;
 pub(crate) const MAX_CONDITION_DEPTH: usize = 32;
 
-pub(crate) type Predicate<D, E, F> = Arc<dyn Fn(&D, &E, &F) -> bool + Send + Sync>;
+pub(crate) type Predicate<D, E, F> =
+    Arc<dyn Fn(&D, &E, &F) -> Result<bool, crate::EvaluationError> + Send + Sync>;
 
 /// Shape of a condition expression.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -98,16 +99,31 @@ impl<D, E, F, I: crate::MachineIds> Condition<D, E, F, I> {
         }
     }
 
-    pub(crate) fn evaluate(&self, data: &D, event: &E, facts: &F) -> bool {
+    pub(crate) fn evaluate(
+        &self,
+        data: &D,
+        event: &E,
+        facts: &F,
+    ) -> Result<bool, crate::EvaluationError> {
         match &self.body {
             ConditionBody::Predicate(predicate) => predicate(data, event, facts),
-            ConditionBody::All(children) => children
-                .iter()
-                .all(|child| child.evaluate(data, event, facts)),
-            ConditionBody::Any(children) => children
-                .iter()
-                .any(|child| child.evaluate(data, event, facts)),
-            ConditionBody::Not(child) => !child.evaluate(data, event, facts),
+            ConditionBody::All(children) => {
+                for child in children {
+                    if !child.evaluate(data, event, facts)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            ConditionBody::Any(children) => {
+                for child in children {
+                    if child.evaluate(data, event, facts)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            ConditionBody::Not(child) => Ok(!child.evaluate(data, event, facts)?),
         }
     }
 }
@@ -124,6 +140,18 @@ impl<D, E, F, I: crate::MachineIds> ConditionBuilder<D, E, F, I> {
     pub fn evaluate(
         mut self,
         predicate: impl Fn(&D, &E, &F) -> bool + Send + Sync + 'static,
+    ) -> Self {
+        self.predicate = Some(Arc::new(move |data, event, facts| {
+            Ok(predicate(data, event, facts))
+        }));
+        self
+    }
+
+    /// Bind a pure predicate that can return an application failure.
+    #[must_use]
+    pub fn try_evaluate(
+        mut self,
+        predicate: impl Fn(&D, &E, &F) -> Result<bool, crate::EvaluationError> + Send + Sync + 'static,
     ) -> Self {
         self.predicate = Some(Arc::new(predicate));
         self
