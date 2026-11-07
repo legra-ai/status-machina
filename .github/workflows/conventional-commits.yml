@@ -7,7 +7,6 @@ permissions:
 jobs:
   title:
     name: Conventional Commit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      # Trusted metadata-only action: never check out or execute PR code here.
-      - uses: legra-ai/github-actions/.github/actions/conventional-commit@main
+      - uses: legra-ai/github-actions/.github/actions/conventional-commit@3d81bf46b840ade0eb37eaeac5b216f0edb41ad9

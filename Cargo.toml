@@ -10,7 +10,7 @@ repository = "https://github.com/legra-ai/status-machina"
 documentation = "https://docs.rs/status-machina"
 readme = "README.md"
 build = "build.rs"
-include = ["Cargo.toml", "README.md", "build.rs", "LICENSE-APACHE", "LICENSE-MIT", "src/**/*.rs", "tests/**/*.rs", "examples/**/*.rs", "docs/**/*.md"]
+include = ["Cargo.toml", "README.md", "build.rs", "LICENSE-APACHE", "LICENSE-MIT", "src/**/*.rs", "tests/**", "examples/**/*.rs", "docs/**/*.md"]
 
 [dependencies]
 thiserror = "2"
@@ -29,4 +29,4 @@ broken_intra_doc_links = "deny"
 result_large_err = "allow"
 
 [build-dependencies]
-rhusky = "0.0.6"
+rhusky = "2.0.5"
