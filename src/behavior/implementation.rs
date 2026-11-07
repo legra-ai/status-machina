@@ -16,7 +16,8 @@ type CapabilityCallback<D, F, I> = Arc<
         + Send
         + Sync,
 >;
-type AssertionCallback<I> = Arc<dyn Fn(&ScenarioObservation<I>) -> bool + Send + Sync>;
+type AssertionCallback<I> =
+    Arc<dyn Fn(&ScenarioObservation<I>) -> Result<bool, crate::EvaluationError> + Send + Sync>;
 
 pub(super) enum Implementation<D, E, F, X, O, I: crate::MachineIds> {
     Action(crate::action::ActionOperation<D, E, F>),

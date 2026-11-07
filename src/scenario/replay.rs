@@ -58,19 +58,12 @@ impl ScenarioReplay {
         let mut intent_count = 0;
 
         for scenario in scenarios.scenarios {
-            let data = match initial_data.try_snapshot() {
-                Ok(data) => data,
-                Err(_) => {
-                    return Ok(BoundedScenarioReport {
-                        result: ScenarioResult::ExecutionFailed {
-                            scenario: scenario.id,
-                            step: 0,
-                            failure: ScenarioFailure::EvaluationFailed,
-                            steps: Vec::new(),
-                        },
-                    });
+            let data = initial_data.try_snapshot().map_err(|error| {
+                ScenarioReplayBuildError::EvaluationFailed {
+                    phase: crate::EvaluationPhase::Snapshot,
+                    error,
                 }
-            };
+            })?;
             let mut instance = match definition.instantiate(instance_id.clone(), data) {
                 Ok(instance) => instance,
                 Err(_) => {
@@ -104,6 +97,9 @@ impl ScenarioReplay {
                 nodes += 1;
                 let outcome = match instance.dispatch(event, &facts) {
                     Ok(outcome) => outcome,
+                    Err(crate::DispatchError::EvaluationFailed { phase, error }) => {
+                        return Err(ScenarioReplayBuildError::EvaluationFailed { phase, error });
+                    }
                     Err(error) => {
                         let observation = ScenarioObservation {
                             scenario: scenario.id,
@@ -115,12 +111,12 @@ impl ScenarioReplay {
                             output_events: Vec::new(),
                             effects: Vec::new(),
                         };
-                        return Ok(Self::dispatch_failure_report(
+                        return Self::dispatch_failure_report(
                             observation,
                             ScenarioFailure::from(&error),
                             trace,
                             &assertions,
-                        ));
+                        );
                     }
                 };
                 let emitted_count = match &outcome {
@@ -182,10 +178,7 @@ impl ScenarioReplay {
                     output_events,
                     effects,
                 };
-                let failed_assertion = assertions
-                    .iter()
-                    .find(|assertion| !(assertion.evaluate)(&observation))
-                    .map(|assertion| assertion.id.clone());
+                let failed_assertion = Self::failed_assertion(&assertions, &observation)?;
                 trace.push(observation);
                 if let Some(assertion) = failed_assertion {
                     return Ok(BoundedScenarioReport {
@@ -227,13 +220,10 @@ impl ScenarioReplay {
         failure: ScenarioFailure,
         mut trace: Vec<ScenarioObservation<I>>,
         assertions: &[ScenarioAssertion<I>],
-    ) -> BoundedScenarioReport<I> {
+    ) -> Result<BoundedScenarioReport<I>, ScenarioReplayBuildError> {
         let scenario = observation.scenario.clone();
         let step = observation.step;
-        let failed_assertion = assertions
-            .iter()
-            .find(|assertion| !(assertion.evaluate)(&observation))
-            .map(|assertion| assertion.id.clone());
+        let failed_assertion = Self::failed_assertion(assertions, &observation)?;
         trace.push(observation);
         let result = if let Some(assertion) = failed_assertion {
             ScenarioResult::Counterexample(CounterexampleTrace {
@@ -249,13 +239,39 @@ impl ScenarioReplay {
                 steps: trace,
             }
         };
-        BoundedScenarioReport { result }
+        Ok(BoundedScenarioReport { result })
+    }
+
+    fn failed_assertion<I: crate::MachineIds>(
+        assertions: &[ScenarioAssertion<I>],
+        observation: &ScenarioObservation<I>,
+    ) -> Result<Option<I::Assertion>, ScenarioReplayBuildError> {
+        for assertion in assertions {
+            if !(assertion.evaluate)(observation).map_err(|error| {
+                ScenarioReplayBuildError::EvaluationFailed {
+                    phase: crate::EvaluationPhase::Assertion,
+                    error,
+                }
+            })? {
+                return Ok(Some(assertion.id.clone()));
+            }
+        }
+        Ok(None)
     }
 }
 
 /// Invalid scenario replay configuration supplied to the runner.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ScenarioReplayBuildError {
+    /// Application code failed instead of returning a replay observation.
+    #[error("{phase:?} evaluation failed: {error}")]
+    EvaluationFailed {
+        /// Stage that raised the exception.
+        phase: crate::EvaluationPhase,
+        /// Original application exception.
+        #[source]
+        error: crate::EvaluationError,
+    },
     /// Caller supplied more named assertions than the bounded ceiling.
     #[error("scenario assertion limit {limit} exceeded")]
     AssertionLimitExceeded {

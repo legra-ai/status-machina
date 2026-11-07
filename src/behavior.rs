@@ -3,6 +3,7 @@ mod implementation;
 mod invariant;
 mod reference;
 mod register;
+mod register_fallible;
 mod registry;
 mod resolve;
 

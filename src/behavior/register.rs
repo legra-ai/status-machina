@@ -131,6 +131,9 @@ impl<D, E, F, X, O, I: crate::MachineIds> BehaviorRegistryBuilder<D, E, F, X, O,
         reference: BehaviorRef<I>,
         callback: impl Fn(&crate::ScenarioObservation<I>) -> bool + Send + Sync + 'static,
     ) -> Result<Self, BindingError<I>> {
-        self.insert(reference, Implementation::Assertion(Arc::new(callback)))
+        self.insert(
+            reference,
+            Implementation::Assertion(Arc::new(move |observation| Ok(callback(observation)))),
+        )
     }
 }
