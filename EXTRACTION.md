@@ -1,15 +1,31 @@
-# Extraction candidate
+# Extraction and release provenance
 
-This is a standalone candidate for `legra-ai/status-machina`, version `0.1.0`, under MIT OR Apache-2.0, following the Tasktree maintenance and release template. Version 0.1.0 is a proposed initial package version, not a published release.
+Status Machina is published as `status-machina` 0.1.0 under MIT OR Apache-2.0.
+The [initial release](https://github.com/legra-ai/status-machina/releases/tag/v0.1.0)
+and [crates.io archive](https://crates.io/crates/status-machina/0.1.0) identify
+source commit `5d96cd8950f6073fde67605cf485581d8c5c8114`.
 
-Only generic kernel code, generic integration tests, neutral execution/retry examples and public documentation are included. No private repository history is copied. Product-derived startup graph snapshots and private source links are excluded. Existing copyright ownership is retained in the license files.
+Release run `42418090373` passed the shared Linux, macOS and Windows checkout and
+archive checks before publication. The downloaded registry archive's
+`.cargo_vcs_info.json` matches that source; its SHA-256 is
+`bbb8f995b688f4219372c4f7d8740643014e4d13b821d77a2f39aa21205a46ad`.
 
-The Rust kernel depends only on thiserror and uuid. The repository-only hook installer follows Tasktree. Python and Node bindings are assessed in docs/bindings-design.md and require a separate API and package verification slice.
+The owner explicitly authorized replacing the unpublished initial draft/tag
+before that release. Subsequent published tags and archives remain immutable.
 
-Repository configuration target: squash-only merges; delete merged branches; issues enabled; wiki/projects disabled; inherited signed commits; required prepare/test/Conventional Commit checks; owner review; daily dependency/security updates. The workflow template uses the shared release actions and tests the packaged archive. No credentials, repository visibility changes or publication are implied by this local configuration.
+Only generic kernel code, tests, neutral execution/retry examples and public
+documentation ship. Private product topology, private source links and private
+Git history are excluded. Copyright ownership is retained in the license files.
+The kernel's runtime dependencies are thiserror and uuid; rhusky installs hooks
+only for this repository's build context.
 
-Before public publication, verify repository settings and release writer identity, review the complete public file tree, confirm package availability, obtain owner approval for publication and verify the exact published archive. Legra adoption and deletion of its in-tree implementation follow verification of the external package.
+The repository uses Tasktree's pinned shared maintenance/release pipeline,
+App identities, required checks/review, signed commits and daily updates.
+Every release tests and publishes the exact revision returned by release
+preparation, including recovery of an interrupted release at its existing tag.
+Temporary bootstrap exceptions are closed.
 
-Private extraction CI uses read-only release planning and validates the triggering source revision. Release activation must install the authorized release writer and switch validation/publication to its returned exact revision; existing draft tags must remain immutable.
-
-Release activation uses the pinned shared cargo-maintenance workflow and release-writer App, as in the current Tasktree reference. PR validation is allowed while private; main activation requires public visibility. The initial draft/tag must resume unchanged before later releases.
+Consumers adopt the versioned registry package without a local implementation
+or path alias. Native Python/Node bindings are a separate deliverable described
+in [the binding design](docs/bindings-design.md); neither binding is implemented
+or published by this Rust release.
