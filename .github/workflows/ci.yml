@@ -30,6 +30,8 @@ jobs:
           fetch-depth: 0
       - uses: legra-ai/github-actions/.github/actions/prepare-cargo-release@main
         id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   test:
     needs: prepare
