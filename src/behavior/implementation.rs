@@ -7,8 +7,15 @@ use crate::{
     ScenarioObservation,
 };
 
-type CapabilityCallback<D, F, I> =
-    Arc<dyn Fn(&<I as crate::MachineIds>::State, &D, &F) -> CapabilityStatus + Send + Sync>;
+type CapabilityCallback<D, F, I> = Arc<
+    dyn Fn(
+            &<I as crate::MachineIds>::State,
+            &D,
+            &F,
+        ) -> Result<CapabilityStatus, crate::EvaluationError>
+        + Send
+        + Sync,
+>;
 type AssertionCallback<I> = Arc<dyn Fn(&ScenarioObservation<I>) -> bool + Send + Sync>;
 
 pub(super) enum Implementation<D, E, F, X, O, I: crate::MachineIds> {

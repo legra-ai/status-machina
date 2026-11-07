@@ -173,7 +173,7 @@ fn available_capabilities(
     let instance = definition
         .instantiate(destination.instance_id(), ())
         .unwrap();
-    let report = instance.evaluate_capability(&capability, &Facts);
+    let report = instance.evaluate_capability(&capability, &Facts).unwrap();
 
     CapabilitySnapshot::builder()
         .current_revision(destination.clone(), revision)

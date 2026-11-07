@@ -1,7 +1,12 @@
 use std::sync::Arc;
 
 pub(crate) type ActionOperation<D, E, F> =
-    Arc<dyn Fn(&mut D, &E, &F) -> Result<(), String> + Send + Sync>;
+    Arc<dyn Fn(&mut D, &E, &F) -> Result<(), ActionFailure> + Send + Sync>;
+
+pub(crate) enum ActionFailure {
+    Rejected(String),
+    Raised(crate::EvaluationError),
+}
 
 /// One named, caller-bound pure action on candidate machine data.
 ///
@@ -68,7 +73,21 @@ impl<D, E, F, I: crate::MachineIds> LocalActionBuilder<D, E, F, I> {
         mut self,
         apply: impl Fn(&mut D, &E, &F) -> Result<(), String> + Send + Sync + 'static,
     ) -> Self {
-        self.apply = Some(Arc::new(apply));
+        self.apply = Some(Arc::new(move |data, event, facts| {
+            apply(data, event, facts).map_err(ActionFailure::Rejected)
+        }));
+        self
+    }
+
+    /// Bind a candidate action that can raise an application exception.
+    #[must_use]
+    pub fn try_apply(
+        mut self,
+        apply: impl Fn(&mut D, &E, &F) -> Result<(), crate::EvaluationError> + Send + Sync + 'static,
+    ) -> Self {
+        self.apply = Some(Arc::new(move |data, event, facts| {
+            apply(data, event, facts).map_err(ActionFailure::Raised)
+        }));
         self
     }
 

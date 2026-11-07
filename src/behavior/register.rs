@@ -19,7 +19,12 @@ impl<D, E, F, X, O, I: crate::MachineIds> BehaviorRegistryBuilder<D, E, F, X, O,
         reference: BehaviorRef<I>,
         callback: impl Fn(&mut D, &E, &F) -> Result<(), String> + Send + Sync + 'static,
     ) -> Result<Self, BindingError<I>> {
-        self.insert(reference, Implementation::Action(Arc::new(callback)))
+        self.insert(
+            reference,
+            Implementation::Action(Arc::new(move |data, event, facts| {
+                callback(data, event, facts).map_err(crate::action::ActionFailure::Rejected)
+            })),
+        )
     }
 
     /// Register a trusted condition implementation under typed
@@ -107,7 +112,12 @@ impl<D, E, F, X, O, I: crate::MachineIds> BehaviorRegistryBuilder<D, E, F, X, O,
         reference: BehaviorRef<I>,
         callback: impl Fn(&I::State, &D, &F) -> crate::CapabilityStatus + Send + Sync + 'static,
     ) -> Result<Self, BindingError<I>> {
-        self.insert(reference, Implementation::Capability(Arc::new(callback)))
+        self.insert(
+            reference,
+            Implementation::Capability(Arc::new(move |state, data, facts| {
+                Ok(callback(state, data, facts))
+            })),
+        )
     }
 
     /// Register a trusted assertion implementation under typed

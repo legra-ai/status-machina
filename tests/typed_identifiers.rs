@@ -165,7 +165,7 @@ fn typed_ids_survive_capability_checks_and_owned_routing() {
         .unwrap()
         .report(
             destination_address.clone(),
-            destination.evaluate_capability(&capability, &()),
+            destination.evaluate_capability(&capability, &()).unwrap(),
         )
         .unwrap()
         .build();

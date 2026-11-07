@@ -112,7 +112,7 @@ fn availability_and_publication_never_replace_fresh_authority() {
                 current: 7,
             };
             let mut instance = definition.instantiate(1, 0).unwrap();
-            let report = instance.evaluate_capability(&capability, &facts);
+            let report = instance.evaluate_capability(&capability, &facts).unwrap();
             let expected = if !facts.fresh() {
                 CapabilityStatus::Unknown
             } else if available && published {

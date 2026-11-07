@@ -291,8 +291,15 @@ impl<D: crate::FallibleCandidateData, E, F, X, O, I: crate::MachineIds>
         facts: &F,
     ) -> Result<(), DispatchError<I>> {
         for action in actions {
-            (action.apply)(candidate, payload, facts)
-                .map_err(|message| DispatchError::ActionFailed { message })?;
+            (action.apply)(candidate, payload, facts).map_err(|failure| match failure {
+                crate::action::ActionFailure::Rejected(message) => {
+                    DispatchError::ActionFailed { message }
+                }
+                crate::action::ActionFailure::Raised(error) => DispatchError::EvaluationFailed {
+                    phase: EvaluationPhase::Action,
+                    error,
+                },
+            })?;
         }
         Ok(())
     }

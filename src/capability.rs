@@ -2,8 +2,15 @@ use std::sync::Arc;
 
 use crate::MachineInstance;
 
-type CapabilityEvaluator<D, F, I = crate::DefaultIds> =
-    Arc<dyn Fn(&<I as crate::MachineIds>::State, &D, &F) -> CapabilityStatus + Send + Sync>;
+type CapabilityEvaluator<D, F, I = crate::DefaultIds> = Arc<
+    dyn Fn(
+            &<I as crate::MachineIds>::State,
+            &D,
+            &F,
+        ) -> Result<CapabilityStatus, crate::EvaluationError>
+        + Send
+        + Sync,
+>;
 
 /// Advisory result of a named capability policy.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -61,6 +68,21 @@ impl<D, F, I: crate::MachineIds> CapabilityBuilder<D, F, I> {
     pub fn evaluate(
         mut self,
         evaluate: impl Fn(&I::State, &D, &F) -> CapabilityStatus + Send + Sync + 'static,
+    ) -> Self {
+        self.evaluate = Some(Arc::new(move |state, data, facts| {
+            Ok(evaluate(state, data, facts))
+        }));
+        self
+    }
+
+    /// Bind an advisory policy that can report an application failure.
+    #[must_use]
+    pub fn try_evaluate(
+        mut self,
+        evaluate: impl Fn(&I::State, &D, &F) -> Result<CapabilityStatus, crate::EvaluationError>
+        + Send
+        + Sync
+        + 'static,
     ) -> Self {
         self.evaluate = Some(Arc::new(evaluate));
         self
@@ -132,17 +154,20 @@ where
 {
     /// Evaluate one named capability against this instance's state and
     /// revision.
-    #[must_use]
+    ///
+    /// # Errors
+    /// Returns an application failure rather than an advisory status when the
+    /// evaluator raises an exception.
     pub fn evaluate_capability(
         &self,
         capability: &Capability<D, F, I>,
         facts: &F,
-    ) -> CapabilityReport<I> {
-        CapabilityReport {
+    ) -> Result<CapabilityReport<I>, crate::EvaluationError> {
+        Ok(CapabilityReport {
             capability: capability.id.clone(),
             instance: self.instance_id(),
             revision: self.revision(),
-            status: (capability.evaluate)(self.state(), self.data(), facts),
-        }
+            status: (capability.evaluate)(self.state(), self.data(), facts)?,
+        })
     }
 }
