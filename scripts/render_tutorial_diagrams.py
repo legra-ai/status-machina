@@ -14,7 +14,7 @@ OUTPUT = ROOT / "docs/tutorials"
 
 def graphviz(mermaid: str) -> str:
     """Translate the canonical state-diagram subset; refuse unsupported syntax."""
-    result = ['digraph tutorial {', 'rankdir=LR;', 'bgcolor="transparent";',
+    result = ['digraph tutorial {', 'rankdir=LR;', 'bgcolor="#ffffff";',
               'graph [fontname="sans-serif", nodesep=0.5, ranksep=0.8];',
               'node [fontname="sans-serif", shape=box, style="rounded,filled", fillcolor="#eff6ff", color="#2563eb", fontcolor="#172554", margin="0.16,0.1"];',
               'edge [fontname="sans-serif", fontsize=10, color="#475569", fontcolor="#334155"];']
@@ -50,6 +50,8 @@ def render(name: str, title: str, source: str) -> str:
     svg = subprocess.run(["dot", "-Tsvg"], input=graphviz(source), text=True,
                          check=True, capture_output=True).stdout
     svg = svg[svg.index("<svg "):]
+    svg = re.sub(r"<svg\b[^>]*>", lambda match: " ".join(match[0].split()), svg, count=1)
+    svg = re.sub(r"<(path|polygon|ellipse)(\s[^>]*?)/>", r"<\1\2></\1>", svg)
     svg = re.sub(r'<svg width="[^"]+" height="[^"]+"',
                  f'<svg width="100%" style="max-width: 72rem; height: auto" role="img" aria-labelledby="{name}-title {name}-description"', svg, count=1)
     # IDs must stay distinct when both images are inlined into one Rustdoc page.

@@ -122,7 +122,7 @@ These Mermaid blocks are generated from validated Rust machine definitions.\n\
 GitHub renders them directly when viewing this Markdown file.\n\n\
 Regenerate from the repository root:\n\n\
 ```sh\n\
-cargo run --quiet --package status-machina --example diagrams > crates/status-machina/docs/diagrams.md\n\
+cargo run --quiet --example diagrams > docs/diagrams.md\n\
 ```\n\n\
 The `generated_diagrams` test checks this file against the generator.\n\
 [Generator source](../examples/diagrams/model.rs) uses the convenience identity\n\

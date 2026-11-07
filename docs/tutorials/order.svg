@@ -1,5 +1,4 @@
-<svg width="100%" style="max-width: 72rem; height: auto" role="img" aria-labelledby="order-title order-description"
- viewBox="0.00 0.00 787.00 116.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg width="100%" style="max-width: 72rem; height: auto" role="img" aria-labelledby="order-title order-description" viewBox="0.00 0.00 787.00 116.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <title id="order-title">Guarded order</title>
 <desc id="order-description">Generated from the validated executable definition. Arrows name transitions, events and any guards; filled points mark entry and terminal states.</desc>
 <metadata id="order-source">stateDiagram-v2
@@ -17,85 +16,86 @@
 
 <g id="order-graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 112)">
 <title>tutorial</title>
+<polygon fill="#ffffff" stroke="none" points="-4,4 -4,-112 782.67,-112 782.67,4 -4,4"></polygon>
 <!-- s0 -->
 <g id="order-node1" class="node">
 <title>s0</title>
-<path fill="#eff6ff" stroke="#2563eb" d="M108.2,-72C108.2,-72 78.2,-72 78.2,-72 72.2,-72 66.2,-66 66.2,-60 66.2,-60 66.2,-48 66.2,-48 66.2,-42 72.2,-36 78.2,-36 78.2,-36 108.2,-36 108.2,-36 114.2,-36 120.2,-42 120.2,-48 120.2,-48 120.2,-60 120.2,-60 120.2,-66 114.2,-72 108.2,-72"/>
+<path fill="#eff6ff" stroke="#2563eb" d="M108.2,-72C108.2,-72 78.2,-72 78.2,-72 72.2,-72 66.2,-66 66.2,-60 66.2,-60 66.2,-48 66.2,-48 66.2,-42 72.2,-36 78.2,-36 78.2,-36 108.2,-36 108.2,-36 114.2,-36 120.2,-42 120.2,-48 120.2,-48 120.2,-60 120.2,-60 120.2,-66 114.2,-72 108.2,-72"></path>
 <text xml:space="preserve" text-anchor="middle" x="93.2" y="-48.2" font-family="sans-serif" font-size="14.00" fill="#172554">Draft</text>
 </g>
 <!-- s1 -->
 <g id="order-node2" class="node">
 <title>s1</title>
-<path fill="#eff6ff" stroke="#2563eb" d="M467.12,-108C467.12,-108 411.83,-108 411.83,-108 405.83,-108 399.83,-102 399.83,-96 399.83,-96 399.83,-84 399.83,-84 399.83,-78 405.83,-72 411.83,-72 411.83,-72 467.12,-72 467.12,-72 473.12,-72 479.12,-78 479.12,-84 479.12,-84 479.12,-96 479.12,-96 479.12,-102 473.12,-108 467.12,-108"/>
+<path fill="#eff6ff" stroke="#2563eb" d="M467.12,-108C467.12,-108 411.83,-108 411.83,-108 405.83,-108 399.83,-102 399.83,-96 399.83,-96 399.83,-84 399.83,-84 399.83,-78 405.83,-72 411.83,-72 411.83,-72 467.12,-72 467.12,-72 473.12,-72 479.12,-78 479.12,-84 479.12,-84 479.12,-96 479.12,-96 479.12,-102 473.12,-108 467.12,-108"></path>
 <text xml:space="preserve" text-anchor="middle" x="439.47" y="-84.2" font-family="sans-serif" font-size="14.00" fill="#172554">Accepted</text>
 </g>
 <!-- s0&#45;&gt;s1 -->
 <g id="order-edge4" class="edge">
 <title>s0&#45;&gt;s1</title>
-<path fill="none" stroke="#475569" d="M120.64,-56.77C177.88,-62.75 314.08,-76.99 388.24,-84.75"/>
-<polygon fill="#475569" stroke="#475569" points="387.78,-88.22 398.09,-85.78 388.51,-81.26 387.78,-88.22"/>
+<path fill="none" stroke="#475569" d="M120.64,-56.77C177.88,-62.75 314.08,-76.99 388.24,-84.75"></path>
+<polygon fill="#475569" stroke="#475569" points="387.78,-88.22 398.09,-85.78 388.51,-81.26 387.78,-88.22"></polygon>
 <text xml:space="preserve" text-anchor="middle" x="259.08" y="-83.97" font-family="sans-serif" font-size="10.00" fill="#334155">Submit / Submit [guard: Stock available] (external)</text>
 </g>
 <!-- s3 -->
 <g id="order-node5" class="node">
 <title>s3</title>
-<path fill="#eff6ff" stroke="#2563eb" d="M468.99,-36C468.99,-36 409.95,-36 409.95,-36 403.95,-36 397.95,-30 397.95,-24 397.95,-24 397.95,-12 397.95,-12 397.95,-6 403.95,0 409.95,0 409.95,0 468.99,0 468.99,0 474.99,0 480.99,-6 480.99,-12 480.99,-12 480.99,-24 480.99,-24 480.99,-30 474.99,-36 468.99,-36"/>
+<path fill="#eff6ff" stroke="#2563eb" d="M468.99,-36C468.99,-36 409.95,-36 409.95,-36 403.95,-36 397.95,-30 397.95,-24 397.95,-24 397.95,-12 397.95,-12 397.95,-6 403.95,0 409.95,0 409.95,0 468.99,0 468.99,0 474.99,0 480.99,-6 480.99,-12 480.99,-12 480.99,-24 480.99,-24 480.99,-30 474.99,-36 468.99,-36"></path>
 <text xml:space="preserve" text-anchor="middle" x="439.47" y="-12.2" font-family="sans-serif" font-size="14.00" fill="#172554">Cancelled</text>
 </g>
 <!-- s0&#45;&gt;s3 -->
 <g id="order-edge6" class="edge">
 <title>s0&#45;&gt;s3</title>
-<path fill="none" stroke="#475569" d="M120.57,-46.15C129.58,-43.74 139.76,-41.31 149.2,-39.75 231.24,-26.15 327.8,-21.05 386.01,-19.14"/>
-<polygon fill="#475569" stroke="#475569" points="386.08,-22.63 395.96,-18.83 385.86,-15.64 386.08,-22.63"/>
+<path fill="none" stroke="#475569" d="M120.57,-46.15C129.58,-43.74 139.76,-41.31 149.2,-39.75 231.24,-26.15 327.8,-21.05 386.01,-19.14"></path>
+<polygon fill="#475569" stroke="#475569" points="386.08,-22.63 395.96,-18.83 385.86,-15.64 386.08,-22.63"></polygon>
 <text xml:space="preserve" text-anchor="middle" x="259.08" y="-41.5" font-family="sans-serif" font-size="10.00" fill="#334155">Cancel / Cancel (external)</text>
 </g>
 <!-- s2 -->
 <g id="order-node3" class="node">
 <title>s2</title>
-<path fill="#eff6ff" stroke="#2563eb" d="M691.03,-108C691.03,-108 642.49,-108 642.49,-108 636.49,-108 630.49,-102 630.49,-96 630.49,-96 630.49,-84 630.49,-84 630.49,-78 636.49,-72 642.49,-72 642.49,-72 691.03,-72 691.03,-72 697.03,-72 703.03,-78 703.03,-84 703.03,-84 703.03,-96 703.03,-96 703.03,-102 697.03,-108 691.03,-108"/>
+<path fill="#eff6ff" stroke="#2563eb" d="M691.03,-108C691.03,-108 642.49,-108 642.49,-108 636.49,-108 630.49,-102 630.49,-96 630.49,-96 630.49,-84 630.49,-84 630.49,-78 636.49,-72 642.49,-72 642.49,-72 691.03,-72 691.03,-72 697.03,-72 703.03,-78 703.03,-84 703.03,-84 703.03,-96 703.03,-96 703.03,-102 697.03,-108 691.03,-108"></path>
 <text xml:space="preserve" text-anchor="middle" x="666.76" y="-84.2" font-family="sans-serif" font-size="14.00" fill="#172554">Shipped</text>
 </g>
 <!-- s1&#45;&gt;s2 -->
 <g id="order-edge5" class="edge">
 <title>s1&#45;&gt;s2</title>
-<path fill="none" stroke="#475569" d="M479.46,-90C518.17,-90 577.55,-90 618.82,-90"/>
-<polygon fill="#475569" stroke="#475569" points="618.7,-93.5 628.7,-90 618.7,-86.5 618.7,-93.5"/>
+<path fill="none" stroke="#475569" d="M479.46,-90C518.17,-90 577.55,-90 618.82,-90"></path>
+<polygon fill="#475569" stroke="#475569" points="618.7,-93.5 628.7,-90 618.7,-86.5 618.7,-93.5"></polygon>
 <text xml:space="preserve" text-anchor="middle" x="555.74" y="-91.75" font-family="sans-serif" font-size="10.00" fill="#334155">Ship / Ship (external)</text>
 </g>
 <!-- end_s2 -->
 <g id="order-node4" class="node">
 <title>end_s2</title>
-<ellipse fill="#475569" stroke="#2563eb" cx="770.35" cy="-90" rx="4.32" ry="4.32"/>
-<ellipse fill="none" stroke="#2563eb" cx="770.35" cy="-90" rx="8.32" ry="8.32"/>
+<ellipse fill="#475569" stroke="#2563eb" cx="770.35" cy="-90" rx="4.32" ry="4.32"></ellipse>
+<ellipse fill="none" stroke="#2563eb" cx="770.35" cy="-90" rx="8.32" ry="8.32"></ellipse>
 </g>
 <!-- s2&#45;&gt;end_s2 -->
 <g id="order-edge1" class="edge">
 <title>s2&#45;&gt;end_s2</title>
-<path fill="none" stroke="#475569" d="M703.29,-90C719.08,-90 737.05,-90 750.25,-90"/>
-<polygon fill="#475569" stroke="#475569" points="750.1,-93.5 760.1,-90 750.1,-86.5 750.1,-93.5"/>
+<path fill="none" stroke="#475569" d="M703.29,-90C719.08,-90 737.05,-90 750.25,-90"></path>
+<polygon fill="#475569" stroke="#475569" points="750.1,-93.5 760.1,-90 750.1,-86.5 750.1,-93.5"></polygon>
 </g>
 <!-- end_s3 -->
 <g id="order-node6" class="node">
 <title>end_s3</title>
-<ellipse fill="#475569" stroke="#2563eb" cx="666.76" cy="-18" rx="4.32" ry="4.32"/>
-<ellipse fill="none" stroke="#2563eb" cx="666.76" cy="-18" rx="8.32" ry="8.32"/>
+<ellipse fill="#475569" stroke="#2563eb" cx="666.76" cy="-18" rx="4.32" ry="4.32"></ellipse>
+<ellipse fill="none" stroke="#2563eb" cx="666.76" cy="-18" rx="8.32" ry="8.32"></ellipse>
 </g>
 <!-- s3&#45;&gt;end_s3 -->
 <g id="order-edge2" class="edge">
 <title>s3&#45;&gt;end_s3</title>
-<path fill="none" stroke="#475569" d="M481.27,-18C530.28,-18 610.44,-18 646.78,-18"/>
-<polygon fill="#475569" stroke="#475569" points="646.54,-21.5 656.54,-18 646.54,-14.5 646.54,-21.5"/>
+<path fill="none" stroke="#475569" d="M481.27,-18C530.28,-18 610.44,-18 646.78,-18"></path>
+<polygon fill="#475569" stroke="#475569" points="646.54,-21.5 656.54,-18 646.54,-14.5 646.54,-21.5"></polygon>
 </g>
 <!-- start -->
 <g id="order-node7" class="node">
 <title>start</title>
-<ellipse fill="#eff6ff" stroke="#475569" cx="3.6" cy="-54" rx="3.6" ry="3.6"/>
+<ellipse fill="#eff6ff" stroke="#475569" cx="3.6" cy="-54" rx="3.6" ry="3.6"></ellipse>
 </g>
 <!-- start&#45;&gt;s0 -->
 <g id="order-edge3" class="edge">
 <title>start&#45;&gt;s0</title>
-<path fill="none" stroke="#475569" d="M7.51,-54C14.99,-54 35.59,-54 54.6,-54"/>
-<polygon fill="#475569" stroke="#475569" points="54.58,-57.5 64.58,-54 54.58,-50.5 54.58,-57.5"/>
+<path fill="none" stroke="#475569" d="M7.51,-54C14.99,-54 35.59,-54 54.6,-54"></path>
+<polygon fill="#475569" stroke="#475569" points="54.58,-57.5 64.58,-54 54.58,-50.5 54.58,-57.5"></polygon>
 </g>
 </g>
 </svg>

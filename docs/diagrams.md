@@ -6,7 +6,7 @@ GitHub renders them directly when viewing this Markdown file.
 Regenerate from the repository root:
 
 ```sh
-cargo run --quiet --package status-machina --example diagrams > crates/status-machina/docs/diagrams.md
+cargo run --quiet --example diagrams > docs/diagrams.md
 ```
 
 The `generated_diagrams` test checks this file against the generator.
