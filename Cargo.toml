@@ -1,13 +1,13 @@
 [package]
-name = "state-machine"
+name = "status-machina"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.99.1"
 authors = ["Jacobus Geluk <jacobus.geluk@dataroad.com>"]
 description = "Typed caller-driven state machines with checked composition and bounded inspection"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/legra-ai/state-machine"
-documentation = "https://docs.rs/state-machine"
+repository = "https://github.com/legra-ai/status-machina"
+documentation = "https://docs.rs/status-machina"
 readme = "README.md"
 build = "build.rs"
 include = ["Cargo.toml", "README.md", "build.rs", "LICENSE-APACHE", "LICENSE-MIT", "src/**/*.rs", "tests/**/*.rs", "examples/**/*.rs", "docs/**/*.md"]

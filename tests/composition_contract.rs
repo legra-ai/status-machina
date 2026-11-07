@@ -5,7 +5,7 @@ use std::sync::{
 };
 use std::thread;
 
-use state_machine::{
+use status_machina::{
     Capability,
     CapabilityStatus,
     Condition,

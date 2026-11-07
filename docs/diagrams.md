@@ -1,4 +1,4 @@
-# Generated state-machine diagrams
+# Generated status-machina diagrams
 
 These Mermaid blocks are generated from validated Rust machine definitions.
 GitHub renders them directly when viewing this Markdown file.
@@ -6,7 +6,7 @@ GitHub renders them directly when viewing this Markdown file.
 Regenerate from the repository root:
 
 ```sh
-cargo run --quiet --package state-machine --example diagrams > crates/state-machine/docs/diagrams.md
+cargo run --quiet --package status-machina --example diagrams > crates/status-machina/docs/diagrams.md
 ```
 
 The `generated_diagrams` test checks this file against the generator.

@@ -1,5 +1,5 @@
 //! STM-02 public construction and structural error contracts.
-use state_machine::{
+use status_machina::{
     Condition,
     ConditionId,
     DefinitionBuildError,

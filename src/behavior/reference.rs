@@ -41,7 +41,7 @@ impl ImplementationId {
 /// Story and implementation identity roles cannot be interchanged:
 ///
 /// ```compile_fail
-/// use state_machine::{BehaviorId, BehaviorRef, DefaultIds, ImplementationId};
+/// use status_machina::{BehaviorId, BehaviorRef, DefaultIds, ImplementationId};
 /// let reference = BehaviorRef::<DefaultIds>::new(ImplementationId::new(1), BehaviorId::new(1));
 /// ```
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

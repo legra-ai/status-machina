@@ -10,9 +10,16 @@ Users must not need Rust knowledge. Python exposes native Enum classes, typed da
 
 Construction, inspection, errors, return values and callback contracts must follow each language's conventions. Validate wheel/npm installation and complete examples without a Rust toolchain. The native interface is a product API, not a mechanical translation of Rust generic parameters or Result values.
 
-## Package-name checks (2026-11-06)
+## Selected package names
 
-Rust index `state-machine` returned 404. PyPI `state-machine` resolves to existing `state_machine` 0.2.10; npm `state-machine` exists at 1.0.4. PyPI and npm `state-machine-core` returned 404, as did npm `@legra-ai/state-machine`. PyPI `typed-state-machine` returned 404 but npm's name exists. These observations are not reservations or publishing authorization. Native package names remain an owner decision.
+The owner selected Status Machina on 2026-11-07:
+
+- Rust crate: `status-machina`; Rust import: `status_machina`.
+- Python distribution: `status-machina`; Python import: `status_machina`.
+- npm package: `@legra-ai/status-machina`.
+- Repository: `legra-ai/status-machina`.
+
+The unscoped npm name `status-machina` is occupied by an existing state-machine package. Scoped npm naming avoids that collision. Rust/PyPI and the scoped npm name had no registry entries when checked; these checks do not reserve names or constitute publication.
 
 ## Identity
 

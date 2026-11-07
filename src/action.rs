@@ -8,7 +8,7 @@ pub(crate) type ActionOperation<D, E, F> =
 /// An action with a different input payload type cannot be attached to an edge:
 ///
 /// ```compile_fail
-/// use state_machine::{ActionId, LocalAction, Transition, TransitionId};
+/// use status_machina::{ActionId, LocalAction, Transition, TransitionId};
 /// let action = LocalAction::<u64, u32, ()>::builder(ActionId::try_new("add").unwrap())
 ///     .apply(|data, event, _| { *data += u64::from(*event); Ok(()) }).build().unwrap();
 /// Transition::<u64, (), ()>::builder(TransitionId::try_new("tick").unwrap()).action(action);

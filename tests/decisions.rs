@@ -1,6 +1,6 @@
 //! Evaluation produces an owned decision; only checked acceptance changes an
 //! instance.
-use state_machine::{
+use status_machina::{
     ActionId,
     DispatchError,
     DispatchOutcome,

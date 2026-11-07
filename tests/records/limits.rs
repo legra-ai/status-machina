@@ -1,4 +1,4 @@
-use state_machine::{
+use status_machina::{
     ConditionBuildError,
     DispositionBuildError,
     DispositionRecord,

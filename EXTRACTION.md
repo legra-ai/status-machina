@@ -1,6 +1,6 @@
 # Extraction candidate
 
-This is a standalone candidate for `legra-ai/state-machine`, version `0.1.0`, under MIT OR Apache-2.0, following the Tasktree maintenance and release template. Version 0.1.0 is a proposed initial package version, not a published release.
+This is a standalone candidate for `legra-ai/status-machina`, version `0.1.0`, under MIT OR Apache-2.0, following the Tasktree maintenance and release template. Version 0.1.0 is a proposed initial package version, not a published release.
 
 Only generic kernel code, generic integration tests, neutral execution/retry examples and public documentation are included. No private repository history is copied. Product-derived startup graph snapshots and private source links are excluded. Existing copyright ownership is retained in the license files.
 

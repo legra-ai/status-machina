@@ -4,7 +4,7 @@ use std::sync::atomic::{
     Ordering,
 };
 
-use state_machine::{
+use status_machina::{
     ActionId,
     Effect,
     EffectId,

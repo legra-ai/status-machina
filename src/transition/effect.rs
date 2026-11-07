@@ -7,7 +7,7 @@ pub(crate) type EffectConstructor<D, E, F, X> = Arc<dyn Fn(&D, &E, &F) -> X + Se
 /// The effect payload must match the transition's declared output type:
 ///
 /// ```compile_fail
-/// use state_machine::{Effect, EffectId, Transition, TransitionId};
+/// use status_machina::{Effect, EffectId, Transition, TransitionId};
 /// let effect = Effect::<u64, (), (), u16>::builder(EffectId::try_new("request").unwrap())
 ///     .describe(|_, _, _| 1_u16).build().unwrap();
 /// Transition::<u64, (), (), u8>::builder_with_effects(TransitionId::try_new("tick").unwrap())

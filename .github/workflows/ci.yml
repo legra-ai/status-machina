@@ -92,7 +92,7 @@ jobs:
           draft: true
       - uses: legra-ai/github-actions/.github/actions/publish-tested-crate@main
         with:
-          crate: state-machine
+          crate: status-machina
           version: ${{ needs.prepare.outputs.version }}
           revision: ${{ needs.prepare.outputs.revision }}
         env:

@@ -1,7 +1,7 @@
 //! STM-01 behavior at the public, synchronous boundary.
 use std::sync::Arc;
 
-use state_machine::{
+use status_machina::{
     ActionId,
     Condition,
     ConditionId,

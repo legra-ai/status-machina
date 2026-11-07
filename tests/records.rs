@@ -1,5 +1,5 @@
 //! Neutral graph records bind through the same builders as native definitions.
-use state_machine::{
+use status_machina::{
     BehaviorRef,
     BehaviorRegistry,
     BehaviorUse,

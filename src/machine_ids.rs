@@ -22,7 +22,7 @@ impl<T: Clone + Debug + Eq + Hash> Identity for T {}
 /// Enums need no display, ordering or serialization implementation:
 ///
 /// ```rust
-/// use state_machine::{
+/// use status_machina::{
 ///     Event,
 ///     MachineDefinition,
 ///     MachineIds,
@@ -89,7 +89,7 @@ impl<T: Clone + Debug + Eq + Hash> Identity for T {}
 /// The compiler rejects using an event kind as a state:
 ///
 /// ```compile_fail,E0308
-/// # use state_machine::{Event, MachineDefinition, MachineIds, StateDefinition, Transition};
+/// # use status_machina::{Event, MachineDefinition, MachineIds, StateDefinition, Transition};
 /// # #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 /// # struct OrderIds;
 /// # #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -122,7 +122,7 @@ impl<T: Clone + Debug + Eq + Hash> Identity for T {}
 /// An instance identity cannot stand in for an event kind:
 ///
 /// ```compile_fail,E0308
-/// # use state_machine::{Event, MachineDefinition, MachineIds, StateDefinition, Transition};
+/// # use status_machina::{Event, MachineDefinition, MachineIds, StateDefinition, Transition};
 /// # #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 /// # struct OrderIds;
 /// # #[derive(Clone, Debug, Eq, Hash, PartialEq)]

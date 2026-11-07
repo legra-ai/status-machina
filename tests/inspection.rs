@@ -1,6 +1,6 @@
 //! Definition inspection must describe structure without executing behavior.
 
-use state_machine::{
+use status_machina::{
     Condition,
     ConditionId,
     DispositionId,

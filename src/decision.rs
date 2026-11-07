@@ -18,7 +18,7 @@ use crate::{
 /// A decision cannot be accepted twice, even when its payloads are cloneable:
 ///
 /// ```compile_fail,E0382
-/// use state_machine::{MachineDecision, MachineInstance};
+/// use status_machina::{MachineDecision, MachineInstance};
 /// fn accept_twice(instance: &mut MachineInstance<'_, (), (), ()>, decision: MachineDecision<()>) {
 ///     instance.accept(decision).unwrap();
 ///     instance.accept(decision).unwrap();

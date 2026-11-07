@@ -1,6 +1,6 @@
-//! Public API tests for explicit bounded state-machine composition.
+//! Public API tests for explicit bounded status-machina composition.
 
-use state_machine::{
+use status_machina::{
     Capability,
     CapabilityId,
     CapabilitySnapshot,
@@ -110,7 +110,7 @@ fn destination_definition() -> MachineDefinition<(), Notification, Facts> {
 
 fn source_output_for(
     instance_id: MachineInstanceId,
-) -> state_machine::OutputEventIntent<Notification> {
+) -> status_machina::OutputEventIntent<Notification> {
     let definition = source_definition();
     let mut instance = definition.instantiate(instance_id, ()).unwrap();
     let DispatchOutcome::Transitioned { outputs, .. } = instance

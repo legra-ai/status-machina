@@ -1,4 +1,4 @@
-# state-machine
+# Status Machina
 
 A typed, caller-driven extended finite-state machine for Rust. Definitions are
 immutable; instances advance only when their owner dispatches an event.
@@ -16,7 +16,7 @@ Rust enums; instance identity can be a caller-owned newtype. The core never
 converts them to strings or generates IDs.
 
 ```rust
-use state_machine::{Event, MachineDefinition, MachineIds, StateDefinition, Transition};
+use status_machina::{Event, MachineDefinition, MachineIds, StateDefinition, Transition};
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct OrderIds;
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

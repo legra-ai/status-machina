@@ -4,7 +4,7 @@ use std::sync::atomic::{
     Ordering,
 };
 
-use state_machine::{
+use status_machina::{
     DispatchOutcome,
     DispositionRecord,
 };
@@ -22,9 +22,9 @@ fn record_binding_is_callback_free_and_preserves_all_execution_phases() {
     let output_calls = Arc::clone(&calls);
     let registry = BehaviorRegistry::<u64, (), (), u64, u64>::builder()
         .action(
-            state_machine::BehaviorRef::new(
-                state_machine::BehaviorId::new(1),
-                state_machine::ImplementationId::new(1),
+            status_machina::BehaviorRef::new(
+                status_machina::BehaviorId::new(1),
+                status_machina::ImplementationId::new(1),
             ),
             move |data, _, _| {
                 action_calls.fetch_add(1, Ordering::SeqCst);
@@ -34,9 +34,9 @@ fn record_binding_is_callback_free_and_preserves_all_execution_phases() {
         )
         .unwrap()
         .condition(
-            state_machine::BehaviorRef::new(
-                state_machine::BehaviorId::new(2),
-                state_machine::ImplementationId::new(1),
+            status_machina::BehaviorRef::new(
+                status_machina::BehaviorId::new(2),
+                status_machina::ImplementationId::new(1),
             ),
             move |_, _, _| {
                 condition_calls.fetch_add(1, Ordering::SeqCst);
@@ -45,9 +45,9 @@ fn record_binding_is_callback_free_and_preserves_all_execution_phases() {
         )
         .unwrap()
         .invariant(
-            state_machine::BehaviorRef::new(
-                state_machine::BehaviorId::new(3),
-                state_machine::ImplementationId::new(1),
+            status_machina::BehaviorRef::new(
+                status_machina::BehaviorId::new(3),
+                status_machina::ImplementationId::new(1),
             ),
             move |data| {
                 invariant_calls.fetch_add(1, Ordering::SeqCst);
@@ -56,9 +56,9 @@ fn record_binding_is_callback_free_and_preserves_all_execution_phases() {
         )
         .unwrap()
         .effect(
-            state_machine::BehaviorRef::new(
-                state_machine::BehaviorId::new(4),
-                state_machine::ImplementationId::new(1),
+            status_machina::BehaviorRef::new(
+                status_machina::BehaviorId::new(4),
+                status_machina::ImplementationId::new(1),
             ),
             move |data, _, _| {
                 effect_calls.fetch_add(1, Ordering::SeqCst);
@@ -67,9 +67,9 @@ fn record_binding_is_callback_free_and_preserves_all_execution_phases() {
         )
         .unwrap()
         .output_event(
-            state_machine::BehaviorRef::new(
-                state_machine::BehaviorId::new(5),
-                state_machine::ImplementationId::new(1),
+            status_machina::BehaviorRef::new(
+                status_machina::BehaviorId::new(5),
+                status_machina::ImplementationId::new(1),
             ),
             move |data, _, _| {
                 output_calls.fetch_add(1, Ordering::SeqCst);
@@ -79,34 +79,34 @@ fn record_binding_is_callback_free_and_preserves_all_execution_phases() {
         .unwrap()
         .build();
     let reference = |id| {
-        state_machine::BehaviorRef::new(
-            state_machine::BehaviorId::new(id),
-            state_machine::ImplementationId::new(1),
+        status_machina::BehaviorRef::new(
+            status_machina::BehaviorId::new(id),
+            status_machina::ImplementationId::new(1),
         )
     };
     let action = [BehaviorUse::new(
-        state_machine::ActionId::try_new("increment").unwrap(),
+        status_machina::ActionId::try_new("increment").unwrap(),
         reference(1),
     )];
     let effect = [BehaviorUse::new(
-        state_machine::EffectId::try_new("notify").unwrap(),
+        status_machina::EffectId::try_new("notify").unwrap(),
         reference(4),
     )];
     let output = [BehaviorUse::new(
-        state_machine::EventId::try_new("output").unwrap(),
+        status_machina::EventId::try_new("output").unwrap(),
         reference(5),
     )];
     let leaf = ConditionRecord::Predicate(BehaviorUse::new(
-        state_machine::ConditionId::try_new("allowed").unwrap(),
+        status_machina::ConditionId::try_new("allowed").unwrap(),
         reference(2),
     ));
     let postconditions = [ConditionRecord::All {
-        id: state_machine::ConditionId::try_new("all").unwrap(),
+        id: status_machina::ConditionId::try_new("all").unwrap(),
         operands: std::slice::from_ref(&leaf),
     }];
-    let running = state_machine::StateId::try_new("running").unwrap();
-    let done = state_machine::StateId::try_new("done").unwrap();
-    let complete = state_machine::EventId::try_new("complete").unwrap();
+    let running = status_machina::StateId::try_new("running").unwrap();
+    let done = status_machina::StateId::try_new("done").unwrap();
+    let complete = status_machina::EventId::try_new("complete").unwrap();
     let mut source = StateRecord::new(running.clone());
     source.exit_actions = &action;
     source.exit_effects = &effect;
@@ -116,7 +116,7 @@ fn record_binding_is_callback_free_and_preserves_all_execution_phases() {
     destination.entry_effects = &effect;
     let states = [source, destination];
     let mut edge = TransitionDefinitionRecord::new(
-        state_machine::TransitionId::try_new("finish").unwrap(),
+        status_machina::TransitionId::try_new("finish").unwrap(),
         running.clone(),
         complete.clone(),
         done.clone(),
@@ -127,16 +127,16 @@ fn record_binding_is_callback_free_and_preserves_all_execution_phases() {
     edge.effects = &effect;
     edge.output_events = &output;
     let edges = [edge];
-    let ignored_event = state_machine::EventId::try_new("stale").unwrap();
+    let ignored_event = status_machina::EventId::try_new("stale").unwrap();
     let dispositions = [DispositionRecord {
-        id: state_machine::DispositionId::try_new("ignore").unwrap(),
+        id: status_machina::DispositionId::try_new("ignore").unwrap(),
         from: done,
         event: ignored_event.clone(),
         condition: &leaf,
         reason: "stale completion",
     }];
     let mut records = DefinitionRecord::new(
-        state_machine::MachineId::try_new("execution").unwrap(),
+        status_machina::MachineId::try_new("execution").unwrap(),
         running,
         &states,
         &edges,
@@ -148,7 +148,7 @@ fn record_binding_is_callback_free_and_preserves_all_execution_phases() {
     drop(registry);
     let mut instance = definition
         .instantiate(
-            state_machine::MachineInstanceId::try_new(uuid::Uuid::now_v7()).unwrap(),
+            status_machina::MachineInstanceId::try_new(uuid::Uuid::now_v7()).unwrap(),
             0,
         )
         .unwrap();

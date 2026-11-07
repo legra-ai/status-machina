@@ -18,7 +18,7 @@ def main():
     if not tests:
         raise RuntimeError("No tracked integration tests found")
 
-    with tempfile.TemporaryDirectory(prefix="state-machine-package-") as directory:
+    with tempfile.TemporaryDirectory(prefix="status-machina-package-") as directory:
         target = pathlib.Path(directory)
         subprocess.run(
             [

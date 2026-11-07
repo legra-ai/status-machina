@@ -1,8 +1,8 @@
-//! Shared-definition ownership regression for state-machine instances.
+//! Shared-definition ownership regression for status-machina instances.
 
 use std::sync::Arc;
 
-use state_machine::{
+use status_machina::{
     Event,
     EventId,
     MachineDefinition,

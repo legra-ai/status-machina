@@ -1,5 +1,5 @@
 //! External names are checked mappings, independent of runtime identities.
-use state_machine::{
+use status_machina::{
     IdentityMap,
     IdentityMapError,
 };

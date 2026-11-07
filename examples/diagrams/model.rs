@@ -1,4 +1,4 @@
-use state_machine::{
+use status_machina::{
     Condition,
     ConditionId,
     DispositionId,
@@ -117,12 +117,12 @@ pub(super) fn markdown() -> String {
     let execution = execution().diagram(&limits).unwrap();
     let retry = retry().diagram(&limits).unwrap();
     format!(
-        "# Generated state-machine diagrams\n\n\
+        "# Generated status-machina diagrams\n\n\
 These Mermaid blocks are generated from validated Rust machine definitions.\n\
 GitHub renders them directly when viewing this Markdown file.\n\n\
 Regenerate from the repository root:\n\n\
 ```sh\n\
-cargo run --quiet --package state-machine --example diagrams > crates/state-machine/docs/diagrams.md\n\
+cargo run --quiet --package status-machina --example diagrams > crates/status-machina/docs/diagrams.md\n\
 ```\n\n\
 The `generated_diagrams` test checks this file against the generator.\n\
 [Generator source](../examples/diagrams/model.rs) uses the convenience identity\n\

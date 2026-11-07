@@ -25,7 +25,7 @@ type ResolvedImplementation<'a, D, E, F, X, O, I> =
 /// Callback payloads must match the registry's Rust signature:
 ///
 /// ```compile_fail
-/// use state_machine::{BehaviorId, BehaviorRef, BehaviorRegistry, ImplementationId};
+/// use status_machina::{BehaviorId, BehaviorRef, BehaviorRegistry, ImplementationId};
 /// let reference = BehaviorRef::new(BehaviorId::new(1), ImplementationId::new(1));
 /// let registry = BehaviorRegistry::<u64, (), (), u64>::builder()
 ///     .effect(reference, |_, _, _| String::from("wrong payload"));

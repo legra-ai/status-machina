@@ -1,4 +1,4 @@
-use state_machine::InstanceRegistryBuildError;
+use status_machina::InstanceRegistryBuildError;
 
 use super::*;
 

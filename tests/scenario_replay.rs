@@ -1,6 +1,6 @@
 //! Regression coverage for bounded finite-scenario replay.
 
-use state_machine::{
+use status_machina::{
     AssertionId,
     Effect,
     EffectId,
@@ -99,7 +99,7 @@ fn instance_id() -> MachineInstanceId {
 }
 
 fn scenario_set(limits: ScenarioLimits) -> ScenarioSet<Trigger, Facts> {
-    ScenarioSet::<_, _, state_machine::DefaultIds>::builder(limits)
+    ScenarioSet::<_, _, status_machina::DefaultIds>::builder(limits)
         .scenario(
             ScenarioId::try_new("admission-case").unwrap(),
             [(
@@ -114,7 +114,7 @@ fn scenario_set(limits: ScenarioLimits) -> ScenarioSet<Trigger, Facts> {
 
 #[test]
 fn replay_reports_counterexample_with_only_bounded_step_metadata() {
-    let assertion = ScenarioAssertion::<state_machine::DefaultIds>::builder(
+    let assertion = ScenarioAssertion::<status_machina::DefaultIds>::builder(
         AssertionId::try_new("never-admit").unwrap(),
     )
     .evaluate(|observation| observation.after().as_str() != "admitted")
@@ -140,7 +140,7 @@ fn replay_reports_counterexample_with_only_bounded_step_metadata() {
 
 #[test]
 fn replay_success_is_only_complete_within_supplied_scenarios() {
-    let assertion = ScenarioAssertion::<state_machine::DefaultIds>::builder(
+    let assertion = ScenarioAssertion::<status_machina::DefaultIds>::builder(
         AssertionId::try_new("transition-recorded").unwrap(),
     )
     .evaluate(|observation| {
@@ -176,7 +176,7 @@ fn replay_stops_before_exceeding_trace_bound() {
         .max_trace_entries(1)
         .build()
         .unwrap();
-    let scenarios = ScenarioSet::<_, _, state_machine::DefaultIds>::builder(limits)
+    let scenarios = ScenarioSet::<_, _, status_machina::DefaultIds>::builder(limits)
         .scenario(
             ScenarioId::try_new("two-steps").unwrap(),
             [
@@ -207,7 +207,7 @@ fn replay_stops_before_exceeding_trace_bound() {
         ScenarioResult::LimitReached {
             scenario,
             step: 1,
-            limit: state_machine::ScenarioLimit::TraceEntries,
+            limit: status_machina::ScenarioLimit::TraceEntries,
         }
             if scenario.as_str() == "two-steps"
     ));
@@ -216,7 +216,7 @@ fn replay_stops_before_exceeding_trace_bound() {
 #[test]
 fn scenario_set_bounds_aggregate_supplied_steps_by_the_node_limit() {
     let limits = ScenarioLimits::builder().max_nodes(1).build().unwrap();
-    let first = ScenarioSet::<_, _, state_machine::DefaultIds>::builder(limits)
+    let first = ScenarioSet::<_, _, status_machina::DefaultIds>::builder(limits)
         .scenario(
             ScenarioId::try_new("first").unwrap(),
             [(
@@ -247,7 +247,7 @@ fn scenario_set_enforces_scenario_and_per_scenario_step_caps() {
         .max_nodes(2)
         .build()
         .unwrap();
-    let too_many_steps = ScenarioSet::<_, _, state_machine::DefaultIds>::builder(limits).scenario(
+    let too_many_steps = ScenarioSet::<_, _, status_machina::DefaultIds>::builder(limits).scenario(
         ScenarioId::try_new("two-steps").unwrap(),
         [
             (
@@ -265,7 +265,7 @@ fn scenario_set_enforces_scenario_and_per_scenario_step_caps() {
         Err(ScenarioSetBuildError::StepLimitExceeded { limit: 1 })
     ));
 
-    let one_scenario = ScenarioSet::<_, _, state_machine::DefaultIds>::builder(limits)
+    let one_scenario = ScenarioSet::<_, _, status_machina::DefaultIds>::builder(limits)
         .scenario(
             ScenarioId::try_new("first").unwrap(),
             [(
@@ -284,7 +284,7 @@ fn scenario_set_enforces_scenario_and_per_scenario_step_caps() {
 #[test]
 fn output_budget_counts_effects_and_events_without_retaining_payloads() {
     let scenarios = scenario_set(ScenarioLimits::builder().max_outputs(2).build().unwrap());
-    let assertion = ScenarioAssertion::<state_machine::DefaultIds>::builder(
+    let assertion = ScenarioAssertion::<status_machina::DefaultIds>::builder(
         AssertionId::try_new("intent-ids").unwrap(),
     )
     .evaluate(|observation| {
@@ -317,7 +317,7 @@ fn output_budget_counts_effects_and_events_without_retaining_payloads() {
     assert!(matches!(
         limited.result(),
         ScenarioResult::LimitReached {
-            limit: state_machine::ScenarioLimit::Outputs,
+            limit: status_machina::ScenarioLimit::Outputs,
             ..
         }
     ));

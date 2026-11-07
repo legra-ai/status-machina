@@ -6,7 +6,7 @@ use std::time::{
     SystemTime,
 };
 
-use state_machine::{
+use status_machina::{
     Capability,
     CapabilitySnapshot,
     CapabilityStatus,

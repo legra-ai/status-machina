@@ -6,7 +6,7 @@ use std::sync::atomic::{
     Ordering,
 };
 
-use state_machine::{
+use status_machina::{
     Condition,
     ConditionId,
     Event,
@@ -144,7 +144,7 @@ fn output_event_is_returned_only_after_transition_acceptance() {
         )
         .unwrap();
 
-    let state_machine::DispatchOutcome::Transitioned { outputs, .. } = accepted else {
+    let status_machina::DispatchOutcome::Transitioned { outputs, .. } = accepted else {
         panic!("accepted transition did not produce a transition outcome");
     };
     assert_eq!(outputs.len(), 1);

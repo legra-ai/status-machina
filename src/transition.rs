@@ -247,7 +247,7 @@ impl<D, E, F, X, O, I: crate::MachineIds> TransitionBuilder<D, E, F, X, O, I> {
     /// bound of 16.
     ///
     /// The payload is constructed only after candidate checks succeed. It is
-    /// returned as data; the state-machine never dispatches it or invokes a
+    /// returned as data; the status-machina never dispatches it or invokes a
     /// handler.
     ///
     /// # Errors

@@ -2,7 +2,7 @@
 //! routes. This fixture models the EKGF execution lifecycle structure.
 //! This is an executable record example, not an RDF reader or an
 //! occurrence-history writer.
-use state_machine::{
+use status_machina::{
     BehaviorRef,
     BehaviorRegistry,
     BehaviorUse,

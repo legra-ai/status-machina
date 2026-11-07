@@ -1,4 +1,4 @@
-use state_machine::{
+use status_machina::{
     CapabilitySnapshot,
     Composition,
     DispatchOutcome,
@@ -102,7 +102,7 @@ fn dispatch(
     instance: &mut MachineInstance<'_, (), CycleMessage, Facts, (), CycleMessage>,
     event_id: &str,
     step: u8,
-) -> Vec<state_machine::OutputEventIntent<CycleMessage>> {
+) -> Vec<status_machina::OutputEventIntent<CycleMessage>> {
     let DispatchOutcome::Transitioned { outputs, .. } = instance
         .dispatch(
             Event::new(EventId::try_new(event_id).unwrap(), CycleMessage { step }),

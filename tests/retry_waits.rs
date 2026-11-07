@@ -5,7 +5,7 @@ use std::time::{
     SystemTime,
 };
 
-use state_machine::{
+use status_machina::{
     MachineInstanceId,
     OperationId,
     RetryWaitError,

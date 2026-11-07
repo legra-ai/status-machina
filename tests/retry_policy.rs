@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use state_machine::{
+use status_machina::{
     RetryPolicy,
     RetryPolicyBuildError,
     RetrySchedule,

@@ -19,7 +19,7 @@
 /// on the caller's domain data after checking its ownership semantics.
 ///
 /// ```compile_fail
-/// use state_machine::CandidateData;
+/// use status_machina::CandidateData;
 /// #[derive(Clone)]
 /// struct CloneOnly;
 /// fn requires_isolation<T: CandidateData>() {}

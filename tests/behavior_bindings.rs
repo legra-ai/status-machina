@@ -6,7 +6,7 @@ use std::sync::atomic::{
     Ordering,
 };
 
-use state_machine::{
+use status_machina::{
     BehaviorRef,
     BehaviorRegistry,
     BindingError,
@@ -232,7 +232,7 @@ fn capability_and_assertion_references_are_typed_and_preserved() {
     let assertion_calls = Arc::clone(&calls);
     let registry = BehaviorRegistry::<u64, (), (), (), (), Ids>::builder()
         .capability(reference(Story::Available), |_, _, _| {
-            state_machine::CapabilityStatus::Available
+            status_machina::CapabilityStatus::Available
         })
         .unwrap()
         .assertion(reference(Story::Safe), move |_| {
@@ -259,16 +259,16 @@ fn capability_and_assertion_references_are_typed_and_preserved() {
     let instance = definition.instantiate(1, 0).unwrap();
     assert_eq!(
         instance.evaluate_capability(&capability, &()).status(),
-        state_machine::CapabilityStatus::Available
+        status_machina::CapabilityStatus::Available
     );
-    let scenarios = state_machine::ScenarioSet::<(), (), Ids>::builder(
-        state_machine::ScenarioLimits::builder().build().unwrap(),
+    let scenarios = status_machina::ScenarioSet::<(), (), Ids>::builder(
+        status_machina::ScenarioLimits::builder().build().unwrap(),
     )
     .scenario(1, [(Event::new(1, ()), ())])
     .unwrap()
     .build()
     .unwrap();
-    state_machine::ScenarioReplay::run(&definition, 2, 0, scenarios, [assertion]).unwrap();
+    status_machina::ScenarioReplay::run(&definition, 2, 0, scenarios, [assertion]).unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 1);
 }
 

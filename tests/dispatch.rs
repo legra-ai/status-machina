@@ -1,6 +1,6 @@
 //! Public API tests for caller-driven transition acceptance.
 
-use state_machine::{
+use status_machina::{
     ActionId,
     CandidateData,
     Condition,
@@ -263,7 +263,7 @@ fn unreachable_states_are_rejected_when_definition_is_built() {
 
     assert!(matches!(
         result,
-        Err(state_machine::DefinitionBuildError::UnreachableState { .. })
+        Err(status_machina::DefinitionBuildError::UnreachableState { .. })
     ));
 }
 
@@ -323,7 +323,7 @@ fn accepted_transition_returns_typed_effect_intents_to_its_caller() {
         )
         .unwrap();
 
-    let state_machine::DispatchOutcome::Transitioned { effects, .. } = outcome else {
+    let status_machina::DispatchOutcome::Transitioned { effects, .. } = outcome else {
         panic!("event should be accepted");
     };
     assert_eq!(effects.len(), 1);
@@ -493,7 +493,7 @@ fn dispatch_refuses_a_stale_expected_revision_without_mutation() {
 
     assert!(matches!(
         result,
-        Err(state_machine::DispatchError::StaleRevision { .. })
+        Err(status_machina::DispatchError::StaleRevision { .. })
     ));
     assert_eq!(instance.state().as_str(), "closed");
     assert_eq!(instance.data().opens, 0);
@@ -520,7 +520,7 @@ fn terminal_states_cannot_declare_outgoing_transitions() {
 
     assert!(matches!(
         result,
-        Err(state_machine::DefinitionBuildError::TerminalHasOutgoingTransition { .. })
+        Err(status_machina::DefinitionBuildError::TerminalHasOutgoingTransition { .. })
     ));
 }
 
@@ -574,7 +574,7 @@ fn failed_postcondition_discards_candidate_actions_and_effect_intents() {
             Event::new(event_id, Payload::Open),
             &Facts { may_open: true },
         ),
-        Err(state_machine::DispatchError::PostconditionFailed { .. })
+        Err(status_machina::DispatchError::PostconditionFailed { .. })
     ));
     assert_eq!(instance.state().as_str(), "closed");
     assert_eq!(instance.data().opens, 0);
@@ -740,7 +740,7 @@ fn explicit_event_disposition_is_reported_without_mutating_the_instance() {
 
     assert!(matches!(
         outcome,
-        state_machine::DispatchOutcome::Ignored { .. }
+        status_machina::DispatchOutcome::Ignored { .. }
     ));
     assert_eq!(instance.state().as_str(), "waiting");
     assert_eq!(instance.data().opens, 1);
@@ -796,7 +796,7 @@ fn a_matching_disposition_and_transition_are_ambiguous() {
             Event::new(event_id, Payload::Open),
             &Facts { may_open: true },
         ),
-        Err(state_machine::DispatchError::Ambiguous { .. })
+        Err(status_machina::DispatchError::Ambiguous { .. })
     ));
     assert_eq!(instance.state().as_str(), "waiting");
     assert_eq!(instance.revision(), 0);
