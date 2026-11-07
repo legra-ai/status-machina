@@ -113,6 +113,13 @@ class CommitMessageTests(unittest.TestCase):
             for headline, body, expected in [
                 ('fix(ci)!: enforce release identity', '', 0),
                 ('fix(ci): enforce release identity', '', 0),
+                ('build(deps): update serde', '', 0),
+                ('ci(deps-dev): update action', '', 0),
+                ('fix(api): repair', '\nBREAKING CHANGE: new wire shape\n', 0),
+                ('fix: missing scope', '', 1),
+                ('oops(api): invalid type', '', 1),
+                ('bad headline', '\nfix(api): not the headline\n', 1),
+                ('fix(api): ', '', 1),
                 ('unscoped headline', '\nfix(ci): forged body\n', 1),
             ]:
                 with self.subTest(headline=headline):
