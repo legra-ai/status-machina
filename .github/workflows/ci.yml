@@ -30,8 +30,10 @@ jobs:
           fetch-depth: 0
       - uses: legra-ai/github-actions/.github/actions/prepare-cargo-release@main
         id: release
-        env:
-          GH_TOKEN: ${{ github.token }}
+        # Read-only extraction validation until the release-writer App is configured.
+        with:
+          token: ${{ github.token }}
+          plan-only: 'true'
 
   test:
     needs: prepare
