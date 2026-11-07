@@ -1,7 +1,6 @@
 """The tutorial images must work as strict Rustdoc HTML, not only SVG files."""
 import importlib.util
 from pathlib import Path
-import re
 import tomllib
 import unittest
 
@@ -31,6 +30,10 @@ class TutorialDocumentationTests(unittest.TestCase):
         self.assertIn('s0 [label="A & B"]', dot)
         self.assertIn('start -> s0;', dot)
         self.assertIn('s0 -> s0 [label="Again / Tick (internal)"]', dot)
+
+    def test_graph_translation_preserves_unicode_labels(self):
+        dot = RENDERER.graphviz('stateDiagram-v2\n    state "Étape" as s0\n    [*] --> s0\n')
+        self.assertIn('s0 [label="Étape"]', dot)
 
     def test_crate_ships_the_rustdoc_images_and_executable_model_sources(self):
         include = tomllib.loads((ROOT / "Cargo.toml").read_text())["package"]["include"]

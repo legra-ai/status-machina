@@ -24,7 +24,7 @@ def graphviz(mermaid: str) -> str:
             continue
         state = re.fullmatch(r'state "(.*)" as (s\d+)', line)
         if state:
-            result.append(f'{state[2]} [label={json.dumps(decode_label(state[1]))}];')
+            result.append(f'{state[2]} [label={json.dumps(decode_label(state[1]), ensure_ascii=False)}];')
             continue
         terminal = re.fullmatch(r'(s\d+) --> \[\*\]', line)
         if terminal:
@@ -36,7 +36,7 @@ def graphviz(mermaid: str) -> str:
             continue
         edge = re.fullmatch(r'(s\d+) --> (s\d+) : (.*)', line)
         if edge:
-            result.append(f'{edge[1]} -> {edge[2]} [label={json.dumps(decode_label(edge[3]))}];')
+            result.append(f'{edge[1]} -> {edge[2]} [label={json.dumps(decode_label(edge[3]), ensure_ascii=False)}];')
             continue
         raise ValueError(f"Unsupported canonical graph syntax: {line}")
     return "\n".join([*result, "}", ""])
