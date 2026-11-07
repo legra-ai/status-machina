@@ -11,3 +11,5 @@ Repository configuration target: squash-only merges; delete merged branches; iss
 Before public publication, verify repository settings and release writer identity, review the complete public file tree, confirm package availability, obtain owner approval for publication and verify the exact published archive. Legra adoption and deletion of its in-tree implementation follow verification of the external package.
 
 Private extraction CI uses read-only release planning and validates the triggering source revision. Release activation must install the authorized release writer and switch validation/publication to its returned exact revision; existing draft tags must remain immutable.
+
+Release activation uses the pinned shared cargo-maintenance workflow and release-writer App, as in the current Tasktree reference. PR validation is allowed while private; main activation requires public visibility. The initial draft/tag must resume unchanged before later releases.
