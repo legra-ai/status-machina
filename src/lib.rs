@@ -1,8 +1,14 @@
-#![doc = include_str!("../docs/tutorials/introduction.md")]
-#![doc = include_str!("../docs/tutorials/order.svg")]
-#![doc = include_str!("../docs/tutorials/order.md")]
-#![doc = include_str!("../docs/tutorials/invoice.svg")]
-#![doc = include_str!("../docs/tutorials/composition.md")]
+#![doc = concat!(
+    include_str!("../docs/tutorials/introduction.md"),
+    "\n\n",
+    include_str!("../docs/tutorials/order.svg"),
+    "\n\n",
+    include_str!("../docs/tutorials/order.md"),
+    "\n\n",
+    include_str!("../docs/tutorials/invoice.svg"),
+    "\n\n",
+    include_str!("../docs/tutorials/composition.md"),
+)]
 
 mod action;
 mod behavior;
