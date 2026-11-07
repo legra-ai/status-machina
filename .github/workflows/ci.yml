@@ -18,7 +18,7 @@ jobs:
     # Validate PRs privately; activation on main requires the approved public repository.
     if: github.event.repository.private == false || github.event_name == 'pull_request'
     needs: prepare
-    uses: legra-ai/github-actions/.github/workflows/cargo-maintenance.yml@3d81bf46b840ade0eb37eaeac5b216f0edb41ad9
+    uses: legra-ai/github-actions/.github/workflows/cargo-maintenance.yml@3b2727b42d2c062e39e8443669af0258382b83e7
     with:
       crate-name: status-machina
       kind: library
