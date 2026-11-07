@@ -59,11 +59,12 @@ jobs:
       - run: cargo test --locked --doc
       - run: python3 scripts/test-package.py
       - run: python3 scripts/test-commit-policy.py
+      - run: python3 scripts/test-release-policy.py
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - run: cargo doc --no-deps --all-features
 
   publish:
-    if: needs.prepare.outputs.release == 'true'
+    if: needs.prepare.outputs.release == 'true' && github.event.repository.private == false
     needs: [prepare, test]
     runs-on: ubuntu-latest
     permissions:
