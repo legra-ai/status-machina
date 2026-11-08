@@ -17,7 +17,7 @@ npm name is occupied. Availability checks do not reserve either unpublished name
 | BND-02 | Fallible kernel evaluation and snapshots; callback failure stops evaluation before acceptance, without panic transport or sentinel results | BND-01 | Done |
 | BND-03 | Python checked construction, native values, execution and inspection through PyO3, with typed Python source and exceptions | BND-02 | Partial |
 | BND-04 | Node.js checked construction, native values, execution and inspection through napi-rs, with JavaScript and TypeScript APIs | BND-02 | Partial |
-| BND-05 | Native Story bindings, capabilities, bounded composition, retries and scenario coverage, with model-by-model parity evidence in both languages | BND-03, BND-04 | Not started |
+| BND-05 | Native Story bindings, capabilities, bounded composition, retries and scenario coverage, with model-by-model parity evidence in both languages | BND-03, BND-04 | Partial |
 | BND-06 | Installable wheels, source distribution and npm artifacts; complete examples and installed-artifact tests without a Rust toolchain | BND-05 | Not started |
 | BND-07 | Extend the shared tested-revision pipeline to gate and publish all three ecosystems, with synchronized versions and interrupted-publication recovery | BND-06 | Not started |
 | BND-08 | Initial native packages published and verified from the approved tested revision on every declared platform | BND-07 | Not started |
@@ -263,8 +263,8 @@ formatter/Clippy hook validation. The private adapter also tests bounded value
 leases, checked graph construction, unaccepted decisions, disposal and host-specific
 thread capability. Its dependencies do not enter the core runtime graph.
 
-BND-03 and BND-04 are Partial. The compiled Python extension passes 21 native
-application and lifecycle tests; the Node addon passes 16. These cover enum/symbol
+BND-03 and BND-04 are Partial. The compiled Python extension passes 25 native
+application and lifecycle tests; the Node addon passes 20. These cover enum/symbol
 identities, domain data, detached snapshots, callback exceptions, checked decision
 acceptance, disposal, bounded value-slot reuse and reentrancy. Python also tests
 cross-thread rejection during evaluation and garbage collection of callback
@@ -274,6 +274,10 @@ Python and TypeScript static examples check state/event identity, initial data
 and data unions that functional actions can replace. They include deliberately
 invalid calls which must remain type errors. Python source passes mypy.
 
-Native capabilities, composition, retry/scenario APIs, complete inspection and
+Native capabilities include exact Story bindings, advisory reports tied to the
+observed native instance/revision, detached data/facts and original exception
+causes. Unknown and duplicate capability identifiers fail explicitly.
+
+Composition, retry/scenario APIs, complete inspection and
 installed-artifact/platform evidence remain outstanding. These passing tests do
 not establish publication readiness or complete native-model parity.

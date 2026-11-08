@@ -1,4 +1,4 @@
-import { Definition, type Machine } from '@legra-ai/status-machina';
+import { Definition, CapabilityStatus, type Capability, type CapabilityReport, type Machine } from '@legra-ai/status-machina';
 
 enum Phase { Ready, Done }
 enum Input { Finish }
@@ -21,3 +21,9 @@ definition.instantiate({ id: Symbol(), data: 'wrong' });
 // @ts-expect-error A functional update can replace the initial number with null.
 const narrowedData: number = machine.data;
 void [phase, data, revision, narrowedData];
+
+const policy: Capability<Phase, number | null> = { id: Symbol(), evaluate: () => CapabilityStatus.Unknown };
+const report: CapabilityReport = machine.evaluateCapability(policy.id);
+// @ts-expect-error A boolean is not a capability status.
+const invalidPolicy: Capability<Phase, number | null> = { id: Symbol(), evaluate: () => false };
+void [report, invalidPolicy];

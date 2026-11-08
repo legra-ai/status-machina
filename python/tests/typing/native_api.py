@@ -1,7 +1,7 @@
 """Static contracts checked with mypy --warn-unused-ignores."""
 from enum import Enum, auto
 from typing_extensions import assert_type
-from status_machina import Action, Definition, Event, Machine, State, Transition
+from status_machina import Action, Capability, CapabilityReport, CapabilityStatus, Definition, Event, Machine, State, Transition
 
 class Phase(Enum):
     READY = auto()
@@ -32,3 +32,7 @@ machine.dispatch(Event(Wrong.FINISH, None), facts=None)  # type: ignore[arg-type
 definition.instantiate(id=object(), data="wrong")  # type: ignore[arg-type]
 wrong_state: str = machine.state  # type: ignore[assignment]
 wrong_data: int = machine.data  # type: ignore[assignment]
+
+policy = Capability[Phase, int | None, object](id=object(),
+    evaluate=lambda state, data, facts: CapabilityStatus.UNKNOWN)
+assert_type(machine.evaluate_capability(policy.id, facts=None), CapabilityReport)
