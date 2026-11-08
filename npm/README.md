@@ -69,3 +69,6 @@ Pass `{ maxEntries, maxOutputBytes }` to either inspection method. Diagram label
 roles are `states`, `transitions`, `events`, `conditions` and `dispositions`, each
 a native `Map`. Coverage objects, arrays and rows are frozen; TypeScript retains
 the definition's state/event types.
+
+The planned macOS target is macOS 26 on ARM64, tested on `macos-latest`.
+Intel macOS is outside the native package support matrix.

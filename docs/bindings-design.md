@@ -226,9 +226,11 @@ exceptions; ship JavaScript plus TypeScript declarations and explicit exports.
 Neither ordinary package installation may need Rust, Cargo, maturin or napi CLI.
 
 Initial declared support follows a tested matrix: Python 3.10–3.14 and Node.js
-22/24; Linux glibc x86_64/aarch64, macOS x86_64/aarch64, and Windows
+22/24; Linux glibc x86_64/aarch64, macOS 26 ARM64, and Windows
 x86_64/aarch64. Each advertised artifact needs build and installed-package test
-evidence on its matching target. Add other interpreters, musl or architectures
+evidence on its matching target. The sole macOS CI target is `macos-latest`
+(currently macOS 26 ARM64); Intel macOS is outside the native package matrix.
+Add other interpreters, musl or architectures
 only with equivalent evidence. Unsupported targets fail clearly; no source-build
 fallback disguises an absent native artifact. Python source builds are an
 explicit developer path tested through the source distribution.

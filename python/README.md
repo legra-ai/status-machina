@@ -66,3 +66,6 @@ exceeded bounds raise `InspectionError`; the violated budget is in its context.
 Pass `limits=InspectionLimits(max_entries=..., max_output_bytes=...)` to either
 inspection method. Use `DiagramLabels(states=..., transitions=..., events=...,
 conditions=..., dispositions=...)` for the rendered roles.
+
+The planned macOS target is macOS 26 on ARM64, tested on `macos-latest`.
+Intel macOS is outside the native package support matrix.
