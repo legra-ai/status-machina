@@ -1,11 +1,14 @@
-//! Caller-driven extended finite-state machine kernel.
-//!
-//! Definitions are immutable. An instance changes only when its owner calls
-//! [`MachineInstance::dispatch`]; the crate creates no tasks, threads, timers,
-//! clocks, I/O, or persistence.
-//!
-//! Machine data implements [`CandidateData`] to provide isolated snapshots;
-//! callbacks must obey its purity and ownership contract.
+#![doc = concat!(
+    include_str!("../docs/tutorials/introduction.md"),
+    "\n\n",
+    include_str!("../docs/tutorials/order.svg"),
+    "\n\n",
+    include_str!("../docs/tutorials/order.md"),
+    "\n\n",
+    include_str!("../docs/tutorials/invoice.svg"),
+    "\n\n",
+    include_str!("../docs/tutorials/composition.md"),
+)]
 
 mod action;
 mod behavior;
