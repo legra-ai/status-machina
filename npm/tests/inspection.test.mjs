@@ -42,6 +42,7 @@ test('entry/output limits and missing labels raise explicit inspection errors', 
 test('invalid labels never stringify objects and UTF-8 budgets count bytes', () => {
   const graph = definition();
   assert.throws(() => graph.diagram({ states: new Map([[ready, { toString: forbidden }]]) }), InspectionError);
+  assert.throws(() => graph.diagram({ states: new Map([[ready, '\ud800']]) }), InspectionError);
   assert.throws(() => graph.diagram({ states: new Map([[ready, '界'.repeat(10)]]) }, { maxOutputBytes: 20 }), InspectionError);
 });
 test('an invalid provided label Map fails even when that role has no rendered identities', () => {

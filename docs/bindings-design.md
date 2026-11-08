@@ -263,8 +263,8 @@ formatter/Clippy hook validation. The private adapter also tests bounded value
 leases, checked graph construction, unaccepted decisions, disposal and host-specific
 thread capability. Its dependencies do not enter the core runtime graph.
 
-BND-03 and BND-04 are Partial. The compiled Python extension passes 29 native
-application and lifecycle tests; the Node addon passes 24. These cover enum/symbol
+BND-03 and BND-04 are Partial. The compiled Python extension passes 31 native
+application and lifecycle tests; the Node addon passes 27. These cover enum/symbol
 identities, domain data, detached snapshots, callback exceptions, checked decision
 acceptance, disposal, bounded value-slot reuse and reentrancy. Python also tests
 cross-thread rejection during evaluation and garbage collection of callback

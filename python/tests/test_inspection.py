@@ -69,6 +69,8 @@ class InspectionTests(unittest.TestCase):
         with self.assertRaises(InspectionError):
             self.definition.diagram(DiagramLabels(states={Phase.READY: object()}))
         with self.assertRaises(InspectionError):
+            self.definition.diagram(DiagramLabels(states={Phase.READY: '\ud800'}))
+        with self.assertRaises(InspectionError):
             self.definition.diagram(DiagramLabels(states={Phase.READY: '界' * 10}),
                 limits=InspectionLimits(max_output_bytes=20))
 
