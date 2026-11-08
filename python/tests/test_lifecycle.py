@@ -90,6 +90,15 @@ class LifecycleTests(unittest.TestCase):
             self.assertEqual(calls, [])
             self.assertEqual(machine.revision, 0)
 
+    def test_domain_data_snapshot_is_not_applied_to_event_or_facts(self):
+        def snapshot_data(data):
+            return {"items": list(data["items"])}
+        graph = definition(snapshot=snapshot_data,
+            actions=(Action(id=object(), apply=lambda data, event, facts: data["items"].append(event)),))
+        with graph.instantiate(id=object(), data={"items": []}) as machine:
+            machine.dispatch(Event(Input.GO, 7), facts=None)
+            self.assertEqual(machine.data, {"items": [7]})
+
     def test_snapshot_exception_is_native_and_never_admits_initial_data(self):
         failure = ValueError("cannot snapshot")
         def snapshot(data):

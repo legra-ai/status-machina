@@ -37,6 +37,7 @@ class Context:
         self.definition = definition
         self.ids = definition._compiler.ids
         self.snapshot = definition._snapshot
+        self.input_snapshot = definition._input_snapshot
         self.identity = identity
         self.capacity = definition._limits.max_values
         self.values: dict[int, object] = {}
@@ -93,6 +94,7 @@ class Context:
         self.closed = True
         self.definition = None
         self.snapshot = None
+        self.input_snapshot = None
         self.ids = None
         self.identity = None
 
@@ -108,7 +110,7 @@ class Context:
             args = (self.snapshot(values[0]),)
         elif kind in ("predicate", "construct", "action"):
             data = values[0] if kind == "action" else self.snapshot(values[0])
-            args = (data, self.snapshot(values[1]), self.snapshot(values[2]))
+            args = (data, self.input_snapshot(values[1]), self.input_snapshot(values[2]))
         else:
             raise RuntimeError("Unsupported native callback request")
         result = callback(*args)

@@ -19,7 +19,7 @@ class Definition(Generic[StateT, KindT]):
     def __init__(self, *, id: Hashable, initial: StateT,
             states: Iterable[State[StateT]], transitions: Iterable[Transition[StateT, KindT]],
             dispositions: Iterable[Disposition] = (), behaviors: BehaviorRegistry = BehaviorRegistry(),
-            snapshot: Callable[[object], object] = DEFAULT_SNAPSHOT, limits: Limits = Limits()):
+            snapshot: Callable[[object], object] = DEFAULT_SNAPSHOT, input_snapshot: Callable[[object], object] = DEFAULT_SNAPSHOT, limits: Limits = Limits()):
         self._id = id
         self._initial = initial
         self._limits = limits
@@ -28,6 +28,7 @@ class Definition(Generic[StateT, KindT]):
         self._dispositions = bounded(dispositions, 128, "disposition inventory")
         self._behaviors = behaviors
         self._snapshot = snapshot
+        self._input_snapshot = input_snapshot
         compiler = Compiler(limits)
         compiler.ids.intern("definition", id)
         source = {"initial": compiler.ids.intern("state", initial),
@@ -43,8 +44,8 @@ class Definition(Generic[StateT, KindT]):
             self._native = _native._Definition(json.dumps(source, separators=(",", ":")))
         except _native.NativeFailure as error:
             translate(error, compiler.ids)
-        if not callable(snapshot):
-            raise DefinitionError("snapshot must be callable")
+        if not callable(snapshot) or not callable(input_snapshot):
+            raise DefinitionError("snapshot and input_snapshot must be callable")
 
     @property
     def id(self) -> Hashable:
