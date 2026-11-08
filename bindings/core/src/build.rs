@@ -193,7 +193,7 @@ impl Builder<'_> {
         spec: spec::Condition,
     ) -> Result<Condition<Data, Value, Value, Ids>, Error> {
         let is_all = matches!(&spec.expression, spec::Expression::All { .. });
-        let built = match spec.expression {
+        match spec.expression {
             spec::Expression::Predicate { implementation } => match implementation.select()? {
                 Selection::Inline(cb) => Condition::builder(spec.id)
                     .try_evaluate(move |d, e, f| callback::predicate(cb, d, e, f))
@@ -224,8 +224,7 @@ impl Builder<'_> {
                 .map_err(|e| Error::construction("negation", e))?
                 .build()
                 .map_err(|e| Error::construction("negation", e)),
-        };
-        built
+        }
     }
     fn action(&self, spec: spec::Named) -> Result<LocalAction<Data, Value, Value, Ids>, Error> {
         match spec.implementation.select()? {
