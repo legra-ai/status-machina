@@ -119,9 +119,16 @@ pub(crate) fn action<H: Host>(
         Some(callback),
         vec![data.value.key(), event.key(), facts.key()],
     );
-    match data.value.host().execute(request)? {
+    let host = std::sync::Arc::clone(data.value.host());
+    match host.execute(request)? {
         Response::Unit => Ok(()),
-        _ => Err(EvaluationError::new("action must return no value")),
+        Response::Value(key) => {
+            data.value = Value::claim(host, key)?;
+            Ok(())
+        }
+        _ => Err(EvaluationError::new(
+            "action must return no value or an explicit replacement",
+        )),
     }
 }
 pub(crate) fn construct<H: Host>(

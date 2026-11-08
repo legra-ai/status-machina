@@ -28,6 +28,13 @@ use crate::{
 
 pub type Definition<H> = MachineDefinition<Data<H>, Value<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
 pub type Registry<H> = BehaviorRegistry<Data<H>, Value<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
+type NativeState<H> = StateDefinition<Data<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
+type NativeTransition<H> = Transition<Data<H>, Value<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
+type NativeCondition<H> = Condition<Data<H>, Value<H>, Value<H>, Ids<H>>;
+type NativeAction<H> = LocalAction<Data<H>, Value<H>, Value<H>, Ids<H>>;
+type NativeEffect<H> = Effect<Data<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
+type NativeOutput<H> = OutputEvent<Data<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
+
 /// Immutable executable graph plus its checked Story implementation registry.
 pub struct Template<H: Host> {
     pub definition: Arc<Definition<H>>,
@@ -111,10 +118,7 @@ pub(crate) struct Builder<'a, H: Host> {
     pub registry: &'a Registry<H>,
 }
 impl<H: Host> Builder<'_, H> {
-    fn state(
-        &self,
-        spec: spec::State,
-    ) -> Result<StateDefinition<Data<H>, Value<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
+    fn state(&self, spec: spec::State) -> Result<NativeState<H>, Error<H>> {
         let mut state = StateDefinition::builder(spec.id);
         if spec.terminal {
             state = state.terminal();
@@ -151,10 +155,7 @@ impl<H: Host> Builder<'_, H> {
         }
         Ok(state.build())
     }
-    fn transition(
-        &self,
-        spec: spec::Transition,
-    ) -> Result<Transition<Data<H>, Value<H>, Value<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
+    fn transition(&self, spec: spec::Transition) -> Result<NativeTransition<H>, Error<H>> {
         let mut transition = Transition::builder_with_effects_and_output_events(spec.id)
             .from(spec.source)
             .on(spec.event)
@@ -189,10 +190,7 @@ impl<H: Host> Builder<'_, H> {
             .build()
             .map_err(|e| Error::construction("transition", e))
     }
-    pub fn condition(
-        &self,
-        spec: spec::Condition,
-    ) -> Result<Condition<Data<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
+    pub fn condition(&self, spec: spec::Condition) -> Result<NativeCondition<H>, Error<H>> {
         let is_all = matches!(&spec.expression, spec::Expression::All { .. });
         match spec.expression {
             spec::Expression::Predicate { implementation } => match implementation.select()? {
@@ -227,10 +225,7 @@ impl<H: Host> Builder<'_, H> {
                 .map_err(|e| Error::construction("negation", e)),
         }
     }
-    fn action(
-        &self,
-        spec: spec::Named,
-    ) -> Result<LocalAction<Data<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
+    fn action(&self, spec: spec::Named) -> Result<NativeAction<H>, Error<H>> {
         match spec.implementation.select()? {
             Selection::Inline(cb) => LocalAction::builder(spec.id)
                 .try_apply(move |d, e, f| callback::action(cb, d, e, f))
@@ -242,10 +237,7 @@ impl<H: Host> Builder<'_, H> {
                 .map_err(|e| Error::construction("action binding", e)),
         }
     }
-    fn effect(
-        &self,
-        spec: spec::Named,
-    ) -> Result<Effect<Data<H>, Value<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
+    fn effect(&self, spec: spec::Named) -> Result<NativeEffect<H>, Error<H>> {
         match spec.implementation.select()? {
             Selection::Inline(cb) => Effect::builder(spec.id)
                 .try_describe(move |d, e, f| callback::construct(cb, d, e, f))
@@ -257,10 +249,7 @@ impl<H: Host> Builder<'_, H> {
                 .map_err(|e| Error::construction("effect binding", e)),
         }
     }
-    fn output(
-        &self,
-        spec: spec::Named,
-    ) -> Result<OutputEvent<Data<H>, Value<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
+    fn output(&self, spec: spec::Named) -> Result<NativeOutput<H>, Error<H>> {
         match spec.implementation.select()? {
             Selection::Inline(cb) => OutputEvent::builder(spec.id)
                 .try_describe(move |d, e, f| callback::construct(cb, d, e, f))

@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Callable, Generic, Hashable, Literal, TypeVar
+from ._bounded import bounded
+from .errors import LimitError
 
 StateT = TypeVar("StateT", bound=Hashable)
 KindT = TypeVar("KindT", bound=Hashable)
@@ -38,7 +40,9 @@ class BehaviorRegistry:
     implementations: tuple[Behavior, ...] = ()
     max_bindings: int = 128
     def __post_init__(self) -> None:
-        object.__setattr__(self, "implementations", tuple(self.implementations))
+        if type(self.max_bindings) is not int or not 1 <= self.max_bindings <= 4096:
+            raise LimitError("max_bindings must be an integer between 1 and 4096")
+        object.__setattr__(self, "implementations", bounded(self.implementations, self.max_bindings, "Story registry"))
 
 @dataclass(frozen=True)
 class Action(Generic[DataT, PayloadT, FactsT]):
@@ -56,9 +60,9 @@ class Condition(Generic[DataT, PayloadT, FactsT]):
     negated: Condition[DataT, PayloadT, FactsT] | None = None
     def __post_init__(self) -> None:
         if self.all_of is not None:
-            object.__setattr__(self, "all_of", tuple(self.all_of))
+            object.__setattr__(self, "all_of", bounded(self.all_of, 16, "all-condition operands"))
         if self.any_of is not None:
-            object.__setattr__(self, "any_of", tuple(self.any_of))
+            object.__setattr__(self, "any_of", bounded(self.any_of, 16, "any-condition operands"))
 
 @dataclass(frozen=True)
 class Effect(Generic[PayloadT]):
@@ -81,7 +85,7 @@ class State(Generic[StateT]):
     exit_effects: tuple[Effect, ...] = ()
     def __post_init__(self) -> None:
         for name in ("entry_actions", "exit_actions", "entry_effects", "exit_effects"):
-            object.__setattr__(self, name, tuple(getattr(self, name)))
+            object.__setattr__(self, name, bounded(getattr(self, name), 16, name))
 
 @dataclass(frozen=True)
 class Transition(Generic[StateT, KindT]):
@@ -97,7 +101,7 @@ class Transition(Generic[StateT, KindT]):
     outputs: tuple[OutputEvent, ...] = ()
     def __post_init__(self) -> None:
         for name in ("postconditions", "actions", "effects", "outputs"):
-            object.__setattr__(self, name, tuple(getattr(self, name)))
+            object.__setattr__(self, name, bounded(getattr(self, name), 16, name))
 
 @dataclass(frozen=True)
 class Disposition(Generic[StateT, KindT]):
@@ -113,6 +117,11 @@ class Limits:
     max_transitions: int = 512
     max_values: int = 8192
     max_callbacks: int = 4096
+    def __post_init__(self) -> None:
+        for name in ("max_states", "max_transitions", "max_values", "max_callbacks"):
+            value = getattr(self, name)
+            if type(value) is not int or not 1 <= value <= 65536:
+                raise LimitError(f"{name} must be an integer between 1 and 65536")
 
 @dataclass(frozen=True)
 class Event(Generic[KindT, PayloadT]):

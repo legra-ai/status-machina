@@ -4,22 +4,15 @@ import json
 from typing import Callable, Generic, Hashable, Iterable, TypeVar
 from . import _native
 from ._compile import Compiler
+from ._bounded import bounded
 from ._context import Context, DEFAULT_SNAPSHOT, translate
-from .errors import DefinitionError, DisposedError, LimitError
+from .errors import DefinitionError, DisposedError
 from .model import (BehaviorRegistry, Disposition, EffectIntent, Event, Ignored, Limits,
     OutputIntent, Refused, State, Transition, Transitioned, TransitionRecord)
 
 StateT = TypeVar("StateT", bound=Hashable)
 KindT = TypeVar("KindT", bound=Hashable)
 DataT = TypeVar("DataT")
-
-def bounded(values, limit, label):
-    result = []
-    for value in values:
-        if len(result) == limit:
-            raise LimitError(f"{label} exceeds its declared limit", limit=limit)
-        result.append(value)
-    return tuple(result)
 
 class Definition(Generic[StateT, KindT]):
     """Immutable checked graph. Identifiers remain caller-defined native values."""
