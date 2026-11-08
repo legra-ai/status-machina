@@ -21,6 +21,7 @@ mod definition;
 mod diagram_labels;
 mod disposition;
 mod evaluation_error;
+mod event_on_drop;
 mod identifier;
 mod identity_map;
 mod instance;
@@ -122,6 +123,7 @@ pub use evaluation_error::{
     EvaluationError,
     EvaluationPhase,
 };
+pub use event_on_drop::EventOnDrop;
 pub use identifier::{
     ActionId,
     AssertionId,
