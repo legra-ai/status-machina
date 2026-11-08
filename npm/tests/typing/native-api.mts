@@ -1,4 +1,4 @@
-import { Definition, CapabilityStatus, type Capability, type CapabilityReport, type Machine } from '@legra-ai/status-machina';
+import { Definition, CapabilityStatus, type Capability, type CapabilityReport, type StructuralCoverage, type DiagramLabels, type Machine } from '@legra-ai/status-machina';
 
 enum Phase { Ready, Done }
 enum Input { Finish }
@@ -27,3 +27,12 @@ const report: CapabilityReport = machine.evaluateCapability(policy.id);
 // @ts-expect-error A boolean is not a capability status.
 const invalidPolicy: Capability<Phase, number | null> = { id: Symbol(), evaluate: () => false };
 void [report, invalidPolicy];
+
+const coverage: StructuralCoverage<Phase> = definition.structuralCoverage({ maxEntries: 10 });
+const labels: DiagramLabels<Phase, Input> = { states: new Map([[Phase.Ready, 'Ready']]) };
+const mermaid: string = definition.diagram(labels);
+// @ts-expect-error Label keys retain the definition's state enum.
+definition.diagram({ states: new Map([[Wrong.Finish, 'Wrong']]) });
+// @ts-expect-error Label values must be strings rather than domain objects.
+definition.diagram({ states: new Map([[Phase.Ready, { label: 'Ready' }]]) });
+void [coverage, mermaid];

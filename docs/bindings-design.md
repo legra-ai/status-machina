@@ -263,8 +263,8 @@ formatter/Clippy hook validation. The private adapter also tests bounded value
 leases, checked graph construction, unaccepted decisions, disposal and host-specific
 thread capability. Its dependencies do not enter the core runtime graph.
 
-BND-03 and BND-04 are Partial. The compiled Python extension passes 25 native
-application and lifecycle tests; the Node addon passes 20. These cover enum/symbol
+BND-03 and BND-04 are Partial. The compiled Python extension passes 29 native
+application and lifecycle tests; the Node addon passes 24. These cover enum/symbol
 identities, domain data, detached snapshots, callback exceptions, checked decision
 acceptance, disposal, bounded value-slot reuse and reentrancy. Python also tests
 cross-thread rejection during evaluation and garbage collection of callback
@@ -278,6 +278,13 @@ Native capabilities include exact Story bindings, advisory reports tied to the
 observed native instance/revision, detached data/facts and original exception
 causes. Unknown and duplicate capability identifiers fail explicitly.
 
-Composition, retry/scenario APIs, complete inspection and
+Bounded native structural coverage and Mermaid generation call the Rust
+inspection APIs. Explicit label maps retain native identities, including distinct
+states with equal labels, and fail on missing labels or UTF-8/entry/output limits.
+Inspection never evaluates application behavior. Python and Node runnable order
+examples generate identical Mermaid embedded in their READMEs; three additional
+private Rust tests reject malformed label metadata before renderer lookups.
+
+Composition, retry/scenario APIs, portable records, capability snapshots and
 installed-artifact/platform evidence remain outstanding. These passing tests do
 not establish publication readiness or complete native-model parity.
