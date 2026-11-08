@@ -1,4 +1,5 @@
 'use strict';
+const { CapabilityStatus } = require('./compile.cjs');
 const { BusyError, DisposedError, LimitError, translate } = require('./errors.cjs');
 class Context {
   constructor(definition, identity) {
@@ -53,6 +54,7 @@ class Context {
     const entry = this.definition._internal().callbacks[request.callback];
     let args;
     if (request.kind === 'invariant') args = [this.copy(values[0])];
+    else if (request.kind === 'capability') args = [this.ids.resolve('state', request.state), this.copy(values[0]), this.copy(values[1], true)];
     else if (['predicate', 'construct', 'action'].includes(request.kind)) args = [request.kind === 'action' ? values[0] : this.copy(values[0]), this.copy(values[1], true), this.copy(values[2], true)];
     else throw new Error('Unsupported native callback request');
     const result = entry.function(...args);
@@ -61,6 +63,9 @@ class Context {
     if (request.kind === 'predicate' || request.kind === 'invariant') {
       if (typeof result !== 'boolean') throw new TypeError('Predicates and invariants must return boolean');
       response = { kind: 'bool', value: result };
+    } else if (request.kind === 'capability') {
+      if (!Object.values(CapabilityStatus).includes(result)) throw new TypeError('Capabilities must return CapabilityStatus');
+      response = { kind: 'capability', value: result };
     } else if (request.kind === 'action' && !entry.update) {
       if (result !== undefined) throw new TypeError('An apply action must return undefined; use update to replace data');
       response = { kind: 'unit' };

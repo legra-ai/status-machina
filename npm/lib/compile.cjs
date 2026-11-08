@@ -39,6 +39,7 @@ class Identities {
 class BehaviorRef {
   constructor(story, implementation) { this.story = story; this.implementation = implementation; Object.freeze(this); }
 }
+const CapabilityStatus = Object.freeze({ Available: 'available', Unavailable: 'unavailable', Unknown: 'unknown' });
 const BehaviorRole = Object.freeze({ Action: 'action', Condition: 'condition', Invariant: 'invariant',
   Effect: 'effect', Output: 'output', Capability: 'capability', Assertion: 'assertion' });
 class BehaviorRegistry {
@@ -108,4 +109,4 @@ class Compiler {
       role: value.role, callback: this.implementation(value.callback, value.update).callback }));
   }
 }
-module.exports = { bounded, checkedLimits, Compiler, BehaviorRef, BehaviorRegistry, BehaviorRole };
+module.exports = { CapabilityStatus, bounded, checkedLimits, Compiler, BehaviorRef, BehaviorRegistry, BehaviorRole };

@@ -169,6 +169,21 @@ impl NativeInstance {
         })
     }
     #[napi]
+    pub fn evaluate_capability(
+        &self,
+        env: Env,
+        id: u32,
+        facts: u32,
+        invoker: Function<'_, String, String>,
+    ) -> napi::Result<String> {
+        let _frame = self.host.activate(env, invoker)?;
+        Ok(encode(
+            &read(&self.machine)?
+                .evaluate_capability(id, facts)
+                .map_err(translate)?,
+        ))
+    }
+    #[napi]
     pub fn accept(&self, env: Env, decision: &NativeDecision) -> napi::Result<String> {
         self.host.check(env)?;
         let mut machine = write(&self.machine)?;

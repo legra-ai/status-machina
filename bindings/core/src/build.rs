@@ -4,6 +4,7 @@ use std::sync::Arc;
 use status_machina::{
     BehaviorRef,
     BehaviorRegistry,
+    Capability,
     Condition,
     Effect,
     EventDisposition,
@@ -27,6 +28,8 @@ use crate::{
 };
 
 pub type Definition<H> = MachineDefinition<Data<H>, Value<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
+pub type NativeCapability<H> = Capability<Data<H>, Value<H>, Ids<H>>;
+pub type Capabilities<H> = Arc<Vec<(u32, NativeCapability<H>)>>;
 pub type Registry<H> = BehaviorRegistry<Data<H>, Value<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
 type NativeState<H> = StateDefinition<Data<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
 type NativeTransition<H> = Transition<Data<H>, Value<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
@@ -39,6 +42,7 @@ type NativeOutput<H> = OutputEvent<Data<H>, Value<H>, Value<H>, Value<H>, Ids<H>
 pub struct Template<H: Host> {
     pub definition: Arc<Definition<H>>,
     pub registry: Registry<H>,
+    pub capabilities: Capabilities<H>,
 }
 impl<H: Host> Template<H> {
     pub fn parse(source: &str) -> Result<Self, Error<H>> {
@@ -74,7 +78,32 @@ impl<H: Host> Template<H> {
                 .map_err(|e| Error::construction("disposition", e))?;
             definition = definition.disposition(d)?;
         }
+        if spec.capabilities.len() > 4096 {
+            return Err(Error::construction(
+                "capability",
+                "inventory exceeds 4096 entries",
+            ));
+        }
+        // bounded: private specification bytes and the 4096 capability limit.
+        let mut capabilities = Vec::with_capacity(spec.capabilities.len());
+        for spec in spec.capabilities {
+            if capabilities.iter().any(|(id, _)| *id == spec.id) {
+                return Err(Error::construction("capability", "duplicate identifier"));
+            }
+            let id = spec.id;
+            let capability = match spec.implementation.select()? {
+                Selection::Inline(cb) => Capability::builder(id)
+                    .try_evaluate(move |s, d, f| callback::capability(cb, s, d, f))
+                    .build()
+                    .map_err(|e| Error::construction("capability", e))?,
+                Selection::Registered(r) => registry
+                    .resolve_capability(id, &r)
+                    .map_err(|e| Error::construction("capability binding", e))?,
+            };
+            capabilities.push((id, capability));
+        }
         Ok(Self {
+            capabilities: Arc::new(capabilities),
             definition: Arc::new(definition.build()?),
             registry,
         })

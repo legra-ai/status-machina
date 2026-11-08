@@ -15,6 +15,24 @@ FactsT = TypeVar("FactsT", default=Any)
 EventPayloadT = TypeVar("EventPayloadT", covariant=True, default=Any)
 IdT = TypeVar("IdT", bound=Hashable)
 
+class CapabilityStatus(Enum):
+    """Advisory policy results; none grants authorization."""
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"
+    UNKNOWN = "unknown"
+
+@dataclass(frozen=True)
+class Capability(Generic[StateT, DataT, FactsT]):
+    id: Hashable
+    evaluate: Callable[[StateT, DataT, FactsT], CapabilityStatus] | BehaviorRef
+
+@dataclass(frozen=True)
+class CapabilityReport:
+    capability: Hashable
+    instance: Hashable
+    revision: int
+    status: CapabilityStatus
+
 @dataclass(frozen=True)
 class BehaviorRef:
     """Exact Story and implementation identities, with independently typed values."""

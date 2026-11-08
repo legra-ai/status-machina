@@ -1,6 +1,17 @@
 /** Native identifiers compare with JavaScript Map semantics; no string codec is required. */
 export type Identity = string | number | bigint | boolean | symbol | object | null | undefined;
 export interface Event<K extends Identity, P = unknown> { readonly kind: K; readonly payload: P; }
+/** Advisory policy observations, never authorization grants. */
+export const CapabilityStatus: Readonly<{ Available: 'available'; Unavailable: 'unavailable'; Unknown: 'unknown' }>;
+export type CapabilityStatusValue = (typeof CapabilityStatus)[keyof typeof CapabilityStatus];
+export interface Capability<S extends Identity, D, F = undefined> {
+  readonly id: Identity;
+  readonly evaluate: ((state: S, data: D, facts: F) => CapabilityStatusValue) | BehaviorRef;
+}
+export interface CapabilityReport {
+  readonly capability: Identity; readonly instance: Identity;
+  readonly revision: bigint; readonly status: CapabilityStatusValue;
+}
 export interface Limits { maxStates?: number; maxTransitions?: number; maxValues?: number; maxCallbacks?: number; }
 export class BehaviorRef<S extends Identity = Identity, I extends Identity = Identity> {
   constructor(story: S, implementation: I);
@@ -67,6 +78,7 @@ export interface DefinitionOptions<S extends Identity, K extends Identity, D, P 
   readonly initial: S;
   readonly states: Iterable<State<S, D, P, F>>;
   readonly transitions: Iterable<Transition<S, K, D, P, F>>;
+  readonly capabilities?: Iterable<Capability<S, D, F>>;
   readonly dispositions?: Iterable<Disposition<S, K, D, P, F>>;
   readonly behaviors?: BehaviorRegistry;
   readonly snapshot?: (data: D) => D;
@@ -92,6 +104,7 @@ export class Definition<S extends Identity, K extends Identity, D = unknown, P =
   readonly initial: S;
   readonly states: readonly State<S, D, P, F>[];
   readonly transitions: readonly Transition<S, K, D, P, F>[];
+  readonly capabilities: readonly Capability<S, D, F>[];
   instantiate(options: { id: Identity; data: D }): Machine<S, K, D, P, F>;
 }
 export class Machine<S extends Identity, K extends Identity, D, P = unknown, F = undefined> implements Disposable {
@@ -104,6 +117,7 @@ export class Machine<S extends Identity, K extends Identity, D, P = unknown, F =
   readonly data: D;
   dispatch(event: Event<K, P>, ...facts: FactsArguments<F>): Outcome<S, K>;
   evaluate(event: Event<K, P>, ...facts: FactsArguments<F>): Decision;
+  evaluateCapability(capability: Identity, ...facts: undefined extends F ? [facts?: F] : [facts: F]): CapabilityReport;
   accept(decision: Decision): Outcome<S, K>;
   dispose(): void;
   [Symbol.dispose](): void;

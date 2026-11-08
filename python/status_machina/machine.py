@@ -10,7 +10,7 @@ from ._bounded import bounded
 from ._context import Context, DEFAULT_SNAPSHOT, translate
 from .errors import DefinitionError, DisposedError
 from .model import (BehaviorRegistry, Disposition, EffectIntent, Event, Ignored, Limits,
-    OutputIntent, Refused, State, Transition, Transitioned, TransitionRecord)
+    Capability, CapabilityReport, CapabilityStatus, OutputIntent, Refused, State, Transition, Transitioned, TransitionRecord)
 
 StateT = TypeVar("StateT", bound=Hashable)
 KindT = TypeVar("KindT", bound=Hashable)
@@ -21,6 +21,7 @@ class Definition(Generic[StateT, KindT, DataT]):
     """Immutable checked graph. Identifiers remain caller-defined native values."""
     def __init__(self, *, id: Hashable, initial: StateT,
             states: Iterable[State[StateT, DataT]], transitions: Iterable[Transition[StateT, KindT, DataT]],
+            capabilities: Iterable[Capability[StateT, DataT]] = (),
             dispositions: Iterable[Disposition] = (), behaviors: BehaviorRegistry = BehaviorRegistry(),
             snapshot: Callable[[DataT], DataT] = DEFAULT_SNAPSHOT, input_snapshot: Callable[[Any], Any] = DEFAULT_SNAPSHOT, limits: Limits = Limits()) -> None:
         for function in (snapshot, input_snapshot):
@@ -32,6 +33,7 @@ class Definition(Generic[StateT, KindT, DataT]):
         self._states = bounded(states, limits.max_states, "state inventory")
         self._transitions = bounded(transitions, limits.max_transitions, "transition inventory")
         self._dispositions = bounded(dispositions, 128, "disposition inventory")
+        self._capabilities = bounded(capabilities, 4096, "capability inventory")
         self._behaviors = behaviors
         self._snapshot = snapshot
         self._input_snapshot = input_snapshot
@@ -43,7 +45,9 @@ class Definition(Generic[StateT, KindT, DataT]):
             "states": [compiler.state(state) for state in self._states],
             "transitions": [compiler.transition(edge) for edge in self._transitions],
             "dispositions": [compiler.disposition(rule) for rule in self._dispositions],
-            "behaviors": compiler.behaviors(behaviors)}
+            "behaviors": compiler.behaviors(behaviors),
+            "capabilities": [{"id": compiler.ids.intern("capability", value.id),
+                "implementation": compiler.implementation(value.evaluate)} for value in self._capabilities]}
         self._compiler = compiler
         self._callbacks = tuple(compiler.callbacks)
         try:
@@ -68,6 +72,10 @@ class Definition(Generic[StateT, KindT, DataT]):
     @property
     def transitions(self) -> tuple[Transition[StateT, KindT, DataT], ...]:
         return self._transitions
+
+    @property
+    def capabilities(self) -> tuple[Capability[StateT, DataT], ...]:
+        return self._capabilities
 
     def instantiate(self, *, id: Hashable, data: DataT) -> Machine[StateT, KindT, DataT]:
         hash((type(id), id))
@@ -137,6 +145,14 @@ class Machine(Generic[StateT, KindT, DataT]):
             decision = context.native.evaluate(context.ids.find("event", event.kind),
                 context.allocate(event.payload), context.allocate(facts), context.invoke, expected_revision)
             return Decision(context, decision, event.kind)
+
+    def evaluate_capability(self, capability: Hashable, *, facts: object) -> CapabilityReport:
+        """Observe an advisory policy at this instance's exact current revision."""
+        with self._context.operation() as context:
+            raw = json.loads(context.native.evaluate_capability(context.ids.find("capability", capability),
+                context.allocate(facts), context.invoke))
+            return CapabilityReport(context.ids.resolve("capability", raw["capability"]),
+                context.identity, int(raw["revision"]), CapabilityStatus(raw["status"]))
 
     def accept(self, decision: Decision) -> Outcome[StateT, KindT]:
         if decision._context is None:

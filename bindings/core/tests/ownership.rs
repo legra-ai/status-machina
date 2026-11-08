@@ -42,7 +42,7 @@ fn host(limit: usize) -> Arc<NativeHost> {
     })
 }
 const SPEC: &str = r#"{
- "initial":0,"max_states":128,"max_transitions":512,"max_bindings":128,
+ "initial":0,"max_states":128,"max_transitions":512,"max_bindings":128,"capabilities":[],
  "states":[
   {"id":0,"terminal":false,"invariant":null,"entry_actions":[],"exit_actions":[],"entry_effects":[],"exit_effects":[]},
   {"id":1,"terminal":true,"invariant":null,"entry_actions":[],"exit_actions":[],"entry_effects":[],"exit_effects":[]}

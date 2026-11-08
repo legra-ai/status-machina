@@ -7,12 +7,12 @@ from .errors import (
 )
 from .machine import Decision, Definition, Machine
 from .model import (
-    Action, Behavior, BehaviorRef, BehaviorRegistry, BehaviorRole, Condition, Disposition,
+    Capability, CapabilityReport, CapabilityStatus, Action, Behavior, BehaviorRef, BehaviorRegistry, BehaviorRole, Condition, Disposition,
     Effect, EffectIntent, Event, Ignored, Limits, OutputEvent, OutputIntent, Refused, State,
     Transition, Transitioned, TransitionRecord,
 )
 __all__ = [
-    "Action", "ActionError", "AmbiguousTransitionError", "Behavior", "BehaviorRef",
+    "Capability", "CapabilityReport", "CapabilityStatus", "Action", "ActionError", "AmbiguousTransitionError", "Behavior", "BehaviorRef",
     "BehaviorRegistry", "BehaviorRole", "BusyError", "CallbackError", "Condition",
     "Decision", "Definition", "DefinitionError", "DispatchError", "DisposedError",
     "Disposition", "Effect", "EffectIntent", "Event", "ForeignDecisionError", "Ignored",

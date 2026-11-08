@@ -94,5 +94,6 @@ pub struct Definition {
     pub transitions: Vec<Transition>,
     pub dispositions: Vec<Disposition>,
     pub behaviors: Vec<Behavior>,
+    pub capabilities: Vec<Named>,
     pub max_bindings: usize,
 }

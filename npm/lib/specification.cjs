@@ -48,4 +48,8 @@ function disposition(value) {
   fields(value, ['id', 'source', 'event', 'condition', 'reason'], 'disposition', ['id', 'source', 'event', 'condition', 'reason']);
   return Object.freeze({ ...value, condition: condition(value.condition) });
 }
-module.exports = { fields, state, transition, disposition };
+function capability(value) {
+  fields(value, ['id', 'evaluate'], 'capability', ['id', 'evaluate']);
+  return Object.freeze({ ...value });
+}
+module.exports = { capability, fields, state, transition, disposition };

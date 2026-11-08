@@ -132,6 +132,21 @@ impl NativeInstance {
             )),
         })
     }
+    fn evaluate_capability(
+        &self,
+        py: Python<'_>,
+        id: u32,
+        facts: u32,
+        invoker: Py<PyAny>,
+    ) -> PyResult<String> {
+        let machine = lock(py, &self.machine)?;
+        let _frame = self.host.activate(invoker).map_err(|e| translate(py, e))?;
+        Ok(encode(
+            &machine
+                .evaluate_capability(id, facts)
+                .map_err(|e| translate(py, e))?,
+        ))
+    }
     fn accept(&self, py: Python<'_>, decision: &NativeDecision) -> PyResult<String> {
         let mut machine = lock(py, &self.machine)?;
         let mut owned = lock(py, &decision.decision)?;

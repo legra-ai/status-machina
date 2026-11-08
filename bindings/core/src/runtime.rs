@@ -3,14 +3,19 @@ use std::sync::Arc;
 
 use serde::Serialize;
 use status_machina::{
+    CapabilityStatus,
     DispatchOutcome,
+    EvaluationPhase,
     Event,
     FallibleCandidateData,
     MachineDecision,
     MachineInstance,
 };
 
-use crate::build::Template;
+use crate::build::{
+    Capabilities,
+    Template,
+};
 use crate::error::Error;
 use crate::ids::Ids;
 use crate::value::{
@@ -26,6 +31,7 @@ pub type Decision<H> = MachineDecision<Data<H>, Value<H>, Value<H>, Ids<H>>;
 pub struct Machine<H: Host> {
     pub instance: Option<Instance<H>>,
     pub host: Arc<H>,
+    capabilities: Option<Capabilities<H>>,
 }
 impl<H: Host> Machine<H> {
     pub fn try_new(template: &Template<H>, host: Arc<H>, initial: u32) -> Result<Self, Error<H>> {
@@ -38,6 +44,7 @@ impl<H: Host> Machine<H> {
         Ok(Self {
             instance: Some(instance),
             host,
+            capabilities: Some(Arc::clone(&template.capabilities)),
         })
     }
     fn get(&self) -> Result<&Instance<H>, Error<H>> {
@@ -99,9 +106,41 @@ impl<H: Host> Machine<H> {
             .accept(decision)?
             .into())
     }
+    pub fn evaluate_capability(&self, id: u32, facts: u32) -> Result<CapabilityReport, Error<H>> {
+        let instance = self.get()?;
+        let capabilities = self.capabilities.as_ref().ok_or(Error::Disposed)?;
+        let (_, capability) = capabilities
+            .iter()
+            .find(|(key, _)| *key == id)
+            .ok_or_else(|| Error::construction("capability", "unknown identifier"))?;
+        let facts = Value::claim(Arc::clone(&self.host), facts).map_err(Error::evaluation)?;
+        let report = instance
+            .evaluate_capability(capability, &facts)
+            .map_err(|error| Error::Evaluation {
+                phase: EvaluationPhase::Capability,
+                error,
+            })?;
+        let status = match report.status() {
+            CapabilityStatus::Available => "available",
+            CapabilityStatus::Unavailable => "unavailable",
+            CapabilityStatus::Unknown => "unknown",
+        };
+        Ok(CapabilityReport {
+            capability: *report.capability(),
+            revision: report.revision().to_string(),
+            status,
+        })
+    }
     pub fn dispose(&mut self) {
         self.instance.take();
+        self.capabilities.take();
     }
+}
+#[derive(Serialize)]
+pub struct CapabilityReport {
+    pub capability: u32,
+    pub revision: String,
+    pub status: &'static str,
 }
 #[derive(Serialize)]
 pub struct Record {

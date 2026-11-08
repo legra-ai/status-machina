@@ -14,13 +14,14 @@ function revision(value) {
 class Definition {
   #internal;
   constructor(specification) {
-    checked.fields(specification, ['id', 'initial', 'states', 'transitions', 'dispositions', 'behaviors', 'snapshot', 'inputSnapshot', 'limits'], 'definition', ['id', 'initial', 'states', 'transitions']);
+    checked.fields(specification, ['id', 'initial', 'states', 'transitions', 'capabilities', 'dispositions', 'behaviors', 'snapshot', 'inputSnapshot', 'limits'], 'definition', ['id', 'initial', 'states', 'transitions']);
     if (!Object.hasOwn(specification, 'id') || !Object.hasOwn(specification, 'initial')) throw new DefinitionError('Definition requires explicit id and initial values');
     const limits = checkedLimits(specification.limits);
     const compiler = new Compiler(limits);
     const states = Object.freeze(bounded(specification.states, limits.maxStates, 'state inventory').map(checked.state));
     const transitions = Object.freeze(bounded(specification.transitions, limits.maxTransitions, 'transition inventory').map(checked.transition));
     const dispositions = Object.freeze(bounded(specification.dispositions === undefined ? [] : specification.dispositions, 128, 'disposition inventory').map(checked.disposition));
+    const capabilities = Object.freeze(bounded(specification.capabilities === undefined ? [] : specification.capabilities, 4096, 'capability inventory').map(checked.capability));
     const behaviors = specification.behaviors === undefined ? new BehaviorRegistry() : specification.behaviors;
     const copy = specification.snapshot === undefined ? snapshot : specification.snapshot;
     const inputCopy = specification.inputSnapshot === undefined ? snapshot : specification.inputSnapshot;
@@ -30,7 +31,7 @@ class Definition {
     const source = { initial: compiler.ids.intern('state', specification.initial),
       max_states: limits.maxStates, max_transitions: limits.maxTransitions, max_bindings: behaviors.maxBindings,
       states: states.map(value => compiler.state(value)), transitions: transitions.map(value => compiler.transition(value)),
-      dispositions: dispositions.map(value => compiler.disposition(value)), behaviors: compiler.behaviors(behaviors) };
+      dispositions: dispositions.map(value => compiler.disposition(value)), behaviors: compiler.behaviors(behaviors), capabilities: capabilities.map(value => ({ id: compiler.ids.intern('capability', value.id), implementation: compiler.implementation(value.evaluate) })) };
     let executable;
     try { executable = new native.NativeDefinition(JSON.stringify(source)); }
     catch (error) { translate(error, compiler.ids); }
@@ -38,7 +39,7 @@ class Definition {
       inputSnapshot: inputCopy, limits, executable });
     Object.defineProperties(this, { id: { value: specification.id, enumerable: true },
       initial: { value: specification.initial, enumerable: true }, states: { value: states, enumerable: true },
-      transitions: { value: transitions, enumerable: true } });
+      capabilities: { value: capabilities, enumerable: true }, transitions: { value: transitions, enumerable: true } });
     Object.freeze(this);
   }
   _internal() { return this.#internal; }
@@ -89,6 +90,13 @@ class Machine {
     return this.#context.operation(context => new Decision(TOKEN, context,
       context.native.evaluate(context.ids.find('event', event.kind), context.allocate(event.payload), context.allocate(facts),
         context.invoke, revision(options.expectedRevision)), event.kind));
+  }
+  evaluateCapability(capability, facts = undefined) {
+    return this.#context.operation(context => {
+      const report = JSON.parse(context.native.evaluateCapability(context.ids.find('capability', capability), context.allocate(facts), context.invoke));
+      return Object.freeze({ capability: context.ids.resolve('capability', report.capability),
+        instance: context.identity, revision: BigInt(report.revision), status: report.status });
+    });
   }
   accept(decision) {
     return this.#context.operation(context => {

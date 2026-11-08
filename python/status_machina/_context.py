@@ -8,6 +8,7 @@ import threading
 from typing import NoReturn, TypeVar
 from . import _native
 from . import errors
+from .model import CapabilityStatus
 
 _ERROR_TYPES = {
     "definition": errors.DefinitionError, "callback": errors.CallbackError,
@@ -127,6 +128,9 @@ class Context:
         callback = entry.function
         if kind == "invariant":
             args = (self.copy_value(values[0]),)
+        elif kind == "capability":
+            args = (self.ids.resolve("state", request["state"]), self.copy_value(values[0]),
+                self.copy_value(values[1], input=True))
         elif kind in ("predicate", "construct", "action"):
             data = values[0] if kind == "action" else self.copy_value(values[0])
             args = (data, self.copy_value(values[1], input=True), self.copy_value(values[2], input=True))
@@ -141,6 +145,10 @@ class Context:
             if type(result) is not bool:
                 raise TypeError("Predicates and invariants must return bool")
             response = {"kind": "bool", "value": result}
+        elif kind == "capability":
+            if not isinstance(result, CapabilityStatus):
+                raise TypeError("Capabilities must return CapabilityStatus")
+            response = {"kind": "capability", "value": result.value}
         elif kind == "action" and not entry.update:
             if result is not None:
                 raise TypeError("An apply action must return None; use update to replace data")
