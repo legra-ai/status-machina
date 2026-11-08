@@ -9,6 +9,7 @@ from ._compile import Compiler
 from ._bounded import bounded
 from ._context import Context, DEFAULT_SNAPSHOT, translate
 from .errors import DefinitionError, DisposedError
+from .inspection import DiagramLabels, InspectionLimits, StateCoverage, StructuralCoverage
 from .model import (BehaviorRegistry, Disposition, EffectIntent, Event, Ignored, Limits,
     Capability, CapabilityReport, CapabilityStatus, OutputIntent, Refused, State, Transition, Transitioned, TransitionRecord)
 
@@ -39,6 +40,8 @@ class Definition(Generic[StateT, KindT, DataT]):
         self._input_snapshot = input_snapshot
         compiler = Compiler(limits)
         compiler.ids.intern("definition", id)
+        for state in self._states:
+            compiler.ids.intern("state", state.id)
         source = {"initial": compiler.ids.intern("state", initial),
             "max_states": limits.max_states, "max_transitions": limits.max_transitions,
             "max_bindings": behaviors.max_bindings,
@@ -76,6 +79,26 @@ class Definition(Generic[StateT, KindT, DataT]):
     @property
     def capabilities(self) -> tuple[Capability[StateT, DataT], ...]:
         return self._capabilities
+
+    def structural_coverage(self, *, limits: InspectionLimits = InspectionLimits()) -> StructuralCoverage[StateT]:
+        """Inspect declared graph structure without evaluating any behavior."""
+        try:
+            raw = json.loads(self._native.structural_coverage(limits.max_entries, limits.max_output_bytes))
+        except _native.NativeFailure as error:
+            translate(error, self._compiler.ids)
+        ids = self._compiler.ids
+        return StructuralCoverage(tuple(StateCoverage(cast(StateT, ids.resolve("state", row["id"])),
+            row["initial"], row["terminal"], row["incoming"], row["outgoing"], row["dispositions"]) for row in raw["states"]),
+            tuple(ids.resolve("transition", value) for value in raw["transitions"]),
+            tuple(ids.resolve("disposition", value) for value in raw["dispositions"]))
+
+    def diagram(self, labels: DiagramLabels[StateT, KindT], *, limits: InspectionLimits = InspectionLimits()) -> str:
+        """Render bounded Mermaid with explicit text labels independent of identity."""
+        source = labels._encode(self._compiler.ids, json.loads(self._native.label_inventory()), limits)
+        try:
+            return self._native.diagram(source, limits.max_entries, limits.max_output_bytes)
+        except _native.NativeFailure as error:
+            translate(error, self._compiler.ids)
 
     def instantiate(self, *, id: Hashable, data: DataT) -> Machine[StateT, KindT, DataT]:
         hash((type(id), id))

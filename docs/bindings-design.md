@@ -226,9 +226,11 @@ exceptions; ship JavaScript plus TypeScript declarations and explicit exports.
 Neither ordinary package installation may need Rust, Cargo, maturin or napi CLI.
 
 Initial declared support follows a tested matrix: Python 3.10–3.14 and Node.js
-22/24; Linux glibc x86_64/aarch64, macOS x86_64/aarch64, and Windows
+22/24; Linux glibc x86_64/aarch64, macOS 26 ARM64, and Windows
 x86_64/aarch64. Each advertised artifact needs build and installed-package test
-evidence on its matching target. Add other interpreters, musl or architectures
+evidence on its matching target. The sole macOS CI target is `macos-latest`
+(currently macOS 26 ARM64); Intel macOS is outside the native package matrix.
+Add other interpreters, musl or architectures
 only with equivalent evidence. Unsupported targets fail clearly; no source-build
 fallback disguises an absent native artifact. Python source builds are an
 explicit developer path tested through the source distribution.
@@ -263,8 +265,8 @@ formatter/Clippy hook validation. The private adapter also tests bounded value
 leases, checked graph construction, unaccepted decisions, disposal and host-specific
 thread capability. Its dependencies do not enter the core runtime graph.
 
-BND-03 and BND-04 are Partial. The compiled Python extension passes 25 native
-application and lifecycle tests; the Node addon passes 20. These cover enum/symbol
+BND-03 and BND-04 are Partial. The compiled Python extension passes 31 native
+application and lifecycle tests; the Node addon passes 29. These cover enum/symbol
 identities, domain data, detached snapshots, callback exceptions, checked decision
 acceptance, disposal, bounded value-slot reuse and reentrancy. Python also tests
 cross-thread rejection during evaluation and garbage collection of callback
@@ -278,6 +280,13 @@ Native capabilities include exact Story bindings, advisory reports tied to the
 observed native instance/revision, detached data/facts and original exception
 causes. Unknown and duplicate capability identifiers fail explicitly.
 
-Composition, retry/scenario APIs, complete inspection and
+Bounded native structural coverage and Mermaid generation call the Rust
+inspection APIs. Explicit label maps retain native identities, including distinct
+states with equal labels, and fail on missing labels or UTF-8/entry/output limits.
+Inspection never evaluates application behavior. Python and Node runnable order
+examples generate identical Mermaid embedded in their READMEs; three additional
+private Rust tests reject malformed label metadata before renderer lookups.
+
+Composition, retry/scenario APIs, portable records, capability snapshots and
 installed-artifact/platform evidence remain outstanding. These passing tests do
 not establish publication readiness or complete native-model parity.

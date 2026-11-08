@@ -4,7 +4,7 @@ if (Number(process.versions.node.split('.')[0]) < 22) throw new Error('Status Ma
 const platform = process.platform;
 const arch = process.arch;
 let suffix;
-if (platform === 'darwin' && (arch === 'x64' || arch === 'arm64')) suffix = `darwin-${arch}`;
+if (platform === 'darwin' && arch === 'arm64') suffix = `darwin-${arch}`;
 else if (platform === 'win32' && (arch === 'x64' || arch === 'arm64')) suffix = `win32-${arch}-msvc`;
 else if (platform === 'linux' && (arch === 'x64' || arch === 'arm64')) {
   if (process.report.getReport().header.glibcVersionRuntime === undefined) throw new Error('This Status Machina package supports glibc Linux; no musl artifact is declared');

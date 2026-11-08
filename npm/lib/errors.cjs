@@ -22,7 +22,7 @@ class DisposedError extends StatusMachinaError {}
 class BusyError extends StatusMachinaError {}
 class LimitError extends StatusMachinaError {}
 class InspectionError extends StatusMachinaError {}
-const types = Object.freeze({ definition: DefinitionError, callback: CallbackError,
+const types = Object.freeze({ inspection: InspectionError, definition: DefinitionError, callback: CallbackError,
   invariant: InvariantError, postcondition: PostconditionError, ambiguous: AmbiguousTransitionError,
   action: ActionError, stale_revision: StaleDecisionError, foreign_definition: ForeignDecisionError,
   foreign_instance: ForeignDecisionError, revision_exhausted: RevisionError, disposed: DisposedError, busy: BusyError });

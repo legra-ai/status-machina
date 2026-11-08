@@ -43,6 +43,7 @@ pub struct Template<H: Host> {
     pub definition: Arc<Definition<H>>,
     pub registry: Registry<H>,
     pub capabilities: Capabilities<H>,
+    pub labels: crate::inspection::LabelInventory,
 }
 impl<H: Host> Template<H> {
     pub fn parse(source: &str) -> Result<Self, Error<H>> {
@@ -54,6 +55,7 @@ impl<H: Host> Template<H> {
         }
         let spec: spec::Definition =
             serde_json::from_str(source).map_err(|e| Error::construction("specification", e))?;
+        let labels = crate::inspection::LabelInventory::from_spec(&spec);
         let registry = Self::registry(spec.behaviors, spec.max_bindings)?;
         let build = Builder {
             registry: &registry,
@@ -104,6 +106,7 @@ impl<H: Host> Template<H> {
         }
         Ok(Self {
             capabilities: Arc::new(capabilities),
+            labels,
             definition: Arc::new(definition.build()?),
             registry,
         })
