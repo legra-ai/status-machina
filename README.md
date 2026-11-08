@@ -9,6 +9,20 @@ capability observations, retry policies, diagrams and finite scenario replay
 support inspection and coordination. Callers own execution, time, I/O and
 persistence; the crate starts no tasks, threads or timers.
 
+## Scope-exit reporting
+
+`EventOnDrop::new(event, handler)` delivers one typed event synchronously when an
+unfinished scope exits. After accepted explicit completion, call `disarm()`.
+`event_mut()` lets an armed caller refresh its correlation after progress; the
+handler still owns stale-attempt rejection and checked machine dispatch.
+See the compiled [scope-exit example](examples/event_on_drop.rs).
+
+The guard starts no work and assigns no state. Its handler must handle dispatch
+errors and returned effects explicitly, and must run after caller-held locks are
+released. Drop cannot await settlement or make external work complete. Handler
+panics retain Rust's normal unwinding/abort behavior; process abort and leaked
+guards provide no destructor guarantee.
+
 ## Example
 
 Each definition selects a `MachineIds` family. States and event kinds can be
