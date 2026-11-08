@@ -100,3 +100,25 @@ fn native_dispatch_uses_kernel_acceptance_and_releases_discarded_candidates() {
     drop(instance);
     assert!(host.arena().live().is_empty());
 }
+
+#[test]
+fn native_decision_is_unaccepted_until_checked_acceptance() {
+    let template = Template::parse(SPEC).unwrap();
+    let host = host(16);
+    let mut machine =
+        status_machina_bridge::runtime::Machine::try_new(&template, Rc::clone(&host), 0).unwrap();
+    let decision = machine.evaluate(0, 1, 2, None).unwrap();
+    assert_eq!(machine.state().unwrap(), 0);
+    assert_eq!(machine.revision().unwrap(), 0);
+    assert_eq!(decision.expected_revision(), 0);
+    let outcome = machine.accept(decision).unwrap();
+    assert!(matches!(
+        outcome,
+        status_machina_bridge::runtime::Outcome::Transitioned { .. }
+    ));
+    assert_eq!(machine.state().unwrap(), 1);
+    assert_eq!(machine.revision().unwrap(), 1);
+    machine.dispose();
+    machine.dispose();
+    assert!(machine.state().is_err());
+}
