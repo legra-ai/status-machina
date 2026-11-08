@@ -16,7 +16,7 @@ npm name is occupied. Availability checks do not reserve either unpublished name
 | BND-01 | Native API, identity, payload, callback and ownership contracts, with a complete public-model inventory and release acceptance matrix | — | Done |
 | BND-02 | Fallible kernel evaluation and snapshots; callback failure stops evaluation before acceptance, without panic transport or sentinel results | BND-01 | Done |
 | BND-03 | Python checked construction, native values, execution and inspection through PyO3, with typed Python source and exceptions | BND-02 | Partial |
-| BND-04 | Node.js checked construction, native values, execution and inspection through napi-rs, with JavaScript and TypeScript APIs | BND-02 | Not started |
+| BND-04 | Node.js checked construction, native values, execution and inspection through napi-rs, with JavaScript and TypeScript APIs | BND-02 | Partial |
 | BND-05 | Native Story bindings, capabilities, bounded composition, retries and scenario coverage, with model-by-model parity evidence in both languages | BND-03, BND-04 | Not started |
 | BND-06 | Installable wheels, source distribution and npm artifacts; complete examples and installed-artifact tests without a Rust toolchain | BND-05 | Not started |
 | BND-07 | Extend the shared tested-revision pipeline to gate and publish all three ecosystems, with synchronized versions and interrupted-publication recovery | BND-06 | Not started |
@@ -127,9 +127,9 @@ an alias to accepted mutable data; isolate again before acceptance as needed.
 
 Python's default snapshot operation uses `copy.deepcopy`, preserving native
 classes and enums. A caller may supply a pure snapshot function for domain types
-with different copy requirements. Node's default supports plain structured data
-through `structuredClone`; reject unsupported values and custom class instances
-rather than silently losing their prototypes. A caller-supplied snapshot function
+with different copy requirements. Node's default copies checked native object
+graphs, preserving symbols, cycles, shared references, Buffer and typed views.
+It rejects unsupported values and custom class instances with an explicit error. A caller-supplied snapshot function
 supports such domain objects explicitly. Custom snapshot functions have the
 same non-aliasing, deterministic and bounded-cost obligations as Rust
 `CandidateData`; the binding cannot prove purity of arbitrary application code.
@@ -263,9 +263,17 @@ formatter/Clippy hook validation. The private adapter also tests bounded value
 leases, checked graph construction, unaccepted decisions, disposal and host-specific
 thread capability. Its dependencies do not enter the core runtime graph.
 
-BND-03 is Partial: six Python application tests pass against the compiled
-extension, covering enums, dataclasses, distinct IntEnum classes, retained
-candidate aliases, detached inspection, refusal, invariants, original exception
-causes and context-managed disposal. Inspection features, complete lifecycle/type
-coverage and the installed-artifact/platform matrix are still pending. This is
-not publication or complete native-model parity.
+BND-03 and BND-04 are Partial. The compiled Python extension passes 21 native
+application and lifecycle tests; the Node addon passes 16. These cover enum/symbol
+identities, domain data, detached snapshots, callback exceptions, checked decision
+acceptance, disposal, bounded value-slot reuse and reentrancy. Python also tests
+cross-thread rejection during evaluation and garbage collection of callback
+cycles. Node tests both CommonJS and ESM entry points and cyclic typed-view data.
+
+Python and TypeScript static examples check state/event identity, initial data
+and data unions that functional actions can replace. They include deliberately
+invalid calls which must remain type errors. Python source passes mypy.
+
+Native capabilities, composition, retry/scenario APIs, complete inspection and
+installed-artifact/platform evidence remain outstanding. These passing tests do
+not establish publication readiness or complete native-model parity.
