@@ -6,7 +6,7 @@ use crate::{
     LocalAction,
 };
 
-type Invariant<D> = Arc<dyn Fn(&D) -> bool + Send + Sync>;
+type Invariant<D> = Arc<dyn Fn(&D) -> Result<bool, crate::EvaluationError> + Send + Sync>;
 
 /// One named state and its optional data invariant.
 pub struct StateDefinition<D, E, F, X = (), I: crate::MachineIds = crate::DefaultIds> {
@@ -53,10 +53,10 @@ impl<D, E, F, X, I: crate::MachineIds> StateDefinition<D, E, F, X, I> {
             .chain(self.exit_effects.iter().filter_map(Effect::binding))
     }
 
-    pub(crate) fn accepts(&self, data: &D) -> bool {
+    pub(crate) fn accepts(&self, data: &D) -> Result<bool, crate::EvaluationError> {
         self.invariant
             .as_ref()
-            .is_none_or(|invariant| invariant(data))
+            .map_or(Ok(true), |invariant| invariant(data))
     }
 
     pub(crate) fn entry_actions(&self) -> &[LocalAction<D, E, F, I>] {
@@ -98,8 +98,18 @@ impl<D, E, F, X, I: crate::MachineIds> StateDefinitionBuilder<D, E, F, X, I> {
     /// Require the invariant to hold when an instance enters this state.
     #[must_use]
     pub fn invariant(mut self, invariant: impl Fn(&D) -> bool + Send + Sync + 'static) -> Self {
-        self.invariant = Some(Arc::new(invariant));
+        self.invariant = Some(Arc::new(move |data| Ok(invariant(data))));
         self.invariant_binding = None;
+        self
+    }
+
+    /// Require a state invariant that can report an application failure.
+    #[must_use]
+    pub fn try_invariant(
+        mut self,
+        invariant: impl Fn(&D) -> Result<bool, crate::EvaluationError> + Send + Sync + 'static,
+    ) -> Self {
+        self.invariant = Some(Arc::new(invariant));
         self
     }
 

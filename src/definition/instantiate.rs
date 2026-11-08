@@ -13,7 +13,7 @@ use crate::{
 
 impl<D, E, F, X, O, I: crate::MachineIds> MachineDefinition<D, E, F, X, O, I>
 where
-    D: crate::CandidateData,
+    D: crate::FallibleCandidateData,
 {
     /// Create an instance after validating its initial data.
     ///
@@ -26,7 +26,10 @@ where
         data: D,
     ) -> DefinitionResult<MachineInstance<'_, D, E, F, X, O, I>, I> {
         let initial = self.initial_state()?;
-        if !initial.accepts(&data) {
+        if !initial
+            .accepts(&data)
+            .map_err(|error| DefinitionBuildError::EvaluationFailed { error })?
+        {
             return Err(DefinitionBuildError::InitialInvariantFailed {
                 state: self.initial.clone(),
             });
@@ -55,7 +58,10 @@ where
         data: D,
     ) -> DefinitionResult<MachineInstance<'static, D, E, F, X, O, I>, I> {
         let initial = self.initial_state()?;
-        if !initial.accepts(&data) {
+        if !initial
+            .accepts(&data)
+            .map_err(|error| DefinitionBuildError::EvaluationFailed { error })?
+        {
             return Err(DefinitionBuildError::InitialInvariantFailed {
                 state: self.initial.clone(),
             });

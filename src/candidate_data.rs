@@ -63,3 +63,35 @@ scalar_data!(
     f32,
     f64
 );
+
+/// Data whose isolated snapshot can fail with an application exception.
+///
+/// The isolation, purity and bounded-cost contract is the same as
+/// [`CandidateData`]. Infallible domain data implements [`CandidateData`] and
+/// automatically satisfies this capability. Native domain data can implement
+/// this trait directly when copying requires fallible application code.
+pub trait FallibleCandidateData: Sized {
+    /// Produce an equivalent independently mutable candidate, or stop
+    /// evaluation.
+    ///
+    /// # Errors
+    /// Returns the original snapshot failure without changing accepted data.
+    fn try_snapshot(&self) -> Result<Self, crate::EvaluationError>;
+
+    /// Finish isolation after application callbacks and before creating a
+    /// decision.
+    ///
+    /// Native data overrides this when callbacks could retain aliases to their
+    /// candidate argument. Acceptance itself never invokes application code.
+    ///
+    /// # Errors
+    /// Returns an isolation failure, discarding the unaccepted candidate.
+    fn prepare_accept(self) -> Result<Self, crate::EvaluationError> {
+        Ok(self)
+    }
+}
+impl<T: CandidateData> FallibleCandidateData for T {
+    fn try_snapshot(&self) -> Result<Self, crate::EvaluationError> {
+        Ok(self.snapshot())
+    }
+}

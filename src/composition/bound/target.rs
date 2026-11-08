@@ -1,5 +1,4 @@
 use crate::{
-    CandidateData,
     DispatchError,
     DispatchOutcome,
     Event,
@@ -16,7 +15,7 @@ pub(super) trait Target<E, F, X, I: MachineIds> {
         max_outputs: usize,
     ) -> Result<Option<DispatchOutcome<X, E, I>>, DispatchError<I>>;
 }
-impl<D: CandidateData, E, F, X, I: MachineIds> Target<E, F, X, I>
+impl<D: crate::FallibleCandidateData, E, F, X, I: MachineIds> Target<E, F, X, I>
     for MachineInstance<'_, D, E, F, X, E, I>
 {
     fn step(

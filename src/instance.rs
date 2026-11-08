@@ -92,6 +92,15 @@ impl<X, I: crate::MachineIds> EffectIntent<X, I> {
 /// the instance remains unchanged.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum DispatchError<I: crate::MachineIds = crate::DefaultIds> {
+    /// Application evaluation failed before acceptance.
+    #[error("{phase:?} evaluation failed: {error}")]
+    EvaluationFailed {
+        /// Callback stage that stopped evaluation.
+        phase: crate::EvaluationPhase,
+        /// Original application failure and optional native cause.
+        #[source]
+        error: crate::EvaluationError,
+    },
     /// More than one guarded edge matched the supplied state and event.
     #[error("event matches multiple enabled transitions from state {state:?}")]
     Ambiguous {
@@ -171,7 +180,7 @@ pub struct MachineInstance<
 impl<'definition, D, E, F, X, O, I: crate::MachineIds>
     MachineInstance<'definition, D, E, F, X, O, I>
 where
-    D: crate::CandidateData,
+    D: crate::FallibleCandidateData,
 {
     pub(crate) fn new(
         definition: MachineInstanceDefinition<'definition, D, E, F, X, O, I>,

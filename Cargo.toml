@@ -30,3 +30,8 @@ result_large_err = "allow"
 
 [build-dependencies]
 rhusky = "2.0.5"
+
+[workspace]
+resolver = "3"
+members = ["bindings/core", "python/status-machina-pyo3", "npm/status-machina-napi"]
+default-members = ["."]

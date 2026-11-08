@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-pub(crate) type OutputEventConstructor<D, E, F, O> = Arc<dyn Fn(&D, &E, &F) -> O + Send + Sync>;
+pub(crate) type OutputEventConstructor<D, E, F, O> =
+    Arc<dyn Fn(&D, &E, &F) -> Result<O, crate::EvaluationError> + Send + Sync>;
 
 /// A typed event description released to the caller after transition
 /// acceptance.
@@ -49,6 +50,18 @@ impl<D, E, F, O, I: crate::MachineIds> OutputEventBuilder<D, E, F, O, I> {
     /// Describe the bounded payload to return after the transition is accepted.
     #[must_use]
     pub fn describe(mut self, construct: impl Fn(&D, &E, &F) -> O + Send + Sync + 'static) -> Self {
+        self.construct = Some(Arc::new(move |data, event, facts| {
+            Ok(construct(data, event, facts))
+        }));
+        self
+    }
+
+    /// Bind an intent constructor that can return an application failure.
+    #[must_use]
+    pub fn try_describe(
+        mut self,
+        construct: impl Fn(&D, &E, &F) -> Result<O, crate::EvaluationError> + Send + Sync + 'static,
+    ) -> Self {
         self.construct = Some(Arc::new(construct));
         self
     }

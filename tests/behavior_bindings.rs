@@ -258,7 +258,10 @@ fn capability_and_assertion_references_are_typed_and_preserved() {
         .unwrap();
     let instance = definition.instantiate(1, 0).unwrap();
     assert_eq!(
-        instance.evaluate_capability(&capability, &()).status(),
+        instance
+            .evaluate_capability(&capability, &())
+            .unwrap()
+            .status(),
         status_machina::CapabilityStatus::Available
     );
     let scenarios = status_machina::ScenarioSet::<(), (), Ids>::builder(

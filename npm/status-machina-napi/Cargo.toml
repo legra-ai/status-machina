@@ -1,0 +1,24 @@
+[package]
+name = "status-machina-napi"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99.1"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+status-machina = { path = "../..", version = "0.1.0" }
+status-machina-bridge = { path = "../../bindings/core", version = "0.1.0" }
+napi = { version = "3.16.1", default-features = false, features = ["napi8"] }
+napi-derive = "3.7.0"
+serde = "1"
+serde_json = "1"
+
+[build-dependencies]
+napi-build = "2.3.1"
+
+[lints.rust]
+warnings = "deny"

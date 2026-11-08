@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::ScenarioObservation;
 
 type AssertionCallback<I = crate::DefaultIds> =
-    Arc<dyn Fn(&ScenarioObservation<I>) -> bool + Send + Sync>;
+    Arc<dyn Fn(&ScenarioObservation<I>) -> Result<bool, crate::EvaluationError> + Send + Sync>;
 
 /// One independent, named predicate over compact step observations.
 pub struct ScenarioAssertion<I: crate::MachineIds = crate::DefaultIds> {
@@ -53,6 +53,19 @@ impl<I: crate::MachineIds> ScenarioAssertionBuilder<I> {
     pub fn evaluate(
         mut self,
         evaluate: impl Fn(&ScenarioObservation<I>) -> bool + Send + Sync + 'static,
+    ) -> Self {
+        self.evaluate = Some(Arc::new(move |observation| Ok(evaluate(observation))));
+        self
+    }
+
+    /// Bind a safety assertion that can raise an application exception.
+    #[must_use]
+    pub fn try_evaluate(
+        mut self,
+        evaluate: impl Fn(&ScenarioObservation<I>) -> Result<bool, crate::EvaluationError>
+        + Send
+        + Sync
+        + 'static,
     ) -> Self {
         self.evaluate = Some(Arc::new(evaluate));
         self
