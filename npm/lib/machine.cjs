@@ -3,6 +3,7 @@ const native = require('./native.cjs');
 const { Context } = require('./context.cjs');
 const { Compiler, BehaviorRegistry, bounded, checkedLimits } = require('./compile.cjs');
 const { snapshot } = require('./snapshot.cjs');
+const checked = require('./specification.cjs');
 const { DefinitionError, DisposedError, translate } = require('./errors.cjs');
 const TOKEN = Symbol('owned machine creation');
 function revision(value) {
@@ -13,16 +14,18 @@ function revision(value) {
 class Definition {
   #internal;
   constructor(specification) {
+    checked.fields(specification, ['id', 'initial', 'states', 'transitions', 'dispositions', 'behaviors', 'snapshot', 'inputSnapshot', 'limits'], 'definition', ['id', 'initial', 'states', 'transitions']);
     if (!Object.hasOwn(specification, 'id') || !Object.hasOwn(specification, 'initial')) throw new DefinitionError('Definition requires explicit id and initial values');
     const limits = checkedLimits(specification.limits);
     const compiler = new Compiler(limits);
-    const states = bounded(specification.states, limits.maxStates, 'state inventory');
-    const transitions = bounded(specification.transitions, limits.maxTransitions, 'transition inventory');
-    const dispositions = bounded(specification.dispositions === undefined ? [] : specification.dispositions, 128, 'disposition inventory');
+    const states = Object.freeze(bounded(specification.states, limits.maxStates, 'state inventory').map(checked.state));
+    const transitions = Object.freeze(bounded(specification.transitions, limits.maxTransitions, 'transition inventory').map(checked.transition));
+    const dispositions = Object.freeze(bounded(specification.dispositions === undefined ? [] : specification.dispositions, 128, 'disposition inventory').map(checked.disposition));
     const behaviors = specification.behaviors === undefined ? new BehaviorRegistry() : specification.behaviors;
     const copy = specification.snapshot === undefined ? snapshot : specification.snapshot;
     const inputCopy = specification.inputSnapshot === undefined ? snapshot : specification.inputSnapshot;
     if (typeof copy !== 'function' || typeof inputCopy !== 'function') throw new DefinitionError('snapshot and inputSnapshot must be functions');
+    for (const callback of [copy, inputCopy]) if (callback.constructor.name === 'AsyncFunction') throw new DefinitionError('Snapshot functions must be synchronous');
     compiler.ids.intern('definition', specification.id);
     const source = { initial: compiler.ids.intern('state', specification.initial),
       max_states: limits.maxStates, max_transitions: limits.maxTransitions, max_bindings: behaviors.maxBindings,
@@ -88,8 +91,8 @@ class Machine {
         context.invoke, revision(options.expectedRevision)), event.kind));
   }
   accept(decision) {
-    const owned = decision._take(TOKEN);
     return this.#context.operation(context => {
+      const owned = decision._take(TOKEN);
       try { return this.#outcome(context.native.accept(owned.native), owned.eventKind); }
       finally { if (owned.context !== context) owned.context.sweep(); }
     });

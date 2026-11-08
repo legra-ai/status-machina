@@ -1,6 +1,7 @@
 """Checked definitions, owned instances and single-use decisions."""
 from __future__ import annotations
 import json
+import inspect
 from typing import Callable, Generic, Hashable, Iterable, TypeVar
 from . import _native
 from ._compile import Compiler
@@ -20,6 +21,9 @@ class Definition(Generic[StateT, KindT]):
             states: Iterable[State[StateT]], transitions: Iterable[Transition[StateT, KindT]],
             dispositions: Iterable[Disposition] = (), behaviors: BehaviorRegistry = BehaviorRegistry(),
             snapshot: Callable[[object], object] = DEFAULT_SNAPSHOT, input_snapshot: Callable[[object], object] = DEFAULT_SNAPSHOT, limits: Limits = Limits()):
+        for function in (snapshot, input_snapshot):
+            if not callable(function) or inspect.iscoroutinefunction(function) or inspect.iscoroutinefunction(getattr(function, "__call__", None)):
+                raise DefinitionError("Snapshot functions must be synchronous callables")
         self._id = id
         self._initial = initial
         self._limits = limits

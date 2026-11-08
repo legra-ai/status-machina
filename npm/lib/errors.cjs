@@ -39,7 +39,8 @@ function translate(error, ids) {
     if (Object.hasOwn(context, role) && ids !== undefined) context[role] = ids.resolve(role, context[role]);
   }
   for (const name of ['expected_revision', 'current_revision']) {
-    if (Object.hasOwn(context, name)) context[name] = BigInt(context[name]);
+    if (Object.hasOwn(context, name)) context[name === 'expected_revision' ? 'expectedRevision' : 'currentRevision'] = BigInt(context[name]);
+    delete context[name];
   }
   throw new Type(info.message, context, { cause: error.cause });
 }

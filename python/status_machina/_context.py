@@ -26,6 +26,9 @@ def translate(error, ids=None):
     for role in ("state", "condition"):
         if role in context and ids is not None:
             context[role] = ids.resolve(role, context[role])
+    for key in ("expected_revision", "current_revision"):
+        if key in context:
+            context[key] = int(context[key])
     exception = _ERROR_TYPES[code]
     if code == "callback" and info.get("phase") == "snapshot":
         exception = errors.SnapshotError
@@ -42,6 +45,7 @@ class Context:
         self.capacity = definition._limits.max_values
         self.values: dict[int, object] = {}
         self.next_key = 0
+        self.free_keys: list[int] = []
         self.arena_id: str | None = None
         self.native = None
         self.closed = False
@@ -49,10 +53,15 @@ class Context:
         self._sources = None
 
     def allocate(self, value):
-        if len(self.values) == self.capacity or self.next_key == 2**32:
+        if len(self.values) == self.capacity:
             raise errors.LimitError("Native value arena is full")
-        key = self.next_key
-        self.next_key += 1
+        if self.free_keys:
+            key = self.free_keys.pop()
+        else:
+            if self.next_key == 2**32:
+                raise errors.LimitError("Native value key space is exhausted")
+            key = self.next_key
+            self.next_key += 1
         self.values[key] = value
         return key
 
@@ -61,6 +70,7 @@ class Context:
         for key in tuple(self.values):
             if key not in live:
                 del self.values[key]
+                self.free_keys.append(key)
 
     def resolve(self, key):
         if self.arena_id is None:
@@ -98,19 +108,27 @@ class Context:
         self.ids = None
         self.identity = None
 
+    def copy_value(self, value, *, input=False):
+        result = (self.input_snapshot if input else self.snapshot)(value)
+        if inspect.isawaitable(result):
+            if inspect.iscoroutine(result):
+                result.close()
+            raise TypeError("Snapshot callbacks must return synchronously, not an awaitable")
+        return result
+
     def invoke(self, encoded):
         request = json.loads(encoded)
         kind = request["kind"]
         values = [self.resolve(key) for key in request["values"]]
         if kind == "snapshot":
-            return json.dumps({"kind": "value", "value": self.allocate(self.snapshot(values[0]))})
+            return json.dumps({"kind": "value", "value": self.allocate(self.copy_value(values[0]))})
         entry = self.definition._callbacks[request["callback"]]
         callback = entry.function
         if kind == "invariant":
-            args = (self.snapshot(values[0]),)
+            args = (self.copy_value(values[0]),)
         elif kind in ("predicate", "construct", "action"):
-            data = values[0] if kind == "action" else self.snapshot(values[0])
-            args = (data, self.input_snapshot(values[1]), self.input_snapshot(values[2]))
+            data = values[0] if kind == "action" else self.copy_value(values[0])
+            args = (data, self.copy_value(values[1], input=True), self.copy_value(values[2], input=True))
         else:
             raise RuntimeError("Unsupported native callback request")
         result = callback(*args)

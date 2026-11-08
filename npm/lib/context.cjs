@@ -5,17 +5,18 @@ class Context {
     const internals = definition._internal();
     this.definition = definition; this.ids = internals.compiler.ids; this.snapshot = internals.snapshot;
     this.inputSnapshot = internals.inputSnapshot; this.identity = identity; this.capacity = internals.limits.maxValues;
-    this.values = new Map(); this.nextKey = 0; this.arenaId = undefined; this.native = undefined;
+    this.values = new Map(); this.nextKey = 0; this.freeKeys = []; this.arenaId = undefined; this.native = undefined;
     this.closed = false; this.busy = false; this.sources = undefined;
     this.invoke = encoded => this.callback(encoded);
   }
   allocate(value) {
-    if (this.values.size === this.capacity || this.nextKey === 2 ** 32) throw new LimitError('Native value arena is full');
-    const key = this.nextKey++; this.values.set(key, value); return key;
+    if (this.values.size === this.capacity) throw new LimitError('Native value arena is full');
+    if (this.freeKeys.length === 0 && this.nextKey === 2 ** 32) throw new LimitError('Native value key space is exhausted');
+    const key = this.freeKeys.length > 0 ? this.freeKeys.pop() : this.nextKey++; this.values.set(key, value); return key;
   }
   sweep() {
     const live = new Set(this.native === undefined ? [] : this.native.liveKeys());
-    for (const key of this.values.keys()) if (!live.has(key)) this.values.delete(key);
+    for (const key of this.values.keys()) if (!live.has(key)) { this.values.delete(key); this.freeKeys.push(key); }
   }
   resolve(reference) {
     if (this.arenaId === undefined) this.arenaId = reference.arena;
@@ -34,20 +35,25 @@ class Context {
       this.sweep(); this.sources = sources;
       return body(this);
     } catch (error) { translate(error, this.ids); }
-    finally { this.sources = undefined; this.sweep(); this.busy = false; }
+    finally { this.sources = undefined; try { this.sweep(); } finally { this.busy = false; } }
   }
   detach() {
     this.closed = true; this.definition = undefined; this.ids = undefined;
     this.snapshot = undefined; this.inputSnapshot = undefined; this.identity = undefined;
   }
+  copy(value, input = false) {
+    const result = (input ? this.inputSnapshot : this.snapshot)(value);
+    if (result !== null && result !== undefined && typeof result.then === 'function') throw new TypeError('Snapshot callbacks must return synchronously, not a Promise');
+    return result;
+  }
   callback(encoded) {
     const request = JSON.parse(encoded);
     const values = request.values.map(key => this.resolve(key));
-    if (request.kind === 'snapshot') return JSON.stringify({ kind: 'value', value: this.allocate(this.snapshot(values[0])) });
+    if (request.kind === 'snapshot') return JSON.stringify({ kind: 'value', value: this.allocate(this.copy(values[0])) });
     const entry = this.definition._internal().callbacks[request.callback];
     let args;
-    if (request.kind === 'invariant') args = [this.snapshot(values[0])];
-    else if (['predicate', 'construct', 'action'].includes(request.kind)) args = [request.kind === 'action' ? values[0] : this.snapshot(values[0]), this.inputSnapshot(values[1]), this.inputSnapshot(values[2])];
+    if (request.kind === 'invariant') args = [this.copy(values[0])];
+    else if (['predicate', 'construct', 'action'].includes(request.kind)) args = [request.kind === 'action' ? values[0] : this.copy(values[0]), this.copy(values[1], true), this.copy(values[2], true)];
     else throw new Error('Unsupported native callback request');
     const result = entry.function(...args);
     if (result !== null && result !== undefined && typeof result.then === 'function') throw new TypeError('Machine callbacks must return synchronously, not a Promise');

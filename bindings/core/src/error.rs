@@ -35,8 +35,8 @@ pub struct Failure {
     pub phase: Option<String>,
     pub state: Option<u32>,
     pub condition: Option<u32>,
-    pub expected_revision: Option<u64>,
-    pub current_revision: Option<u64>,
+    pub expected_revision: Option<String>,
+    pub current_revision: Option<String>,
 }
 impl<H: Host> Error<H> {
     pub fn construction(role: &'static str, error: impl std::fmt::Display) -> Self {
@@ -94,8 +94,8 @@ impl<H: Host> Error<H> {
             Self::Dispatch(DispatchError::ActionFailed { .. }) => f.code = "action",
             Self::Dispatch(DispatchError::StaleRevision { expected, current }) => {
                 f.code = "stale_revision";
-                f.expected_revision = Some(*expected);
-                f.current_revision = Some(*current);
+                f.expected_revision = Some(expected.to_string());
+                f.current_revision = Some(current.to_string());
             }
             Self::Dispatch(DispatchError::DefinitionMismatch { .. }) => {
                 f.code = "foreign_definition"

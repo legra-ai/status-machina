@@ -107,6 +107,27 @@ class LifecycleTests(unittest.TestCase):
             definition(snapshot=snapshot).instantiate(id=object(), data=7)
         self.assertIs(caught.exception.__cause__, failure)
 
+    def test_async_snapshot_functions_are_rejected_before_admission(self):
+        async def snapshot(data):
+            return data
+        with self.assertRaises(DefinitionError):
+            definition(snapshot=snapshot)
+
+    def test_regular_snapshot_cannot_return_a_coroutine(self):
+        async def later(data):
+            return data
+        with self.assertRaises(SnapshotError) as caught:
+            definition(snapshot=lambda data: later(data)).instantiate(id=object(), data=7)
+        self.assertIsInstance(caught.exception.__cause__, TypeError)
+
+    def test_reclaimed_arena_slots_do_not_exhaust_lifetime_key_space(self):
+        with definition().instantiate(id=object(), data=7) as machine:
+            context = machine._context
+            retired = context.allocate(object())
+            context.sweep()
+            self.assertEqual(context.allocate(object()), retired)
+            context.sweep()
+
     def test_async_callbacks_are_rejected_at_construction(self):
         async def action(*_):
             pass
