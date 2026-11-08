@@ -44,3 +44,7 @@ test('invalid labels never stringify objects and UTF-8 budgets count bytes', () 
   assert.throws(() => graph.diagram({ states: new Map([[ready, { toString: forbidden }]]) }), InspectionError);
   assert.throws(() => graph.diagram({ states: new Map([[ready, '界'.repeat(10)]]) }, { maxOutputBytes: 20 }), InspectionError);
 });
+test('an invalid provided label Map fails even when that role has no rendered identities', () => {
+  const graph = new Definition({ id: Symbol(), initial: ready, states: [{ id: ready }], transitions: [] });
+  assert.throws(() => graph.diagram({ states: new Map([[ready, 'Ready']]), events: 42 }), InspectionError);
+});

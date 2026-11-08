@@ -23,6 +23,10 @@ function labels(source, inventory, ids, limits) {
   const result = {};
   for (const [name, role] of Object.entries(roles)) {
     const mapping = source[name]; const values = [];
+    if (mapping !== undefined) {
+      try { Map.prototype.has.call(mapping, undefined); }
+      catch (cause) { throw new InspectionError('Diagram label roles must contain Maps', { role }, { cause }); }
+    }
     // bounded: only labels requested by the validated graph inventory are copied.
     for (const index of inventory[name]) {
       const identifier = ids.resolve(role, index);
