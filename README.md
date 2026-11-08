@@ -226,3 +226,10 @@ with `Composition::bind`. Dispatch then propagates connected events synchronousl
 within explicit work limits. Reports retain deferred or interrupted work and
 caller-owned effects. Release bindings and caller locks before executing external
 effects. This adds no background executor, persistence or clocks.
+
+## Executable tutorials
+
+The [tutorial guide](docs/tutorials/README.md) explains guarded enum-based orders,
+caller-owned effects and explicitly composed checkout/invoice machines. Run
+`cargo run --example typed_order` or `cargo run --example checkout`. The generated
+diagrams also appear inline on the Rustdoc landing page with the next release.

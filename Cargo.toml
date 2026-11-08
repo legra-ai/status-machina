@@ -10,7 +10,7 @@ repository = "https://github.com/legra-ai/status-machina"
 documentation = "https://docs.rs/status-machina"
 readme = "README.md"
 build = "build.rs"
-include = ["Cargo.toml", "README.md", "build.rs", "LICENSE-APACHE", "LICENSE-MIT", "src/**/*.rs", "tests/**", "examples/**/*.rs", "docs/**/*.md"]
+include = ["Cargo.toml", "README.md", "build.rs", "LICENSE-APACHE", "LICENSE-MIT", "src/**/*.rs", "tests/**", "examples/**/*.rs", "docs/**/*.md", "docs/**/*.svg"]
 
 [dependencies]
 thiserror = "2"
