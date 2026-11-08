@@ -8,15 +8,16 @@ use status_machina::{
 };
 
 use crate::ids::Ids;
+use crate::value::Host;
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub enum Error<H: Host> {
     #[error("invalid definition: {0}")]
-    Definition(DefinitionBuildError<Ids>),
+    Definition(DefinitionBuildError<Ids<H>>),
     #[error("invalid {role}: {message}")]
     Construction { role: &'static str, message: String },
     #[error(transparent)]
-    Dispatch(DispatchError<Ids>),
+    Dispatch(DispatchError<Ids<H>>),
     #[error("{phase:?} evaluation failed: {error}")]
     Evaluation {
         phase: EvaluationPhase,
@@ -37,7 +38,7 @@ pub struct Failure {
     pub expected_revision: Option<u64>,
     pub current_revision: Option<u64>,
 }
-impl Error {
+impl<H: Host> Error<H> {
     pub fn construction(role: &'static str, error: impl std::fmt::Display) -> Self {
         Self::Construction {
             role,
@@ -108,13 +109,13 @@ impl Error {
         f
     }
 }
-impl From<DefinitionBuildError<Ids>> for Error {
-    fn from(error: DefinitionBuildError<Ids>) -> Self {
+impl<H: Host> From<DefinitionBuildError<Ids<H>>> for Error<H> {
+    fn from(error: DefinitionBuildError<Ids<H>>) -> Self {
         Self::Definition(error)
     }
 }
-impl From<DispatchError<Ids>> for Error {
-    fn from(error: DispatchError<Ids>) -> Self {
+impl<H: Host> From<DispatchError<Ids<H>>> for Error<H> {
+    fn from(error: DispatchError<Ids<H>>) -> Self {
         Self::Dispatch(error)
     }
 }

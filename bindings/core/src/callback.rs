@@ -11,6 +11,7 @@ use status_machina::{
 
 use crate::value::{
     Data,
+    Host,
     Value,
     ValueKey,
 };
@@ -81,11 +82,11 @@ pub enum CapabilityValue {
     Unknown,
 }
 
-pub(crate) fn predicate(
+pub(crate) fn predicate<H: Host>(
     callback: u32,
-    data: &Data,
-    event: &Value,
-    facts: &Value,
+    data: &Data<H>,
+    event: &Value<H>,
+    facts: &Value<H>,
 ) -> Result<bool, EvaluationError> {
     let request = Request::new(
         CallbackKind::Predicate,
@@ -100,18 +101,18 @@ pub(crate) fn boolean(response: Response) -> Result<bool, EvaluationError> {
         _ => Err(EvaluationError::new("predicate must return a boolean")),
     }
 }
-pub(crate) fn invariant(callback: u32, data: &Data) -> Result<bool, EvaluationError> {
+pub(crate) fn invariant<H: Host>(callback: u32, data: &Data<H>) -> Result<bool, EvaluationError> {
     boolean(data.value.host().execute(Request::new(
         CallbackKind::Invariant,
         Some(callback),
         vec![data.value.key()],
     ))?)
 }
-pub(crate) fn action(
+pub(crate) fn action<H: Host>(
     callback: u32,
-    data: &mut Data,
-    event: &Value,
-    facts: &Value,
+    data: &mut Data<H>,
+    event: &Value<H>,
+    facts: &Value<H>,
 ) -> Result<(), EvaluationError> {
     let request = Request::new(
         CallbackKind::Action,
@@ -123,12 +124,12 @@ pub(crate) fn action(
         _ => Err(EvaluationError::new("action must return no value")),
     }
 }
-pub(crate) fn construct(
+pub(crate) fn construct<H: Host>(
     callback: u32,
-    data: &Data,
-    event: &Value,
-    facts: &Value,
-) -> Result<Value, EvaluationError> {
+    data: &Data<H>,
+    event: &Value<H>,
+    facts: &Value<H>,
+) -> Result<Value<H>, EvaluationError> {
     let request = Request::new(
         CallbackKind::Construct,
         Some(callback),
@@ -138,13 +139,13 @@ pub(crate) fn construct(
     let Response::Value(key) = host.execute(request)? else {
         return Err(EvaluationError::new("constructor must return a value key"));
     };
-    Value::claim(std::rc::Rc::clone(host), key)
+    Value::claim(std::sync::Arc::clone(host), key)
 }
-pub(crate) fn capability(
+pub(crate) fn capability<H: Host>(
     callback: u32,
     state: &u32,
-    data: &Data,
-    facts: &Value,
+    data: &Data<H>,
+    facts: &Value<H>,
 ) -> Result<CapabilityStatus, EvaluationError> {
     let mut request = Request::new(
         CallbackKind::Capability,
@@ -162,9 +163,9 @@ pub(crate) fn capability(
     }
 }
 
-pub(crate) fn assertion(
+pub(crate) fn assertion<H: Host>(
     callback: u32,
-    observation: &status_machina::ScenarioObservation<crate::ids::Ids>,
+    observation: &status_machina::ScenarioObservation<crate::ids::Ids<H>>,
 ) -> Result<bool, EvaluationError> {
     use status_machina::ScenarioStepKind;
     let (kind, transition, disposition) = match observation.kind() {

@@ -1,9 +1,11 @@
 //! Native object leases. No application payload is serialized or stored in
 //! Rust.
-use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt;
-use std::rc::Rc;
+use std::sync::{
+    Arc,
+    Mutex,
+};
 
 use serde::{
     Deserialize,
@@ -29,16 +31,17 @@ pub struct ValueKey {
 }
 
 /// The actual interpreter adapter, invoked only during an explicit native call.
-pub trait Host {
+pub trait Host: fmt::Debug + 'static {
     fn arena(&self) -> &ArenaState;
     fn execute(&self, request: Request) -> Result<Response, EvaluationError>;
 }
 /// Bounded ownership inventory; the language sweeps unleased objects after
 /// calls.
+#[derive(Debug)]
 pub struct ArenaState {
     id: uuid::Uuid,
     // bounded: live values cannot exceed the validated per-instance capacity.
-    live: RefCell<HashSet<u32>>,
+    live: Mutex<HashSet<u32>>,
     limit: usize,
 }
 impl ArenaState {
@@ -50,7 +53,7 @@ impl ArenaState {
         }
         Ok(Self {
             id: uuid::Uuid::now_v7(),
-            live: RefCell::new(HashSet::new()),
+            live: Mutex::new(HashSet::new()),
             limit,
         })
     }
@@ -59,10 +62,15 @@ impl ArenaState {
     }
     pub fn live(&self) -> Vec<u32> {
         // bounded: inventory size is capped by limit.
-        self.live.borrow().iter().copied().collect()
+        self.live
+            .lock()
+            .expect("native arena lock is not poisoned")
+            .iter()
+            .copied()
+            .collect()
     }
     fn claim(&self, key: u32) -> Result<(), EvaluationError> {
-        let mut live = self.live.borrow_mut();
+        let mut live = self.live.lock().expect("native arena lock is not poisoned");
         if live.len() == self.limit {
             return Err(EvaluationError::new("native value capacity exhausted"));
         }
@@ -73,28 +81,35 @@ impl ArenaState {
     }
     fn release(&self, key: u32) {
         assert!(
-            self.live.borrow_mut().remove(&key),
+            self.live
+                .lock()
+                .expect("native arena lock is not poisoned")
+                .remove(&key),
             "native lease must be live exactly once"
         );
     }
 }
-struct Lease {
-    host: Rc<dyn Host>,
+struct Lease<H: Host> {
+    host: Arc<H>,
     key: u32,
 }
-impl Drop for Lease {
+impl<H: Host> Drop for Lease<H> {
     fn drop(&mut self) {
         self.host.arena().release(self.key);
     }
 }
 /// A counted lease; cloning shares an immutable reference, not application
 /// data.
-#[derive(Clone)]
-pub struct Value(Rc<Lease>);
-impl Value {
-    pub fn claim(host: Rc<dyn Host>, key: u32) -> Result<Self, EvaluationError> {
+pub struct Value<H: Host>(Arc<Lease<H>>);
+impl<H: Host> Clone for Value<H> {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+impl<H: Host> Value<H> {
+    pub fn claim(host: Arc<H>, key: u32) -> Result<Self, EvaluationError> {
         host.arena().claim(key)?;
-        Ok(Self(Rc::new(Lease { host, key })))
+        Ok(Self(Arc::new(Lease { host, key })))
     }
     pub fn key(&self) -> ValueKey {
         ValueKey {
@@ -102,20 +117,20 @@ impl Value {
             key: self.0.key,
         }
     }
-    pub fn host(&self) -> &Rc<dyn Host> {
+    pub fn host(&self) -> &Arc<H> {
         &self.0.host
     }
 }
-impl fmt::Debug for Value {
+impl<H: Host> fmt::Debug for Value<H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.key().fmt(f)
     }
 }
 /// Candidate data is a lease into an arena owned by the visible machine object.
-pub struct Data {
-    pub value: Value,
+pub struct Data<H: Host> {
+    pub value: Value<H>,
 }
-impl FallibleCandidateData for Data {
+impl<H: Host> FallibleCandidateData for Data<H> {
     fn try_snapshot(&self) -> Result<Self, EvaluationError> {
         let host = self.value.host();
         let request = Request::new(CallbackKind::Snapshot, None, vec![self.value.key()]);
@@ -123,7 +138,7 @@ impl FallibleCandidateData for Data {
             return Err(EvaluationError::new("snapshot must return a value key"));
         };
         Ok(Self {
-            value: Value::claim(Rc::clone(host), key)?,
+            value: Value::claim(Arc::clone(host), key)?,
         })
     }
     fn prepare_accept(self) -> Result<Self, EvaluationError> {

@@ -1,7 +1,9 @@
 //! Compact native references remain bounded and follow actual Rust ownership.
-use std::cell::Cell;
-use std::rc::Rc;
 use std::sync::Arc;
+use std::sync::atomic::{
+    AtomicU32,
+    Ordering,
+};
 
 use status_machina::{
     EvaluationError,
@@ -19,24 +21,24 @@ use status_machina_bridge::value::{
     Value,
 };
 
+#[derive(Debug)]
 struct NativeHost {
     arena: ArenaState,
-    next: Cell<u32>,
+    next: AtomicU32,
 }
 impl Host for NativeHost {
     fn arena(&self) -> &ArenaState {
         &self.arena
     }
     fn execute(&self, _: Request) -> Result<Response, EvaluationError> {
-        let key = self.next.get();
-        self.next.set(key + 1);
+        let key = self.next.fetch_add(1, Ordering::SeqCst);
         Ok(Response::Value(key))
     }
 }
-fn host(limit: usize) -> Rc<dyn Host> {
-    Rc::new(NativeHost {
+fn host(limit: usize) -> Arc<NativeHost> {
+    Arc::new(NativeHost {
         arena: ArenaState::new(limit).unwrap(),
-        next: Cell::new(10),
+        next: AtomicU32::new(10),
     })
 }
 const SPEC: &str = r#"{
@@ -51,20 +53,20 @@ const SPEC: &str = r#"{
 #[test]
 fn value_leases_are_released_once_after_the_last_clone() {
     let host = host(1);
-    let value = Value::claim(Rc::clone(&host), 0).unwrap();
+    let value = Value::claim(Arc::clone(&host), 0).unwrap();
     let clone = value.clone();
     drop(value);
     assert_eq!(host.arena().live(), [0]);
-    assert!(Value::claim(Rc::clone(&host), 1).is_err());
+    assert!(Value::claim(Arc::clone(&host), 1).is_err());
     drop(clone);
     assert!(host.arena().live().is_empty());
-    assert!(Value::claim(Rc::clone(&host), 1).is_ok());
+    assert!(Value::claim(Arc::clone(&host), 1).is_ok());
 }
 #[test]
 fn native_specification_uses_the_kernel_unknown_state_validation() {
     let invalid = SPEC.replace("\"target\":1", "\"target\":2");
     assert!(matches!(
-        Template::parse(&invalid),
+        Template::<NativeHost>::parse(&invalid),
         Err(status_machina_bridge::error::Error::Definition(
             status_machina::DefinitionBuildError::UnknownTransitionState { state: 2, .. }
         ))
@@ -72,18 +74,18 @@ fn native_specification_uses_the_kernel_unknown_state_validation() {
 }
 #[test]
 fn native_dispatch_uses_kernel_acceptance_and_releases_discarded_candidates() {
-    let template = Template::parse(SPEC).unwrap();
+    let template = Template::<NativeHost>::parse(SPEC).unwrap();
     let host = host(8);
     let mut instance = Arc::clone(&template.definition)
         .instantiate_shared(
             uuid::Uuid::now_v7(),
             Data {
-                value: Value::claim(Rc::clone(&host), 0).unwrap(),
+                value: Value::claim(Arc::clone(&host), 0).unwrap(),
             },
         )
         .unwrap();
-    let event = Value::claim(Rc::clone(&host), 1).unwrap();
-    let facts = Value::claim(Rc::clone(&host), 2).unwrap();
+    let event = Value::claim(Arc::clone(&host), 1).unwrap();
+    let facts = Value::claim(Arc::clone(&host), 2).unwrap();
     assert!(
         instance
             .dispatch(Event::new(0, event), &facts)
@@ -103,10 +105,10 @@ fn native_dispatch_uses_kernel_acceptance_and_releases_discarded_candidates() {
 
 #[test]
 fn native_decision_is_unaccepted_until_checked_acceptance() {
-    let template = Template::parse(SPEC).unwrap();
+    let template = Template::<NativeHost>::parse(SPEC).unwrap();
     let host = host(16);
     let mut machine =
-        status_machina_bridge::runtime::Machine::try_new(&template, Rc::clone(&host), 0).unwrap();
+        status_machina_bridge::runtime::Machine::try_new(&template, Arc::clone(&host), 0).unwrap();
     let decision = machine.evaluate(0, 1, 2, None).unwrap();
     assert_eq!(machine.state().unwrap(), 0);
     assert_eq!(machine.revision().unwrap(), 0);

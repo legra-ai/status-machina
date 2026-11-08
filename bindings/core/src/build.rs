@@ -18,6 +18,7 @@ use crate::error::Error;
 use crate::ids::Ids;
 use crate::value::{
     Data,
+    Host,
     Value,
 };
 use crate::{
@@ -25,15 +26,15 @@ use crate::{
     spec,
 };
 
-pub type Definition = MachineDefinition<Data, Value, Value, Value, Value, Ids>;
-pub type Registry = BehaviorRegistry<Data, Value, Value, Value, Value, Ids>;
+pub type Definition<H> = MachineDefinition<Data<H>, Value<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
+pub type Registry<H> = BehaviorRegistry<Data<H>, Value<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
 /// Immutable executable graph plus its checked Story implementation registry.
-pub struct Template {
-    pub definition: Arc<Definition>,
-    pub registry: Registry,
+pub struct Template<H: Host> {
+    pub definition: Arc<Definition<H>>,
+    pub registry: Registry<H>,
 }
-impl Template {
-    pub fn parse(source: &str) -> Result<Self, Error> {
+impl<H: Host> Template<H> {
+    pub fn parse(source: &str) -> Result<Self, Error<H>> {
         if source.len() > 1_048_576 {
             return Err(Error::construction(
                 "definition",
@@ -71,7 +72,7 @@ impl Template {
             registry,
         })
     }
-    fn registry(behaviors: Vec<spec::Behavior>, limit: usize) -> Result<Registry, Error> {
+    fn registry(behaviors: Vec<spec::Behavior>, limit: usize) -> Result<Registry<H>, Error<H>> {
         let mut registry = Registry::builder()
             .max_bindings(limit)
             .map_err(|e| Error::construction("Story registry", e))?;
@@ -103,17 +104,17 @@ impl Template {
         Ok(registry.build())
     }
 }
-pub(crate) fn reference(value: spec::Reference) -> BehaviorRef<Ids> {
+pub(crate) fn reference<H: Host>(value: spec::Reference) -> BehaviorRef<Ids<H>> {
     BehaviorRef::new(value.story, value.implementation)
 }
-pub(crate) struct Builder<'a> {
-    pub registry: &'a Registry,
+pub(crate) struct Builder<'a, H: Host> {
+    pub registry: &'a Registry<H>,
 }
-impl Builder<'_> {
+impl<H: Host> Builder<'_, H> {
     fn state(
         &self,
         spec: spec::State,
-    ) -> Result<StateDefinition<Data, Value, Value, Value, Ids>, Error> {
+    ) -> Result<StateDefinition<Data<H>, Value<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
         let mut state = StateDefinition::builder(spec.id);
         if spec.terminal {
             state = state.terminal();
@@ -153,7 +154,7 @@ impl Builder<'_> {
     fn transition(
         &self,
         spec: spec::Transition,
-    ) -> Result<Transition<Data, Value, Value, Value, Value, Ids>, Error> {
+    ) -> Result<Transition<Data<H>, Value<H>, Value<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
         let mut transition = Transition::builder_with_effects_and_output_events(spec.id)
             .from(spec.source)
             .on(spec.event)
@@ -191,7 +192,7 @@ impl Builder<'_> {
     pub fn condition(
         &self,
         spec: spec::Condition,
-    ) -> Result<Condition<Data, Value, Value, Ids>, Error> {
+    ) -> Result<Condition<Data<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
         let is_all = matches!(&spec.expression, spec::Expression::All { .. });
         match spec.expression {
             spec::Expression::Predicate { implementation } => match implementation.select()? {
@@ -226,7 +227,10 @@ impl Builder<'_> {
                 .map_err(|e| Error::construction("negation", e)),
         }
     }
-    fn action(&self, spec: spec::Named) -> Result<LocalAction<Data, Value, Value, Ids>, Error> {
+    fn action(
+        &self,
+        spec: spec::Named,
+    ) -> Result<LocalAction<Data<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
         match spec.implementation.select()? {
             Selection::Inline(cb) => LocalAction::builder(spec.id)
                 .try_apply(move |d, e, f| callback::action(cb, d, e, f))
@@ -238,7 +242,10 @@ impl Builder<'_> {
                 .map_err(|e| Error::construction("action binding", e)),
         }
     }
-    fn effect(&self, spec: spec::Named) -> Result<Effect<Data, Value, Value, Value, Ids>, Error> {
+    fn effect(
+        &self,
+        spec: spec::Named,
+    ) -> Result<Effect<Data<H>, Value<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
         match spec.implementation.select()? {
             Selection::Inline(cb) => Effect::builder(spec.id)
                 .try_describe(move |d, e, f| callback::construct(cb, d, e, f))
@@ -253,7 +260,7 @@ impl Builder<'_> {
     fn output(
         &self,
         spec: spec::Named,
-    ) -> Result<OutputEvent<Data, Value, Value, Value, Ids>, Error> {
+    ) -> Result<OutputEvent<Data<H>, Value<H>, Value<H>, Value<H>, Ids<H>>, Error<H>> {
         match spec.implementation.select()? {
             Selection::Inline(cb) => OutputEvent::builder(spec.id)
                 .try_describe(move |d, e, f| callback::construct(cb, d, e, f))
@@ -266,12 +273,12 @@ impl Builder<'_> {
         }
     }
 }
-pub(crate) enum Selection {
+pub(crate) enum Selection<H: Host> {
     Inline(u32),
-    Registered(BehaviorRef<Ids>),
+    Registered(BehaviorRef<Ids<H>>),
 }
 impl spec::Binding {
-    pub(crate) fn select(self) -> Result<Selection, Error> {
+    pub(crate) fn select<H: Host>(self) -> Result<Selection<H>, Error<H>> {
         match (self.callback, self.reference) {
             (Some(callback), None) => Ok(Selection::Inline(callback)),
             (None, Some(r)) => Ok(Selection::Registered(reference(r))),

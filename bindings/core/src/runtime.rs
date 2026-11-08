@@ -1,5 +1,4 @@
 //! Owned native instances use the kernel's evaluation and acceptance path.
-use std::rc::Rc;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -21,16 +20,17 @@ use crate::value::{
     ValueKey,
 };
 
-pub type Instance = MachineInstance<'static, Data, Value, Value, Value, Value, Ids>;
-pub type Decision = MachineDecision<Data, Value, Value, Ids>;
-pub struct Machine {
-    pub instance: Option<Instance>,
-    pub host: Rc<dyn Host>,
+pub type Instance<H> =
+    MachineInstance<'static, Data<H>, Value<H>, Value<H>, Value<H>, Value<H>, Ids<H>>;
+pub type Decision<H> = MachineDecision<Data<H>, Value<H>, Value<H>, Ids<H>>;
+pub struct Machine<H: Host> {
+    pub instance: Option<Instance<H>>,
+    pub host: Arc<H>,
 }
-impl Machine {
-    pub fn try_new(template: &Template, host: Rc<dyn Host>, initial: u32) -> Result<Self, Error> {
+impl<H: Host> Machine<H> {
+    pub fn try_new(template: &Template<H>, host: Arc<H>, initial: u32) -> Result<Self, Error<H>> {
         let data = Data {
-            value: Value::claim(Rc::clone(&host), initial).map_err(Error::evaluation)?,
+            value: Value::claim(Arc::clone(&host), initial).map_err(Error::evaluation)?,
         };
         let isolated = data.try_snapshot().map_err(Error::evaluation)?;
         let instance =
@@ -40,16 +40,16 @@ impl Machine {
             host,
         })
     }
-    fn get(&self) -> Result<&Instance, Error> {
+    fn get(&self) -> Result<&Instance<H>, Error<H>> {
         self.instance.as_ref().ok_or(Error::Disposed)
     }
-    pub fn state(&self) -> Result<u32, Error> {
+    pub fn state(&self) -> Result<u32, Error<H>> {
         Ok(*self.get()?.state())
     }
-    pub fn revision(&self) -> Result<u64, Error> {
+    pub fn revision(&self) -> Result<u64, Error<H>> {
         Ok(self.get()?.revision())
     }
-    pub fn snapshot(&self) -> Result<ValueKey, Error> {
+    pub fn snapshot(&self) -> Result<ValueKey, Error<H>> {
         Ok(self
             .get()?
             .data()
@@ -64,13 +64,13 @@ impl Machine {
         payload: u32,
         facts: u32,
         revision: Option<u64>,
-    ) -> Result<Outcome, Error> {
+    ) -> Result<Outcome, Error<H>> {
         self.get()?;
         let event = Event::new(
             kind,
-            Value::claim(Rc::clone(&self.host), payload).map_err(Error::evaluation)?,
+            Value::claim(Arc::clone(&self.host), payload).map_err(Error::evaluation)?,
         );
-        let facts = Value::claim(Rc::clone(&self.host), facts).map_err(Error::evaluation)?;
+        let facts = Value::claim(Arc::clone(&self.host), facts).map_err(Error::evaluation)?;
         let instance = self.instance.as_mut().ok_or(Error::Disposed)?;
         let outcome =
             instance.dispatch_at(revision.unwrap_or(instance.revision()), event, &facts)?;
@@ -82,16 +82,16 @@ impl Machine {
         payload: u32,
         facts: u32,
         revision: Option<u64>,
-    ) -> Result<Decision, Error> {
+    ) -> Result<Decision<H>, Error<H>> {
         let instance = self.get()?;
         let event = Event::new(
             kind,
-            Value::claim(Rc::clone(&self.host), payload).map_err(Error::evaluation)?,
+            Value::claim(Arc::clone(&self.host), payload).map_err(Error::evaluation)?,
         );
-        let facts = Value::claim(Rc::clone(&self.host), facts).map_err(Error::evaluation)?;
+        let facts = Value::claim(Arc::clone(&self.host), facts).map_err(Error::evaluation)?;
         Ok(instance.evaluate_at(revision.unwrap_or(instance.revision()), event, &facts)?)
     }
-    pub fn accept(&mut self, decision: Decision) -> Result<Outcome, Error> {
+    pub fn accept(&mut self, decision: Decision<H>) -> Result<Outcome, Error<H>> {
         Ok(self
             .instance
             .as_mut()
@@ -135,8 +135,8 @@ pub enum Outcome {
         outputs: Vec<Intent>,
     },
 }
-impl From<DispatchOutcome<Value, Value, Ids>> for Outcome {
-    fn from(outcome: DispatchOutcome<Value, Value, Ids>) -> Self {
+impl<H: Host> From<DispatchOutcome<Value<H>, Value<H>, Ids<H>>> for Outcome {
+    fn from(outcome: DispatchOutcome<Value<H>, Value<H>, Ids<H>>) -> Self {
         match outcome {
             DispatchOutcome::Refused { state, event } => Self::Refused { state, event },
             DispatchOutcome::Ignored {
