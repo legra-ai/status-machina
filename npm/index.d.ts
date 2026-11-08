@@ -92,7 +92,7 @@ export class Definition<S extends Identity, K extends Identity, D = unknown, P =
   readonly initial: S;
   readonly states: readonly State<S, D, P, F>[];
   readonly transitions: readonly Transition<S, K, D, P, F>[];
-  instantiate<T extends D>(options: { id: Identity; data: T }): Machine<S, K, T, P, F>;
+  instantiate(options: { id: Identity; data: D }): Machine<S, K, D, P, F>;
 }
 export class Machine<S extends Identity, K extends Identity, D, P = unknown, F = undefined> implements Disposable {
   private constructor();

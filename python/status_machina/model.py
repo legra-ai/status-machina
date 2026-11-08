@@ -2,15 +2,17 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable, Generic, Hashable, Literal, TypeVar
+from typing import Any, Callable, Generic, Hashable, Literal
+from typing_extensions import TypeVar
 from ._bounded import bounded
 from .errors import LimitError
 
 StateT = TypeVar("StateT", bound=Hashable)
 KindT = TypeVar("KindT", bound=Hashable)
-DataT = TypeVar("DataT")
-PayloadT = TypeVar("PayloadT")
-FactsT = TypeVar("FactsT")
+DataT = TypeVar("DataT", default=Any)
+PayloadT = TypeVar("PayloadT", default=Any)
+FactsT = TypeVar("FactsT", default=Any)
+EventPayloadT = TypeVar("EventPayloadT", covariant=True, default=Any)
 IdT = TypeVar("IdT", bound=Hashable)
 
 @dataclass(frozen=True)
@@ -75,12 +77,12 @@ class OutputEvent(Generic[KindT, PayloadT]):
     describe: Callable[..., PayloadT] | BehaviorRef
 
 @dataclass(frozen=True)
-class State(Generic[StateT]):
+class State(Generic[StateT, DataT]):
     id: StateT
     terminal: bool = False
-    invariant: Callable[..., bool] | BehaviorRef | None = None
-    entry_actions: tuple[Action, ...] = ()
-    exit_actions: tuple[Action, ...] = ()
+    invariant: Callable[[DataT], bool] | BehaviorRef | None = None
+    entry_actions: tuple[Action[DataT], ...] = ()
+    exit_actions: tuple[Action[DataT], ...] = ()
     entry_effects: tuple[Effect, ...] = ()
     exit_effects: tuple[Effect, ...] = ()
     def __post_init__(self) -> None:
@@ -88,15 +90,15 @@ class State(Generic[StateT]):
             object.__setattr__(self, name, bounded(getattr(self, name), 16, name))
 
 @dataclass(frozen=True)
-class Transition(Generic[StateT, KindT]):
+class Transition(Generic[StateT, KindT, DataT]):
     id: Hashable
     source: StateT
     event: KindT
     target: StateT
     internal: bool = False
-    guard: Condition | None = None
-    postconditions: tuple[Condition, ...] = ()
-    actions: tuple[Action, ...] = ()
+    guard: Condition[DataT] | None = None
+    postconditions: tuple[Condition[DataT], ...] = ()
+    actions: tuple[Action[DataT], ...] = ()
     effects: tuple[Effect, ...] = ()
     outputs: tuple[OutputEvent, ...] = ()
     def __post_init__(self) -> None:
@@ -124,9 +126,9 @@ class Limits:
                 raise LimitError(f"{name} must be an integer between 1 and 65536")
 
 @dataclass(frozen=True)
-class Event(Generic[KindT, PayloadT]):
+class Event(Generic[KindT, EventPayloadT]):
     kind: KindT
-    payload: PayloadT
+    payload: EventPayloadT
 
 @dataclass(frozen=True)
 class EffectIntent(Generic[IdT, PayloadT]):

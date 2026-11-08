@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import inspect
 import json
 import threading
+from typing import NoReturn, TypeVar
 from . import _native
 from . import errors
 
@@ -17,7 +18,7 @@ _ERROR_TYPES = {
     "disposed": errors.DisposedError, "busy": errors.BusyError,
 }
 
-def translate(error, ids=None):
+def translate(error, ids=None) -> NoReturn:
     info = json.loads(str(error))
     code = info["code"]
     if code not in _ERROR_TYPES:
@@ -47,7 +48,7 @@ class Context:
         self.next_key = 0
         self.free_keys: list[int] = []
         self.arena_id: str | None = None
-        self.native = None
+        self.native: _native._Instance | None = None
         self.closed = False
         self._lock = threading.Lock()
         self._sources = None
@@ -148,4 +149,7 @@ class Context:
             response = {"kind": "value", "value": self.allocate(result)}
         return json.dumps(response)
 
-DEFAULT_SNAPSHOT = copy.deepcopy
+_SnapshotT = TypeVar("_SnapshotT")
+
+def DEFAULT_SNAPSHOT(value: _SnapshotT) -> _SnapshotT:
+    return copy.deepcopy(value)

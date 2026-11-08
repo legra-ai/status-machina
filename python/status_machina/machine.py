@@ -2,7 +2,8 @@
 from __future__ import annotations
 import json
 import inspect
-from typing import Callable, Generic, Hashable, Iterable, TypeVar
+from typing import Any, Callable, Generic, Hashable, Iterable, NoReturn, TypeAlias, cast
+from typing_extensions import TypeVar
 from . import _native
 from ._compile import Compiler
 from ._bounded import bounded
@@ -13,14 +14,15 @@ from .model import (BehaviorRegistry, Disposition, EffectIntent, Event, Ignored,
 
 StateT = TypeVar("StateT", bound=Hashable)
 KindT = TypeVar("KindT", bound=Hashable)
-DataT = TypeVar("DataT")
+DataT = TypeVar("DataT", default=Any)
+Outcome: TypeAlias = Refused[StateT, KindT] | Ignored[StateT, KindT] | Transitioned[StateT]
 
-class Definition(Generic[StateT, KindT]):
+class Definition(Generic[StateT, KindT, DataT]):
     """Immutable checked graph. Identifiers remain caller-defined native values."""
     def __init__(self, *, id: Hashable, initial: StateT,
-            states: Iterable[State[StateT]], transitions: Iterable[Transition[StateT, KindT]],
+            states: Iterable[State[StateT, DataT]], transitions: Iterable[Transition[StateT, KindT, DataT]],
             dispositions: Iterable[Disposition] = (), behaviors: BehaviorRegistry = BehaviorRegistry(),
-            snapshot: Callable[[object], object] = DEFAULT_SNAPSHOT, input_snapshot: Callable[[object], object] = DEFAULT_SNAPSHOT, limits: Limits = Limits()):
+            snapshot: Callable[[DataT], DataT] = DEFAULT_SNAPSHOT, input_snapshot: Callable[[Any], Any] = DEFAULT_SNAPSHOT, limits: Limits = Limits()) -> None:
         for function in (snapshot, input_snapshot):
             if not callable(function) or inspect.iscoroutinefunction(function) or inspect.iscoroutinefunction(getattr(function, "__call__", None)):
                 raise DefinitionError("Snapshot functions must be synchronous callables")
@@ -60,19 +62,20 @@ class Definition(Generic[StateT, KindT]):
         return self._initial
 
     @property
-    def states(self) -> tuple[State[StateT], ...]:
+    def states(self) -> tuple[State[StateT, DataT], ...]:
         return self._states
 
     @property
-    def transitions(self) -> tuple[Transition[StateT, KindT], ...]:
+    def transitions(self) -> tuple[Transition[StateT, KindT, DataT], ...]:
         return self._transitions
 
     def instantiate(self, *, id: Hashable, data: DataT) -> Machine[StateT, KindT, DataT]:
         hash((type(id), id))
         context = Context(self, id)
         try:
-            context.native = self._native.instantiate(context.allocate(data), self._limits.max_values, context.invoke)
-            if context.arena_id != context.native.arena_id():
+            native = self._native.instantiate(context.allocate(data), self._limits.max_values, context.invoke)
+            context.native = native
+            if context.arena_id != native.arena_id():
                 raise RuntimeError("Native arena identity changed during admission")
         except _native.NativeFailure as error:
             context.values.clear()
@@ -106,7 +109,7 @@ class Machine(Generic[StateT, KindT, DataT]):
         with self._context.operation() as context:
             return context.resolve(json.loads(context.native.snapshot(context.invoke)))
 
-    def _outcome(self, encoded, event=None):
+    def _outcome(self, encoded, event=None) -> Outcome[StateT, KindT]:
         value = json.loads(encoded)
         ids = self._context.ids
         if value["kind"] == "refused":
@@ -123,19 +126,19 @@ class Machine(Generic[StateT, KindT, DataT]):
             tuple(EffectIntent(ids.resolve("effect", item["id"]), self._context.resolve(item["payload"])) for item in value["effects"]),
             tuple(OutputIntent(ids.resolve("event", item["id"]), self._context.resolve(item["payload"])) for item in value["outputs"]))
 
-    def dispatch(self, event: Event[KindT, object], *, facts: object = None, expected_revision: int | None = None):
+    def dispatch(self, event: Event[KindT, object], *, facts: object = None, expected_revision: int | None = None) -> Outcome[StateT, KindT]:
         with self._context.operation() as context:
             encoded = context.native.dispatch(context.ids.find("event", event.kind),
                 context.allocate(event.payload), context.allocate(facts), context.invoke, expected_revision)
             return self._outcome(encoded, event)
 
-    def evaluate(self, event: Event[KindT, object], *, facts: object = None, expected_revision: int | None = None):
+    def evaluate(self, event: Event[KindT, object], *, facts: object = None, expected_revision: int | None = None) -> Decision:
         with self._context.operation() as context:
             decision = context.native.evaluate(context.ids.find("event", event.kind),
                 context.allocate(event.payload), context.allocate(facts), context.invoke, expected_revision)
             return Decision(context, decision, event.kind)
 
-    def accept(self, decision):
+    def accept(self, decision: Decision) -> Outcome[StateT, KindT]:
         if decision._context is None:
             raise DisposedError("The decision has already been consumed")
         with self._context.operation() as context:
@@ -155,7 +158,7 @@ class Machine(Generic[StateT, KindT, DataT]):
 
     close = dispose
 
-    def __enter__(self):
+    def __enter__(self) -> Machine[StateT, KindT, DataT]:
         if self._context.closed:
             raise DisposedError("The machine has been disposed")
         return self

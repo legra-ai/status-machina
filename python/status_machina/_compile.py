@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import inspect
-from typing import Callable, Hashable
+from typing import Callable, Hashable, cast
 from .errors import DefinitionError, LimitError
 from .model import Action, BehaviorRef, BehaviorRegistry, Condition, Limits
 
@@ -73,7 +73,10 @@ class Compiler:
     def action(self, action: Action) -> dict:
         if (action.apply is None) == (action.update is None):
             raise DefinitionError("An action needs exactly one apply or update implementation")
-        implementation = self.implementation(action.update, update=True) if action.update is not None else self.implementation(action.apply)
+        if action.update is not None:
+            implementation = self.implementation(action.update, update=True)
+        else:
+            implementation = self.implementation(cast(Callable | BehaviorRef, action.apply))
         return {"id": self.ids.intern("action", action.id), "implementation": implementation}
 
     def named(self, value, role: str) -> dict:
@@ -91,9 +94,9 @@ class Compiler:
         elif condition.all_of is not None or condition.any_of is not None:
             children = condition.all_of if condition.all_of is not None else condition.any_of
             expression = {"kind": "all" if condition.all_of is not None else "any",
-                          "children": [self.condition(child, depth + 1) for child in children]}
+                          "children": [self.condition(child, depth + 1) for child in cast(tuple[Condition, ...], children)]}
         else:
-            expression = {"kind": "not", "child": self.condition(condition.negated, depth + 1)}
+            expression = {"kind": "not", "child": self.condition(cast(Condition, condition.negated), depth + 1)}
         return {"id": self.ids.intern("condition", condition.id), "expression": expression}
 
     def state(self, state) -> dict:
