@@ -10,3 +10,5 @@
 /npm/node_modules/
 /npm/*.node
 /npm/dist/
+
+/npm/native.generated.d.ts

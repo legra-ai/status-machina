@@ -1,0 +1,53 @@
+{
+  "name": "@legra-ai/status-machina",
+  "version": "0.1.0",
+  "description": "Native typed, caller-driven state machines with checked composition",
+  "type": "module",
+  "main": "./index.mjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs",
+      "require": "./index.cjs"
+    }
+  },
+  "files": [
+    "index.mjs",
+    "index.cjs",
+    "index.d.ts",
+    "lib/",
+    "*.node",
+    "README.md"
+  ],
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/legra-ai/status-machina.git",
+    "directory": "npm"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "napi": {
+    "binaryName": "status_machina",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "aarch64-pc-windows-msvc"
+    ]
+  },
+  "scripts": {
+    "build": "napi build --manifest-path status-machina-napi/Cargo.toml --platform --output-dir . --no-js --dts native.generated.d.ts",
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.6.1",
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.2"
+  }
+}
