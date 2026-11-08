@@ -29,6 +29,7 @@ class Definition {
     if (typeof copy !== 'function' || typeof inputCopy !== 'function') throw new DefinitionError('snapshot and inputSnapshot must be functions');
     for (const callback of [copy, inputCopy]) if (callback.constructor.name === 'AsyncFunction') throw new DefinitionError('Snapshot functions must be synchronous');
     compiler.ids.intern('definition', specification.id);
+    for (const state of states) compiler.ids.intern('state', state.id);
     const source = { initial: compiler.ids.intern('state', specification.initial),
       max_states: limits.maxStates, max_transitions: limits.maxTransitions, max_bindings: behaviors.maxBindings,
       states: states.map(value => compiler.state(value)), transitions: transitions.map(value => compiler.transition(value)),

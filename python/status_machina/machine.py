@@ -40,6 +40,8 @@ class Definition(Generic[StateT, KindT, DataT]):
         self._input_snapshot = input_snapshot
         compiler = Compiler(limits)
         compiler.ids.intern("definition", id)
+        for state in self._states:
+            compiler.ids.intern("state", state.id)
         source = {"initial": compiler.ids.intern("state", initial),
             "max_states": limits.max_states, "max_transitions": limits.max_transitions,
             "max_bindings": behaviors.max_bindings,

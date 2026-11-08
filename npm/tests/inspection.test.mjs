@@ -48,3 +48,11 @@ test('an invalid provided label Map fails even when that role has no rendered id
   const graph = new Definition({ id: Symbol(), initial: ready, states: [{ id: ready }], transitions: [] });
   assert.throws(() => graph.diagram({ states: new Map([[ready, 'Ready']]), events: 42 }), InspectionError);
 });
+test('state reports and diagram indices follow declaration order rather than initial first', () => {
+  const graph = new Definition({ id: Symbol(), initial: ready, states: [{ id: done, terminal: true }, { id: ready }],
+    transitions: [{ id: edge, source: ready, event: finish, target: done }] });
+  assert.deepEqual(graph.structuralCoverage().states.map(row => row.id), [done, ready]);
+  const diagram = graph.diagram({ states: new Map([[done, 'Done'], [ready, 'Ready']]),
+    transitions: new Map([[edge, 'Finish']]), events: new Map([[finish, 'Finish']]) });
+  assert.ok(diagram.includes('state "Done" as s0')); assert.ok(diagram.includes('[*] --> s1'));
+});

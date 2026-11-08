@@ -71,3 +71,13 @@ class InspectionTests(unittest.TestCase):
         with self.assertRaises(InspectionError):
             self.definition.diagram(DiagramLabels(states={Phase.READY: '界' * 10}),
                 limits=InspectionLimits(max_output_bytes=20))
+
+    def test_state_report_and_diagram_follow_declaration_order_not_initial_first(self):
+        graph = Definition(id=object(), initial=Phase.READY,
+            states=(State(Phase.DONE, terminal=True), State(Phase.READY)),
+            transitions=(Transition(id=self.edge, source=Phase.READY, event=Input.FINISH, target=Phase.DONE),))
+        self.assertEqual(tuple(row.id for row in graph.structural_coverage().states), (Phase.DONE, Phase.READY))
+        diagram = graph.diagram(DiagramLabels(states={Phase.DONE: 'Done', Phase.READY: 'Ready'},
+            transitions={self.edge: 'Finish'}, events={Input.FINISH: 'Finish'}))
+        self.assertIn('state "Done" as s0', diagram)
+        self.assertIn('[*] --> s1', diagram)
