@@ -27,6 +27,11 @@ pub enum Error<H: Host> {
     Disposed,
     #[error("native resource is already executing an operation")]
     Busy,
+    #[error("inspection failed: {message}")]
+    Inspection {
+        message: String,
+        limit: Option<usize>,
+    },
 }
 #[derive(Serialize)]
 pub struct Failure {
@@ -37,8 +42,26 @@ pub struct Failure {
     pub condition: Option<u32>,
     pub expected_revision: Option<String>,
     pub current_revision: Option<String>,
+    pub limit: Option<usize>,
 }
 impl<H: Host> Error<H> {
+    pub fn invalid_inspection(error: impl std::fmt::Display) -> Self {
+        Self::Inspection {
+            message: error.to_string(),
+            limit: None,
+        }
+    }
+    pub fn inspection(error: status_machina::InspectionError) -> Self {
+        let limit = match error {
+            status_machina::InspectionError::EntryLimit { limit }
+            | status_machina::InspectionError::OutputLimit { limit } => Some(limit),
+            _ => None,
+        };
+        Self::Inspection {
+            message: error.to_string(),
+            limit,
+        }
+    }
     pub fn construction(role: &'static str, error: impl std::fmt::Display) -> Self {
         Self::Construction {
             role,
@@ -68,6 +91,7 @@ impl<H: Host> Error<H> {
             condition: None,
             expected_revision: None,
             current_revision: None,
+            limit: None,
         };
         match self {
             Self::Evaluation { phase, .. }
@@ -104,6 +128,10 @@ impl<H: Host> Error<H> {
             Self::Dispatch(DispatchError::RevisionExhausted) => f.code = "revision_exhausted",
             Self::Disposed => f.code = "disposed",
             Self::Busy => f.code = "busy",
+            Self::Inspection { limit, .. } => {
+                f.code = "inspection";
+                f.limit = *limit;
+            }
             Self::Definition(_) | Self::Construction { .. } => {}
         }
         f

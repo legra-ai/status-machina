@@ -47,6 +47,33 @@ impl NativeDefinition {
             template: Arc::new(Template::parse(source).map_err(|e| translate(py, e))?),
         })
     }
+    fn label_inventory(&self) -> String {
+        encode(&self.template.labels)
+    }
+    fn structural_coverage(
+        &self,
+        py: Python<'_>,
+        entries: usize,
+        bytes: usize,
+    ) -> PyResult<String> {
+        Ok(encode(
+            &self
+                .template
+                .structural_coverage(entries, bytes)
+                .map_err(|e| translate(py, e))?,
+        ))
+    }
+    fn diagram(
+        &self,
+        py: Python<'_>,
+        labels: &str,
+        entries: usize,
+        bytes: usize,
+    ) -> PyResult<String> {
+        self.template
+            .diagram(labels, entries, bytes)
+            .map_err(|e| translate(py, e))
+    }
     fn instantiate(
         &self,
         py: Python<'_>,

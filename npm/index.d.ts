@@ -12,6 +12,24 @@ export interface CapabilityReport {
   readonly capability: Identity; readonly instance: Identity;
   readonly revision: bigint; readonly status: CapabilityStatusValue;
 }
+/** Bounded graph entries (1..1000000) and Mermaid output bytes (1..1048576). */
+export interface InspectionLimits { readonly maxEntries?: number; readonly maxOutputBytes?: number; }
+export interface DiagramLabels<S extends Identity, K extends Identity> {
+  readonly states?: ReadonlyMap<S, string>;
+  readonly transitions?: ReadonlyMap<Identity, string>;
+  readonly events?: ReadonlyMap<K, string>;
+  readonly conditions?: ReadonlyMap<Identity, string>;
+  readonly dispositions?: ReadonlyMap<Identity, string>;
+}
+export interface StateCoverage<S extends Identity> {
+  readonly id: S; readonly initial: boolean; readonly terminal: boolean;
+  readonly incoming: number; readonly outgoing: number; readonly dispositions: number;
+}
+/** Declared structure in insertion order; not proof of execution coverage. */
+export interface StructuralCoverage<S extends Identity> {
+  readonly states: readonly StateCoverage<S>[];
+  readonly transitions: readonly Identity[]; readonly dispositions: readonly Identity[];
+}
 export interface Limits { maxStates?: number; maxTransitions?: number; maxValues?: number; maxCallbacks?: number; }
 export class BehaviorRef<S extends Identity = Identity, I extends Identity = Identity> {
   constructor(story: S, implementation: I);
@@ -105,6 +123,8 @@ export class Definition<S extends Identity, K extends Identity, D = unknown, P =
   readonly states: readonly State<S, D, P, F>[];
   readonly transitions: readonly Transition<S, K, D, P, F>[];
   readonly capabilities: readonly Capability<S, D, F>[];
+  structuralCoverage(limits?: InspectionLimits): StructuralCoverage<S>;
+  diagram(labels: DiagramLabels<S, K>, limits?: InspectionLimits): string;
   instantiate(options: { id: Identity; data: D }): Machine<S, K, D, P, F>;
 }
 export class Machine<S extends Identity, K extends Identity, D, P = unknown, F = undefined> implements Disposable {

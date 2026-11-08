@@ -63,6 +63,34 @@ impl NativeDefinition {
         })
     }
     #[napi]
+    pub fn label_inventory(&self, env: Env) -> napi::Result<String> {
+        self.check(env)?;
+        Ok(encode(&self.template.labels))
+    }
+    #[napi]
+    pub fn structural_coverage(&self, env: Env, entries: u32, bytes: u32) -> napi::Result<String> {
+        self.check(env)?;
+        Ok(encode(
+            &self
+                .template
+                .structural_coverage(entries as usize, bytes as usize)
+                .map_err(translate)?,
+        ))
+    }
+    #[napi]
+    pub fn diagram(
+        &self,
+        env: Env,
+        labels: String,
+        entries: u32,
+        bytes: u32,
+    ) -> napi::Result<String> {
+        self.check(env)?;
+        self.template
+            .diagram(&labels, entries as usize, bytes as usize)
+            .map_err(translate)
+    }
+    #[napi]
     #[allow(
         clippy::arc_with_non_send_sync,
         reason = "shared lease ownership uses Arc; Node callback hosts deliberately remain thread-bound"
@@ -74,12 +102,7 @@ impl NativeDefinition {
         capacity: u32,
         invoker: Function<'_, String, String>,
     ) -> napi::Result<NativeInstance> {
-        if self.environment != env.raw() as usize || self.thread != thread::current().id() {
-            return Err(translate(CoreError::construction(
-                "environment",
-                "definition belongs to another Node environment",
-            )));
-        }
+        self.check(env)?;
         let host = Arc::new(
             JsHost::try_new(env, capacity as usize)
                 .map_err(|e| translate(CoreError::evaluation(e)))?,
@@ -91,6 +114,17 @@ impl NativeDefinition {
             machine: RefCell::new(machine),
             host,
         })
+    }
+}
+impl NativeDefinition {
+    fn check(&self, env: Env) -> napi::Result<()> {
+        if self.environment != env.raw() as usize || self.thread != thread::current().id() {
+            return Err(translate(CoreError::construction(
+                "environment",
+                "definition belongs to another Node environment",
+            )));
+        }
+        Ok(())
     }
 }
 #[napi]

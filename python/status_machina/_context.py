@@ -16,6 +16,7 @@ _ERROR_TYPES = {
     "ambiguous": errors.AmbiguousTransitionError, "action": errors.ActionError,
     "stale_revision": errors.StaleDecisionError, "foreign_definition": errors.ForeignDecisionError,
     "foreign_instance": errors.ForeignDecisionError, "revision_exhausted": errors.RevisionError,
+    "inspection": errors.InspectionError,
     "disposed": errors.DisposedError, "busy": errors.BusyError,
 }
 

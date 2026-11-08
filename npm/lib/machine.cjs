@@ -4,6 +4,7 @@ const { Context } = require('./context.cjs');
 const { Compiler, BehaviorRegistry, bounded, checkedLimits } = require('./compile.cjs');
 const { snapshot } = require('./snapshot.cjs');
 const checked = require('./specification.cjs');
+const inspection = require('./inspection.cjs');
 const { DefinitionError, DisposedError, translate } = require('./errors.cjs');
 const TOKEN = Symbol('owned machine creation');
 function revision(value) {
@@ -43,6 +44,20 @@ class Definition {
     Object.freeze(this);
   }
   _internal() { return this.#internal; }
+  structuralCoverage(options = {}) {
+    const limits = inspection.limits(options);
+    try {
+      return inspection.coverage(JSON.parse(this.#internal.executable.structuralCoverage(limits.maxEntries, limits.maxOutputBytes)), this.#internal.compiler.ids);
+    } catch (error) { translate(error, this.#internal.compiler.ids); }
+  }
+  diagram(labels, options = {}) {
+    const limits = inspection.limits(options);
+    const ids = this.#internal.compiler.ids;
+    const inventory = JSON.parse(this.#internal.executable.labelInventory());
+    const source = inspection.labels(labels, inventory, ids, limits);
+    try { return this.#internal.executable.diagram(source, limits.maxEntries, limits.maxOutputBytes); }
+    catch (error) { translate(error, ids); }
+  }
   instantiate(options) {
     if (!Object.hasOwn(options, 'id') || !Object.hasOwn(options, 'data')) throw new DefinitionError('instantiate requires explicit id and data values');
     const context = new Context(this, options.id);

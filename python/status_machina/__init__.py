@@ -5,6 +5,7 @@ from .errors import (
     LimitError, PostconditionError, RevisionError, SnapshotError, StaleDecisionError,
     StatusMachinaError,
 )
+from .inspection import DiagramLabels, InspectionLimits, StateCoverage, StructuralCoverage
 from .machine import Decision, Definition, Machine
 from .model import (
     Capability, CapabilityReport, CapabilityStatus, Action, Behavior, BehaviorRef, BehaviorRegistry, BehaviorRole, Condition, Disposition,
@@ -12,6 +13,7 @@ from .model import (
     Transition, Transitioned, TransitionRecord,
 )
 __all__ = [
+    "DiagramLabels", "InspectionLimits", "StateCoverage", "StructuralCoverage",
     "Capability", "CapabilityReport", "CapabilityStatus", "Action", "ActionError", "AmbiguousTransitionError", "Behavior", "BehaviorRef",
     "BehaviorRegistry", "BehaviorRole", "BusyError", "CallbackError", "Condition",
     "Decision", "Definition", "DefinitionError", "DispatchError", "DisposedError",
