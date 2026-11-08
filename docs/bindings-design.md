@@ -1,7 +1,7 @@
 # Native Python and Node.js APIs
 
-Status: implementation plan. The Rust core is published; neither language
-binding is implemented or published yet. This document defines the acceptance
+Status: implementation plan. The Rust core is published; native language bindings
+are under implementation and neither package is published yet. This document defines the acceptance
 boundary for both packages. A completed design is not a completed binding.
 
 The Python distribution is `status-machina`, imported as `status_machina`.
@@ -14,8 +14,8 @@ npm name is occupied. Availability checks do not reserve either unpublished name
 | ID | Deliverable | Depends on | Status |
 | --- | --- | --- | --- |
 | BND-01 | Native API, identity, payload, callback and ownership contracts, with a complete public-model inventory and release acceptance matrix | — | Done |
-| BND-02 | Fallible kernel evaluation and snapshots; callback failure stops evaluation before acceptance, without panic transport or sentinel results | BND-01 | Not started |
-| BND-03 | Python checked construction, native values, execution and inspection through PyO3, with typed Python source and exceptions | BND-02 | Not started |
+| BND-02 | Fallible kernel evaluation and snapshots; callback failure stops evaluation before acceptance, without panic transport or sentinel results | BND-01 | Done |
+| BND-03 | Python checked construction, native values, execution and inspection through PyO3, with typed Python source and exceptions | BND-02 | Partial |
 | BND-04 | Node.js checked construction, native values, execution and inspection through napi-rs, with JavaScript and TypeScript APIs | BND-02 | Not started |
 | BND-05 | Native Story bindings, capabilities, bounded composition, retries and scenario coverage, with model-by-model parity evidence in both languages | BND-03, BND-04 | Not started |
 | BND-06 | Installable wheels, source distribution and npm artifacts; complete examples and installed-artifact tests without a Rust toolchain | BND-05 | Not started |
@@ -145,9 +145,12 @@ Keep predicate `False` distinct from a predicate that raised an exception.
 Reject coroutine/Promise returns during synchronous evaluation; do not coerce
 them to truthy values or schedule them silently.
 
-The current 0.1.0 kernel has infallible snapshots, bool predicates/invariants and
-infallible intent constructors. BND-02 must replace that missing error boundary
-with explicit fallible evaluation before binding these callbacks. Do not emulate
+The published 0.1.0 kernel has infallible snapshots, bool predicates/invariants
+and infallible intent constructors. The implementation adds explicit fallible
+callbacks and a `FallibleCandidateData` capability, also satisfied by ordinary
+Rust `CandidateData`. Errors retain their original native causes and final
+candidate isolation happens before decision creation. Regression tests cover
+exception propagation, short-circuiting, rollback and thread-bound causes. Do not emulate
 failure through a false predicate, empty intent, thread-local error slot, caught
 panic or a global panic hook. Native wrappers must not duplicate transition
 selection/acceptance in Python or JavaScript to avoid changing the kernel.
@@ -252,3 +255,17 @@ visible publication blockers, not permission to skip a registry. Complete all
 independent implementation and artifact tests before requesting any owner-only
 setup. BND-08 is Done only after downloaded registry packages match the approved
 revision and execute the documented examples on the declared support matrix.
+
+## Implementation evidence
+
+BND-02 has passing kernel regressions and the full Rust suite, with pinned
+formatter/Clippy hook validation. The private adapter also tests bounded value
+leases, checked graph construction, unaccepted decisions, disposal and host-specific
+thread capability. Its dependencies do not enter the core runtime graph.
+
+BND-03 is Partial: six Python application tests pass against the compiled
+extension, covering enums, dataclasses, distinct IntEnum classes, retained
+candidate aliases, detached inspection, refusal, invariants, original exception
+causes and context-managed disposal. Inspection features, complete lifecycle/type
+coverage and the installed-artifact/platform matrix are still pending. This is
+not publication or complete native-model parity.

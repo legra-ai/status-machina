@@ -33,5 +33,5 @@ rhusky = "2.0.5"
 
 [workspace]
 resolver = "3"
-members = ["bindings/core"]
+members = ["bindings/core", "python/status-machina-pyo3"]
 default-members = ["."]
