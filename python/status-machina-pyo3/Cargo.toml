@@ -13,7 +13,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 status-machina = { path = "../..", version = "0.1.0" }
 status-machina-bridge = { path = "../../bindings/core", version = "0.1.0" }
-pyo3 = { version = "0.28.3", features = ["abi3-py310"] }
+pyo3 = { version = "0.30.1", features = ["abi3-py310"] }
 serde = "1"
 serde_json = "1"
 
