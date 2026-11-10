@@ -247,3 +247,11 @@ The [tutorial guide](docs/tutorials/README.md) explains guarded enum-based order
 caller-owned effects and explicitly composed checkout/invoice machines. Run
 `cargo run --example typed_order` or `cargo run --example checkout`. The generated
 diagrams also appear inline on the Rustdoc landing page with the next release.
+
+## Pre-production release policy
+
+Status Machina uses owner-authorized patch-only automatic releases for fixes,
+features and breaking changes. Keep accurate breaking-change markers in commits
+and PR titles. The shared pipeline applies `release-bump: patch` to both its
+read-only plan and release preparation; it remains the sole publisher. This
+policy does not authorize manually increasing the major or minor version.

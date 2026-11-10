@@ -12,6 +12,13 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class MaintenancePolicyTests(unittest.TestCase):
+    def test_status_machina_uses_authorized_patch_only_releases(self):
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        self.assertIn('      release-bump: patch', workflow)
+        readme = (ROOT / 'README.md').read_text()
+        self.assertIn('patch-only', readme)
+        self.assertIn('breaking-change markers', readme)
+
     def test_shared_policy_updates_are_grouped_without_semver_filters(self):
         config = (ROOT / '.github/dependabot.yml').read_text()
         actions = config.split('  - package-ecosystem: github-actions\n', 1)[1]
