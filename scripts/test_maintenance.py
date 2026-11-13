@@ -35,17 +35,45 @@ class MaintenancePolicyTests(unittest.TestCase):
         self.assertIn('  test:\n', workflow)
         gate = workflow.split('  test:\n', 1)[1]
         self.assertIn('if: always()', gate)
-        self.assertIn('needs: [prepare, ci]', gate)
-        self.assertIn('PREPARE_RESULT: ${{ needs.prepare.result }}', gate)
-        self.assertIn('CI_RESULT: ${{ needs.ci.result }}', gate)
+        self.assertIn('needs: [prepare, ci, python-bindings, node-bindings]', gate)
+        jobs = {'PREPARE_RESULT': 'prepare', 'CI_RESULT': 'ci',
+                'PYTHON_BINDINGS_RESULT': 'python-bindings', 'NODE_BINDINGS_RESULT': 'node-bindings'}
+        for variable, job in jobs.items():
+            self.assertIn(f'{variable}: ${{{{ needs.{job}.result }}}}', gate)
         script = textwrap.dedent(gate.split("python3 - <<'PYTHON'\n", 1)[1].split('          PYTHON', 1)[0])
-        for prepare, pipeline in [('success', 'success'), ('failure', 'success'),
-                                  ('success', 'failure'), ('success', 'cancelled'),
-                                  ('success', 'skipped')]:
-            with self.subTest(prepare=prepare, pipeline=pipeline):
+        passing = dict.fromkeys(jobs, 'success')
+        cases = [passing] + [{**passing, variable: outcome} for variable in jobs
+                             for outcome in ('failure', 'cancelled', 'skipped')]
+        for results in cases:
+            with self.subTest(**results):
                 result = subprocess.run([sys.executable, '-c', script], capture_output=True,
-                                        env={**os.environ, 'PREPARE_RESULT': prepare, 'CI_RESULT': pipeline})
-                self.assertEqual(result.returncode == 0, prepare == pipeline == 'success')
+                                        env={**os.environ, **results})
+                self.assertEqual(result.returncode == 0, results == passing)
+
+    def test_native_bindings_are_built_and_tested_on_every_runner(self):
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        for job, commands in [
+            ('python-bindings', ['cargo test --locked -p status-machina-bridge -p status-machina-pyo3',
+                                 'uv sync --locked', 'uv run --locked maturin develop',
+                                 'uv run --locked python -m unittest discover -s tests -v',
+                                 'uv run --locked mypy']),
+            ('node-bindings', ['cargo test --locked -p status-machina-napi',
+                               'pnpm install --frozen-lockfile', 'pnpm build', 'pnpm test',
+                               'pnpm typecheck']),
+        ]:
+            with self.subTest(job=job):
+                body = re.split(r'^  [a-z-]+:\n', workflow.split(f'\n  {job}:\n', 1)[1],
+                                maxsplit=1, flags=re.MULTILINE)[0]
+                self.assertIn('os: [ubuntu-24.04, macos-latest, windows-latest]', body)
+                for command in commands:
+                    self.assertIn(f'run: {command}\n', body)
+
+    def test_maturin_develop_uses_the_locked_uv_installer(self):
+        project = tomllib.loads((ROOT / 'python/pyproject.toml').read_text())
+        # maturin develop prefers the environment's uv module over an older uv on PATH,
+        # whose `uv pip install` lacks the --group option that maturin passes.
+        self.assertIn('uv>=0.6.7', project['dependency-groups']['dev'])
+        self.assertTrue(project['tool']['mypy']['warn_unused_ignores'])
 
     def test_dependency_merger_has_a_separate_identity_and_requires_success(self):
         merge = (ROOT / '.github/workflows/dependabot-merge.yml').read_text()
