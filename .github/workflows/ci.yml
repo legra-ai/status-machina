@@ -24,18 +24,92 @@ jobs:
       kind: library
       release-bump: patch
     secrets: inherit
+  python-bindings:
+    # Cargo's default member is the published core, so the shared pipeline never
+    # builds the PyO3 module; compile and test it from this checkout instead.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+        python: ['3.10', '3.14']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: python
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
+      - id: python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.8'
+          enable-cache: false
+      - name: Test the bridge and PyO3 crates
+        env:
+          PYO3_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: cargo test --locked -p status-machina-bridge -p status-machina-pyo3
+      - name: Install the development environment
+        env:
+          UV_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: uv sync --locked
+      - name: Rebuild the native module with the documented developer command
+        run: uv run --locked maturin develop
+      - name: Run the Python suite
+        run: uv run --locked python -m unittest discover -s tests -v
+      - name: Check static types
+        run: uv run --locked mypy
+  node-bindings:
+    # Cargo's default member is the published core, so the shared pipeline never
+    # builds the napi addon; compile and test it from this checkout instead.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: npm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Test the napi crate
+        run: cargo test --locked -p status-machina-napi
+      - run: pnpm install --frozen-lockfile
+      - name: Build the native addon
+        run: pnpm build
+      - name: Run the Node suite
+        run: pnpm test
+      - name: Check declarations and typing fixtures
+        run: pnpm typecheck
   test:
     if: always()
-    needs: [prepare, ci]
+    needs: [prepare, ci, python-bindings, node-bindings]
     runs-on: ubuntu-24.04
     steps:
-      - name: Require the complete shared pipeline
+      - name: Require the complete shared pipeline and native bindings
         env:
           PREPARE_RESULT: ${{ needs.prepare.result }}
           CI_RESULT: ${{ needs.ci.result }}
+          PYTHON_BINDINGS_RESULT: ${{ needs.python-bindings.result }}
+          NODE_BINDINGS_RESULT: ${{ needs.node-bindings.result }}
         run: |
           python3 - <<'PYTHON'
           import os
-          if any(os.environ[name] != 'success' for name in ['PREPARE_RESULT', 'CI_RESULT']):
+          results = ['PREPARE_RESULT', 'CI_RESULT', 'PYTHON_BINDINGS_RESULT', 'NODE_BINDINGS_RESULT']
+          if any(os.environ[name] != 'success' for name in results):
               raise RuntimeError('Every required maintenance job must succeed')
           PYTHON
