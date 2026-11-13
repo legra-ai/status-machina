@@ -272,6 +272,14 @@ acceptance, disposal, bounded value-slot reuse and reentrancy. Python also tests
 cross-thread rejection during evaluation and garbage collection of callback
 cycles. Node tests both CommonJS and ESM entry points and cyclic typed-view data.
 
+CI builds both modules from source and runs these suites on every pull request.
+The `python-bindings` and `node-bindings` jobs cover Ubuntu 24.04, `macos-latest`
+and Windows, with Python 3.10/3.14 and Node.js 22/24. They run the bridge, PyO3
+and napi crate tests, `maturin develop`, mypy, `tsc --noEmit` and the typing
+fixtures. The required `test` gate fails unless every one of them passes. They
+test the checkout, not installed artifacts. They do not gate publication yet;
+that remains BND-06/BND-07 work.
+
 Python and TypeScript static examples check state/event identity, initial data
 and data unions that functional actions can replace. They include deliberately
 invalid calls which must remain type errors. Python source passes mypy.

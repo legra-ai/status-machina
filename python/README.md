@@ -69,3 +69,19 @@ conditions=..., dispositions=...)` for the rendered roles.
 
 The planned macOS target is macOS 26 on ARM64, tested on `macos-latest`.
 Intel macOS is outside the native package support matrix.
+
+## Develop from source
+
+Building from source needs the Rust toolchain pinned in `rust-toolchain.toml`.
+From this directory:
+
+```sh
+uv sync --locked                 # environment, dev tools and the native module
+uv run --locked maturin develop  # rebuild the module after Rust changes
+uv run --locked python -m unittest discover -s tests -v
+uv run --locked mypy             # source and static typing contracts
+```
+
+The dev group installs `uv` into the environment. `maturin develop` installs
+with that copy, so an older `uv` on `PATH` cannot break the rebuild. CI runs
+these commands on Linux, macOS and Windows with Python 3.10 and 3.14.
