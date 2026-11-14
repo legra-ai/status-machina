@@ -1,5 +1,6 @@
 """Execute the documented native example through an independent interpreter."""
 import asyncio
+import io
 from pathlib import PurePath
 import sys
 import unittest
@@ -17,5 +18,7 @@ class ExampleTests(unittest.IsolatedAsyncioTestCase):
                 process.kill()
                 await process.wait()
         self.assertEqual(process.returncode, 0, stderr.decode())
-        self.assertTrue(stdout.startswith(b'stateDiagram-v2\n'))
-        self.assertIn(b's0 --> s1 : Approve order / Approve [guard: Positive total]', stdout)
+        # print() writes a text stream; Windows translates its newlines to CRLF.
+        diagram = io.TextIOWrapper(io.BytesIO(stdout), encoding='utf-8').read()
+        self.assertTrue(diagram.startswith('stateDiagram-v2\n'))
+        self.assertIn('s0 --> s1 : Approve order / Approve [guard: Positive total]', diagram)
