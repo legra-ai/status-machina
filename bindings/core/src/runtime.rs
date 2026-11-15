@@ -47,8 +47,11 @@ impl<H: Host> Machine<H> {
             capabilities: Some(Arc::clone(&template.capabilities)),
         })
     }
-    fn get(&self) -> Result<&Instance<H>, Error<H>> {
+    pub(crate) fn get(&self) -> Result<&Instance<H>, Error<H>> {
         self.instance.as_ref().ok_or(Error::Disposed)
+    }
+    pub(crate) fn get_mut(&mut self) -> Result<&mut Instance<H>, Error<H>> {
+        self.instance.as_mut().ok_or(Error::Disposed)
     }
     pub fn state(&self) -> Result<u32, Error<H>> {
         Ok(*self.get()?.state())
@@ -106,7 +109,7 @@ impl<H: Host> Machine<H> {
             .accept(decision)?
             .into())
     }
-    pub fn evaluate_capability(&self, id: u32, facts: u32) -> Result<CapabilityReport, Error<H>> {
+    pub fn evaluate_capability(&self, id: u32, facts: u32) -> Result<Observation<H>, Error<H>> {
         let instance = self.get()?;
         let capabilities = self.capabilities.as_ref().ok_or(Error::Disposed)?;
         let (_, capability) = capabilities
@@ -120,21 +123,33 @@ impl<H: Host> Machine<H> {
                 phase: EvaluationPhase::Capability,
                 error,
             })?;
-        let status = match report.status() {
-            CapabilityStatus::Available => "available",
-            CapabilityStatus::Unavailable => "unavailable",
-            CapabilityStatus::Unknown => "unknown",
-        };
-        Ok(CapabilityReport {
-            capability: *report.capability(),
-            revision: report.revision().to_string(),
-            status,
+        Ok(Observation {
+            report: CapabilityReport {
+                capability: *report.capability(),
+                revision: report.revision().to_string(),
+                status: status_name(report.status()),
+            },
+            kernel: report,
         })
     }
     pub fn dispose(&mut self) {
         self.instance.take();
         self.capabilities.take();
     }
+}
+/// Native wire name of an advisory capability status.
+pub(crate) const fn status_name(status: CapabilityStatus) -> &'static str {
+    match status {
+        CapabilityStatus::Available => "available",
+        CapabilityStatus::Unavailable => "unavailable",
+        CapabilityStatus::Unknown => "unknown",
+    }
+}
+/// A capability observation: native metadata plus the kernel report that a
+/// composition snapshot needs. Reports are never fabricated from metadata.
+pub struct Observation<H: Host> {
+    pub report: CapabilityReport,
+    pub kernel: status_machina::CapabilityReport<Ids<H>>,
 }
 #[derive(Serialize)]
 pub struct CapabilityReport {
@@ -149,6 +164,17 @@ pub struct Record {
     pub to_state: u32,
     pub previous_revision: String,
     pub revision: String,
+}
+impl Record {
+    fn new<H: Host>(record: &status_machina::TransitionRecord<Ids<H>>) -> Self {
+        Self {
+            transition: *record.transition(),
+            from_state: *record.from(),
+            to_state: *record.to(),
+            previous_revision: record.previous_revision().to_string(),
+            revision: record.revision().to_string(),
+        }
+    }
 }
 #[derive(Serialize)]
 pub struct Intent {
@@ -194,13 +220,7 @@ impl<H: Host> From<DispatchOutcome<Value<H>, Value<H>, Ids<H>>> for Outcome {
                 effects,
                 outputs,
             } => Self::Transitioned {
-                record: Record {
-                    transition: *record.transition(),
-                    from_state: *record.from(),
-                    to_state: *record.to(),
-                    previous_revision: record.previous_revision().to_string(),
-                    revision: record.revision().to_string(),
-                },
+                record: Record::new(&record),
                 // bounded: core construction caps effects at 48 and outputs at 16.
                 effects: effects
                     .into_iter()
@@ -222,6 +242,31 @@ impl<H: Host> From<DispatchOutcome<Value<H>, Value<H>, Ids<H>>> for Outcome {
                         }
                     })
                     .collect(),
+            },
+        }
+    }
+}
+/// Composition step metadata: the kernel empties the intent vectors, which
+/// the propagation report carries separately with their addresses.
+impl<H: Host> From<DispatchOutcome<(), (), Ids<H>>> for Outcome {
+    fn from(outcome: DispatchOutcome<(), (), Ids<H>>) -> Self {
+        match outcome {
+            DispatchOutcome::Refused { state, event } => Self::Refused { state, event },
+            DispatchOutcome::Ignored {
+                disposition,
+                state,
+                event,
+                reason,
+            } => Self::Ignored {
+                disposition,
+                state,
+                event,
+                reason,
+            },
+            DispatchOutcome::Transitioned { record, .. } => Self::Transitioned {
+                record: Record::new(&record),
+                effects: Vec::new(),
+                outputs: Vec::new(),
             },
         }
     }

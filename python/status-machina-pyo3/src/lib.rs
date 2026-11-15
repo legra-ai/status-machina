@@ -1,5 +1,6 @@
 //! Private Python extension; native application objects stay in visible Python
 //! arenas.
+mod composition;
 mod error;
 mod host;
 
@@ -10,6 +11,13 @@ use std::sync::{
     TryLockError,
 };
 
+use composition::{
+    NativeArena,
+    NativeCapabilityReport,
+    NativeComposition,
+    NativeSnapshot,
+    propagation_limits,
+};
 use error::{
     CoreError,
     NativeFailure,
@@ -105,7 +113,7 @@ impl NativeDefinition {
     }
 }
 #[pyclass(name = "_Instance", frozen, module = "status_machina._native")]
-struct NativeInstance {
+pub(crate) struct NativeInstance {
     machine: Mutex<Machine<PyHost>>,
     host: Arc<PyHost>,
 }
@@ -170,19 +178,25 @@ impl NativeInstance {
             )),
         })
     }
+    /// Return the observation metadata and the kernel report a capability
+    /// snapshot needs.
     fn evaluate_capability(
         &self,
         py: Python<'_>,
         id: u32,
         facts: u32,
         invoker: Py<PyAny>,
-    ) -> PyResult<String> {
+    ) -> PyResult<(String, NativeCapabilityReport)> {
         let machine = lock(py, &self.machine)?;
         let _frame = self.host.activate(invoker).map_err(|e| translate(py, e))?;
-        Ok(encode(
-            &machine
-                .evaluate_capability(id, facts)
-                .map_err(|e| translate(py, e))?,
+        let observation = machine
+            .evaluate_capability(id, facts)
+            .map_err(|e| translate(py, e))?;
+        Ok((
+            encode(&observation.report),
+            NativeCapabilityReport {
+                report: observation.kernel,
+            },
         ))
     }
     fn accept(&self, py: Python<'_>, decision: &NativeDecision) -> PyResult<String> {
@@ -246,6 +260,11 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<NativeDefinition>()?;
     module.add_class::<NativeInstance>()?;
     module.add_class::<NativeDecision>()?;
+    module.add_class::<NativeArena>()?;
+    module.add_class::<NativeCapabilityReport>()?;
+    module.add_class::<NativeSnapshot>()?;
+    module.add_class::<NativeComposition>()?;
+    module.add_function(wrap_pyfunction!(propagation_limits, module)?)?;
     module.add("NativeFailure", module.py().get_type::<NativeFailure>())?;
     Ok(())
 }

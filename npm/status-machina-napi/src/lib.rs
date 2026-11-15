@@ -227,7 +227,8 @@ impl NativeInstance {
         Ok(encode(
             &read(&self.machine)?
                 .evaluate_capability(id, facts)
-                .map_err(translate)?,
+                .map_err(translate)?
+                .report,
         ))
     }
     #[napi]

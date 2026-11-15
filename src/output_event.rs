@@ -98,7 +98,16 @@ pub struct OutputEventIntent<O, I: crate::MachineIds = crate::DefaultIds> {
 }
 
 impl<O, I: crate::MachineIds> OutputEventIntent<O, I> {
-    pub(crate) const fn new(id: I::Event, payload: O) -> Self {
+    /// Construct an output intent from its event identifier and payload.
+    ///
+    /// Accepted transitions return output intents; a caller that keeps them
+    /// outside Rust ownership, such as a native language binding, rebuilds
+    /// the same value before
+    /// [`Composition::route_batch`](crate::Composition::route_batch).
+    /// Routing never dispatches an intent, so constructing one grants nothing
+    /// that [`Delivery::new`](crate::Delivery::new) does not already allow.
+    #[must_use]
+    pub const fn new(id: I::Event, payload: O) -> Self {
         Self { id, payload }
     }
 

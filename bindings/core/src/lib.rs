@@ -3,6 +3,7 @@
 pub mod build;
 pub mod callback;
 pub mod codec;
+pub mod composition;
 pub mod error;
 pub mod ids;
 pub mod inspection;
