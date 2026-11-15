@@ -34,6 +34,55 @@ results. A policy may use an exact `BehaviorRef` to an EKGF Story implementation
 Enum members, symbols and object identities remain independent of their labels.
 Reports describe an observation and never grant authorization.
 
+## Portable records and identity codecs
+
+A `DefinitionRecord` is a data-only graph: native identities and exact
+`BehaviorRef` selections, with no functions, module specifiers or string codec.
+Bind it against an explicit `BehaviorRegistry`; the Rust kernel's
+`DefinitionRecord::bind` resolves every use site and applies the ordinary
+builder rules. Binding runs no callback and never loads code.
+
+```typescript
+import { BehaviorUse, DefinitionRecord, PredicateRecord, StateRecord,
+  TransitionDefinitionRecord } from '@legra-ai/status-machina';
+
+const record = new DefinitionRecord<Phase, Input>({
+  id: invoiceGraph, initial: Phase.Draft,
+  states: [new StateRecord({ id: Phase.Draft }), new StateRecord({ id: Phase.Sent, terminal: true })],
+  transitions: [new TransitionDefinitionRecord({
+    id: sendEdge, source: Phase.Draft, event: Input.Send, target: Phase.Sent,
+    guard: new PredicateRecord(new BehaviorUse(hasLinesUse, hasLinesV1)),
+    actions: [new BehaviorUse(stampUse, stampV1)],
+  })],
+});
+const definition = record.bind<Invoice>(registry);   // Definition<Phase, Input, Invoice>
+```
+
+Condition records are `PredicateRecord`, `AllRecord`, `AnyRecord` and
+`NotRecord`, a union discriminated by `kind`; `DispositionRecord` declares a
+harmless event. Records are frozen class instances and reject functions, plain
+objects and unknown fields when constructed. Binding failures are `RecordError`
+subclasses whose `context` holds native identities: `UnknownBehaviorError`
+(`story`), `UnknownImplementationError` (`story`, `implementation`) and
+`RoleMismatchError` (`expected`/`actual` `BehaviorRole`) are `BindingError`s;
+`ConditionRecordError`, `TransitionRecordError` and `DispositionRecordError` name
+the invalid record, and graph rules such as unreachable states name the
+`state`/`transition`.
+
+`new IdentityMap({ role: IdentityRole.State, entries, maxEntries })` is the
+kernel `IdentityMap` for one role: an explicit, bounded (1..4096), one-to-one
+codec between native identities and caller-owned representations such as IRIs.
+Identities follow `Map` semantics, so object tokens compare by identity and
+nothing is stringified. `new MachineIdentityMaps({ state, event, ... })` holds
+at most one codec per role and rejects a codec of another role, at compile time
+and at run time; `encode`/`decode` are typed by the configured role. Failures
+are `IdentityMapError` subclasses: `DuplicateIdentityError` and
+`DuplicateRepresentationError` (with the offending `entry`),
+`UnknownIdentityError`, `UnknownRepresentationError`, `IdentityMapLimitError`
+and `IdentityRoleError`. Codecs are uncloneable, like definitions. Runtime
+matching never consults a codec; decode external names before building records
+and encode outcomes afterwards.
+
 ## Inspect and draw a definition
 
 The [runnable Node.js order example](examples/order.mjs) checks an approval transition

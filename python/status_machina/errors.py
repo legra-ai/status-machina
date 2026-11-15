@@ -38,3 +38,34 @@ class LimitError(StatusMachinaError):
     """A declared resource bound was reached."""
 class InspectionError(StatusMachinaError):
     """The requested inspection exceeds its bounds or has invalid labels."""
+
+class RecordError(DefinitionError):
+    """A portable definition record failed checked binding; ``context`` names native IDs."""
+class ConditionRecordError(RecordError):
+    """A condition record is structurally invalid; ``context['condition']`` is its ID."""
+class TransitionRecordError(RecordError):
+    """A transition record is structurally invalid; ``context['transition']`` is its ID."""
+class DispositionRecordError(RecordError):
+    """A disposition record is structurally invalid; ``context['disposition']`` is its ID."""
+class BindingError(RecordError):
+    """Exact Story resolution failed; no implementation was substituted or loaded."""
+class UnknownBehaviorError(BindingError):
+    """No implementation of ``context['story']`` is registered."""
+class UnknownImplementationError(BindingError):
+    """The Story is registered, but not ``context['implementation']``."""
+class RoleMismatchError(BindingError):
+    """The selected implementation has the ``context['actual']`` BehaviorRole, not ``expected``."""
+class IdentityMapError(StatusMachinaError):
+    """An identity codec is invalid or was asked for an unregistered value."""
+class IdentityRoleError(IdentityMapError):
+    """A codec was supplied for, or requested from, the wrong identity role."""
+class IdentityMapLimitError(IdentityMapError, LimitError):
+    """The codec bound is invalid (1..4096) or the entries exceed it."""
+class DuplicateIdentityError(IdentityMapError):
+    """One identity occurs twice; ``context['entry']`` is the second position."""
+class DuplicateRepresentationError(IdentityMapError):
+    """Two identities share one external representation."""
+class UnknownIdentityError(IdentityMapError, LookupError):
+    """The identity has no registered representation; none is derived from str/repr."""
+class UnknownRepresentationError(IdentityMapError, LookupError):
+    """The representation has no registered identity; no default is substituted."""

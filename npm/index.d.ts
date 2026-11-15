@@ -118,6 +118,8 @@ export interface DispatchOptions { readonly expectedRevision?: bigint; }
 type FactsArguments<F> = undefined extends F ? [facts?: F, options?: DispatchOptions] : [facts: F, options?: DispatchOptions];
 export class Definition<S extends Identity, K extends Identity, D = unknown, P = unknown, F = undefined> {
   constructor(specification: DefinitionOptions<S, K, D, P, F>);
+  /** The portable record this definition was bound from, if any. */
+  readonly record: DefinitionRecord<S, K> | undefined;
   readonly id: Identity;
   readonly initial: S;
   readonly states: readonly State<S, D, P, F>[];
@@ -169,3 +171,177 @@ export class DisposedError extends StatusMachinaError {}
 export class BusyError extends StatusMachinaError {}
 export class LimitError extends StatusMachinaError {}
 export class InspectionError extends StatusMachinaError {}
+
+/** A portable record failed checked binding; `context` names native identities. */
+export class RecordError extends DefinitionError {}
+/** `context.condition` is the invalid condition record's identity. */
+export class ConditionRecordError extends RecordError {}
+/** `context.transition` is the invalid transition record's identity. */
+export class TransitionRecordError extends RecordError {}
+/** `context.disposition` is the invalid disposition record's identity. */
+export class DispositionRecordError extends RecordError {}
+/** Exact Story resolution failed; no implementation was substituted or loaded. */
+export class BindingError extends RecordError {}
+/** No implementation of `context.story` is registered. */
+export class UnknownBehaviorError extends BindingError {}
+/** The Story is registered, but not `context.implementation`. */
+export class UnknownImplementationError extends BindingError {}
+/** The selected implementation has the `context.actual` role, not `context.expected`. */
+export class RoleMismatchError extends BindingError {}
+/** An identity codec is invalid or was asked for an unregistered value. */
+export class IdentityMapError extends StatusMachinaError {}
+/** A codec was supplied for, or requested from, the wrong identity role. */
+export class IdentityRoleError extends IdentityMapError {}
+/** The codec bound is invalid (1..4096) or the entries exceed it. */
+export class IdentityMapLimitError extends IdentityMapError {}
+/** One identity occurs twice; `context.entry` is the second position. */
+export class DuplicateIdentityError extends IdentityMapError {}
+/** Two identities share one external representation. */
+export class DuplicateRepresentationError extends IdentityMapError {}
+/** The identity has no registered representation; none is derived from `String()`. */
+export class UnknownIdentityError extends IdentityMapError {}
+/** The representation has no registered identity; no default is substituted. */
+export class UnknownRepresentationError extends IdentityMapError {}
+
+/** One graph use site (`id`) selecting an exact Story implementation. */
+export class BehaviorUse<T extends Identity = Identity> {
+  constructor(id: T, reference: BehaviorRef);
+  readonly id: T;
+  readonly reference: BehaviorRef;
+}
+/** A registered condition implementation; `use.id` is the condition identity. */
+export class PredicateRecord {
+  constructor(use: BehaviorUse);
+  readonly kind: 'predicate';
+  readonly use: BehaviorUse;
+  readonly id: Identity;
+}
+/** Every operand must hold, in declared order (at most 16). */
+export class AllRecord {
+  constructor(id: Identity, operands: Iterable<ConditionRecord>);
+  readonly kind: 'all';
+  readonly id: Identity;
+  readonly operands: readonly ConditionRecord[];
+}
+/** At least one operand must hold, in declared order (at most 16). */
+export class AnyRecord {
+  constructor(id: Identity, operands: Iterable<ConditionRecord>);
+  readonly kind: 'any';
+  readonly id: Identity;
+  readonly operands: readonly ConditionRecord[];
+}
+/** Negate one expression. */
+export class NotRecord {
+  constructor(id: Identity, operand: ConditionRecord);
+  readonly kind: 'not';
+  readonly id: Identity;
+  readonly operand: ConditionRecord;
+}
+/** A data-only condition expression of references, discriminated by `kind`. */
+export type ConditionRecord = PredicateRecord | AllRecord | AnyRecord | NotRecord;
+/** A state declaration; each behavior phase holds at most 16 uses. */
+export class StateRecord<S extends Identity = Identity> {
+  constructor(options: {
+    readonly id: S; readonly terminal?: boolean; readonly invariant?: BehaviorRef;
+    readonly entryActions?: Iterable<BehaviorUse>; readonly exitActions?: Iterable<BehaviorUse>;
+    readonly entryEffects?: Iterable<BehaviorUse>; readonly exitEffects?: Iterable<BehaviorUse>;
+  });
+  readonly id: S;
+  readonly terminal: boolean;
+  readonly invariant: BehaviorRef | undefined;
+  readonly entryActions: readonly BehaviorUse[];
+  readonly exitActions: readonly BehaviorUse[];
+  readonly entryEffects: readonly BehaviorUse[];
+  readonly exitEffects: readonly BehaviorUse[];
+}
+/** A permitted edge; `outputs` use the emitted event kind as their identity. */
+export class TransitionDefinitionRecord<S extends Identity = Identity, K extends Identity = Identity> {
+  constructor(options: {
+    readonly id: Identity; readonly source: S; readonly event: K; readonly target: S;
+    readonly internal?: boolean; readonly guard?: ConditionRecord;
+    readonly postconditions?: Iterable<ConditionRecord>; readonly actions?: Iterable<BehaviorUse>;
+    readonly effects?: Iterable<BehaviorUse>; readonly outputs?: Iterable<BehaviorUse<K>>;
+  });
+  readonly id: Identity;
+  readonly source: S;
+  readonly event: K;
+  readonly target: S;
+  readonly internal: boolean;
+  readonly guard: ConditionRecord | undefined;
+  readonly postconditions: readonly ConditionRecord[];
+  readonly actions: readonly BehaviorUse[];
+  readonly effects: readonly BehaviorUse[];
+  readonly outputs: readonly BehaviorUse<K>[];
+}
+/** An explicitly harmless event; `reason` is 1 to 256 UTF-8 bytes. */
+export class DispositionRecord<S extends Identity = Identity, K extends Identity = Identity> {
+  constructor(options: { readonly id: Identity; readonly source: S; readonly event: K;
+    readonly condition: ConditionRecord; readonly reason: string });
+  readonly id: Identity;
+  readonly source: S;
+  readonly event: K;
+  readonly condition: ConditionRecord;
+  readonly reason: string;
+}
+export interface RecordBindOptions<D> {
+  readonly snapshot?: (data: D) => D;
+  readonly inputSnapshot?: <T>(value: T) => T;
+  /** Native value arena capacity per instance (1..65536, default 8192). */
+  readonly maxValues?: number;
+}
+/** A data-only machine graph in declaration order, independent of any format. */
+export class DefinitionRecord<S extends Identity = Identity, K extends Identity = Identity> {
+  constructor(options: {
+    readonly id: Identity; readonly initial: S;
+    readonly states: Iterable<StateRecord<S>>;
+    readonly transitions: Iterable<TransitionDefinitionRecord<S, K>>;
+    readonly dispositions?: Iterable<DispositionRecord<S, K>>;
+    readonly maxStates?: number; readonly maxTransitions?: number;
+  });
+  readonly id: Identity;
+  readonly initial: S;
+  readonly states: readonly StateRecord<S>[];
+  readonly transitions: readonly TransitionDefinitionRecord<S, K>[];
+  readonly dispositions: readonly DispositionRecord<S, K>[];
+  readonly maxStates: number;
+  readonly maxTransitions: number;
+  /**
+   * Resolve every use site in `behaviors` with the kernel's `DefinitionRecord::bind`.
+   * No callback runs during binding, and nothing is loaded implicitly.
+   */
+  bind<D = unknown, P = unknown, F = undefined>(behaviors: BehaviorRegistry, options?: RecordBindOptions<D>): Definition<S, K, D, P, F>;
+}
+
+/** The identity roles of Rust `MachineIds`; `story` is `MachineIds::Behavior`. */
+export const IdentityRole: Readonly<{
+  Definition: 'definition'; Instance: 'instance'; State: 'state'; Event: 'event'; Transition: 'transition';
+  Action: 'action'; Condition: 'condition'; Effect: 'effect'; Disposition: 'disposition'; Capability: 'capability';
+  Operation: 'operation'; Scenario: 'scenario'; Assertion: 'assertion'; Scope: 'scope'; Story: 'story';
+  Implementation: 'implementation' }>;
+export type IdentityRoleName = (typeof IdentityRole)[keyof typeof IdentityRole];
+/** Bounded one-to-one codec for one identity role, validated by the kernel `IdentityMap`. */
+export class IdentityMap<R extends IdentityRoleName, T extends Identity, X extends Identity> implements Iterable<readonly [T, X]> {
+  constructor(options: { readonly role: R; readonly entries: Iterable<readonly [T, X]>; readonly maxEntries?: number });
+  private readonly _brand;
+  readonly role: R;
+  readonly maxEntries: number;
+  readonly size: number;
+  /** Registered pairs in declaration order. */
+  [Symbol.iterator](): IterableIterator<readonly [T, X]>;
+  /** The registered representation; never derived from `String()` or JSON. */
+  encode(identity: T): X;
+  /** The registered identity; unknown representations are errors. */
+  decode(representation: X): T;
+}
+export type IdentityMapsByRole = { readonly [R in IdentityRoleName]?: IdentityMap<R, Identity, Identity> };
+export type ConfiguredRole<M extends IdentityMapsByRole> = { [R in keyof M]-?: undefined extends M[R] ? never : R }[keyof M] & IdentityRoleName;
+export type IdentityOf<C> = C extends IdentityMap<IdentityRoleName, infer T, Identity> ? T : never;
+export type RepresentationOf<C> = C extends IdentityMap<IdentityRoleName, Identity, infer X> ? X : never;
+/** At most one codec per identity role; each key accepts only its own role. */
+export class MachineIdentityMaps<M extends IdentityMapsByRole> {
+  constructor(maps: M);
+  private readonly _brand;
+  map<R extends ConfiguredRole<M>>(role: R): M[R];
+  encode<R extends ConfiguredRole<M>>(role: R, identity: IdentityOf<M[R]>): RepresentationOf<M[R]>;
+  decode<R extends ConfiguredRole<M>>(role: R, representation: RepresentationOf<M[R]>): IdentityOf<M[R]>;
+}

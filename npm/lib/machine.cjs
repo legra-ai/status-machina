@@ -8,6 +8,7 @@ const checked = require('./specification.cjs');
 const inspection = require('./inspection.cjs');
 const { DefinitionError, DisposedError, translate } = require('./errors.cjs');
 const TOKEN = Symbol('owned machine creation');
+const RECORD = Symbol('portable record binding');
 function revision(value) {
   if (value === undefined) return undefined;
   if (typeof value !== 'bigint' || value < 0n || value > 0xffffffffffffffffn) throw new TypeError('expectedRevision must be a nonnegative uint64 BigInt');
@@ -15,7 +16,9 @@ function revision(value) {
 }
 class Definition {
   #internal;
-  constructor(specification) {
+  constructor(specification, token = undefined, record = undefined) {
+    if (token !== undefined && token !== RECORD) throw new DefinitionError('Bind portable records through DefinitionRecord.bind');
+    const fromRecord = token === RECORD;
     checked.fields(specification, ['id', 'initial', 'states', 'transitions', 'capabilities', 'dispositions', 'behaviors', 'snapshot', 'inputSnapshot', 'limits'], 'definition', ['id', 'initial', 'states', 'transitions']);
     if (!Object.hasOwn(specification, 'id') || !Object.hasOwn(specification, 'initial')) throw new DefinitionError('Definition requires explicit id and initial values');
     const limits = checkedLimits(specification.limits);
@@ -36,13 +39,14 @@ class Definition {
       states: states.map(value => compiler.state(value)), transitions: transitions.map(value => compiler.transition(value)),
       dispositions: dispositions.map(value => compiler.disposition(value)), behaviors: compiler.behaviors(behaviors), capabilities: capabilities.map(value => ({ id: compiler.ids.intern('capability', value.id), implementation: compiler.implementation(value.evaluate) })) };
     let executable;
-    try { executable = new native.NativeDefinition(JSON.stringify(source)); }
+    try { executable = fromRecord ? native.NativeDefinition.bindRecord(JSON.stringify(source)) : new native.NativeDefinition(JSON.stringify(source)); }
     catch (error) { translate(error, compiler.ids); }
     this.#internal = Object.freeze({ compiler, callbacks: Object.freeze(compiler.callbacks), snapshot: copy,
       inputSnapshot: inputCopy, limits, executable });
     Object.defineProperties(this, { id: { value: specification.id, enumerable: true },
       initial: { value: specification.initial, enumerable: true }, states: { value: states, enumerable: true },
-      capabilities: { value: capabilities, enumerable: true }, transitions: { value: transitions, enumerable: true } });
+      capabilities: { value: capabilities, enumerable: true }, transitions: { value: transitions, enumerable: true },
+      record: { value: fromRecord ? record : undefined, enumerable: true } });
     // Callbacks and native resources are bound to this Node environment and
     // thread: postMessage/workerData must reject the object, not clone it empty.
     markAsUncloneable(this);
@@ -156,4 +160,6 @@ class Decision {
   }
   [Symbol.dispose]() { this.dispose(); }
 }
-module.exports = { Definition, Machine, Decision };
+/** Bind a checked portable record; only DefinitionRecord.bind calls this. */
+function bindRecord(specification, record) { return new Definition(specification, RECORD, record); }
+module.exports = { Definition, Machine, Decision, bindRecord };

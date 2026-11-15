@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json
 import inspect
-from typing import Any, Callable, Generic, Hashable, Iterable, NoReturn, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, Callable, Generic, Hashable, Iterable, NoReturn, TypeAlias, cast
 from typing_extensions import TypeVar
 from . import _native
 from ._compile import Compiler
@@ -16,6 +16,9 @@ from .model import (BehaviorRegistry, Disposition, EffectIntent, Event, Ignored,
 StateT = TypeVar("StateT", bound=Hashable)
 KindT = TypeVar("KindT", bound=Hashable)
 DataT = TypeVar("DataT", default=Any)
+if TYPE_CHECKING:
+    from .records import DefinitionRecord
+
 Outcome: TypeAlias = Refused[StateT, KindT] | Ignored[StateT, KindT] | Transitioned[StateT]
 
 class Definition(Generic[StateT, KindT, DataT]):
@@ -25,6 +28,27 @@ class Definition(Generic[StateT, KindT, DataT]):
             capabilities: Iterable[Capability[StateT, DataT]] = (),
             dispositions: Iterable[Disposition] = (), behaviors: BehaviorRegistry = BehaviorRegistry(),
             snapshot: Callable[[DataT], DataT] = DEFAULT_SNAPSHOT, input_snapshot: Callable[[Any], Any] = DEFAULT_SNAPSHOT, limits: Limits = Limits()) -> None:
+        self._record: DefinitionRecord[StateT, KindT] | None = None
+        self._build(id, initial, states, transitions, capabilities, dispositions, behaviors,
+            snapshot, input_snapshot, limits, _native._Definition)
+
+    @classmethod
+    def _from_record(cls, record: DefinitionRecord[StateT, KindT], behaviors: BehaviorRegistry, *,
+            snapshot: Callable[[DataT], DataT], input_snapshot: Callable[[Any], Any],
+            max_values: int) -> Definition[StateT, KindT, DataT]:
+        if not isinstance(behaviors, BehaviorRegistry):
+            raise DefinitionError("Records bind only against an explicit BehaviorRegistry")
+        limits = Limits(max_states=record.max_states, max_transitions=record.max_transitions,
+            max_values=max_values, max_callbacks=4096)
+        states, transitions, dispositions = record._specifications()
+        definition = cls.__new__(cls)
+        definition._record = record
+        definition._build(record.id, record.initial, states, transitions, (), dispositions, behaviors,
+            snapshot, input_snapshot, limits, _native._Definition.bind_record)
+        return definition
+
+    def _build(self, id, initial, states, transitions, capabilities, dispositions, behaviors,
+            snapshot, input_snapshot, limits, native) -> None:
         for function in (snapshot, input_snapshot):
             if not callable(function) or inspect.iscoroutinefunction(function) or inspect.iscoroutinefunction(getattr(function, "__call__", None)):
                 raise DefinitionError("Snapshot functions must be synchronous callables")
@@ -54,11 +78,14 @@ class Definition(Generic[StateT, KindT, DataT]):
         self._compiler = compiler
         self._callbacks = tuple(compiler.callbacks)
         try:
-            self._native = _native._Definition(json.dumps(source, separators=(",", ":")))
+            self._native = native(json.dumps(source, separators=(",", ":")))
         except _native.NativeFailure as error:
             translate(error, compiler.ids)
-        if not callable(snapshot) or not callable(input_snapshot):
-            raise DefinitionError("snapshot and input_snapshot must be callable")
+
+    @property
+    def record(self) -> DefinitionRecord[StateT, KindT] | None:
+        """The portable record this definition was bound from, if any."""
+        return self._record
 
     @property
     def id(self) -> Hashable:

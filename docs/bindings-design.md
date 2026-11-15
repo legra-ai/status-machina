@@ -190,30 +190,71 @@ Effects are values returned after acceptance, executed by the application.
 Every row needs native documentation, type declarations and positive/negative
 tests in each language before BND-05 is complete. Builders are construction
 helpers, not additional domain objects that must mechanically be exported.
+A row is Covered once both languages have that evidence. Rows not yet certified
+may already be partly implemented, as the implementation evidence describes.
 
-| Rust model family | Native counterpart and required evidence |
-| --- | --- |
-| `MachineIds`, `Identity`, `IdentityMap`, all identifier roles | Native role-aware identity inventories/codecs; enum/newtype/token round trips, no label-based equality |
-| `MachineDefinition`, `DefinitionBuilder`, state/transition builders and kinds | Checked immutable specifications; initial state, terminal/internal/external rules, reachability and limits |
-| `Condition`, expression kinds and builders | Native predicate and all/any/not expressions; bounded depth/operands, short-circuit and exception tests |
-| `LocalAction`, `Effect`, `OutputEvent` | Typed native callbacks and returned intent values, phase order, owned payloads and exception rollback |
-| `BehaviorRef`, registry, roles and `BoundInvariant` | Exact native Story plus implementation references; wrong role/missing implementation rejection |
-| `DefinitionRecord`, state/transition/condition/disposition records, `BehaviorUse` | Native portable specification records and checked binding; no implicit code loading or string IDs |
-| `MachineInstance`, `Event`, `MachineDecision`, `ValidatedDecision` | Native instance/event/single-use decision APIs; owned snapshots, explicit revision checks and disposal |
-| `DispatchOutcome`, `TransitionRecord`, effect/output intents | Native discriminated outcomes and records retaining exact native identifiers and payload types |
-| `EventDisposition` | Explicit harmless-event dispositions, conditions and reasons distinct from refusal |
-| `Capability`, status/report/snapshot | Advisory native capability values and bounded checked snapshots; no hidden authorization authority |
-| `Composition`, routes, registry/addresses, bound dispatch, batches/reports/limits | Explicit typed routing under caller control, multi-machine examples, ordered partial progress on failure, bounded propagation and namespace isolation |
-| `RetryPolicy`, schedule, waits, correlation and wake intent | Native durations/correlations and caller-owned wake values; stale/foreign/cancelled wake tests; no scheduling |
-| Scenario sets/replay/assertions/reports/traces/limits | Native replay and independent safety assertions; bounded counterexamples and coverage evidence |
-| Inspection limits/coverage and diagram labels | Native inspection and Mermaid generation with application labels separate from identity; deterministic escaping and limit errors |
-| All construction, binding, routing, dispatch, retry and inspection errors | Native exception taxonomy with typed context and original callback causes; no raw Rust `Result` or generic string-only errors |
+| Rust model family | Native counterpart and required evidence | Parity |
+| --- | --- | --- |
+| `MachineIds`, `Identity`, `IdentityMap`, all identifier roles | Native role-aware identity inventories/codecs; enum/newtype/token round trips, no label-based equality | Covered: [identity codecs](#portable-records-and-identity-codecs) |
+| `MachineDefinition`, `DefinitionBuilder`, state/transition builders and kinds | Checked immutable specifications; initial state, terminal/internal/external rules, reachability and limits | Not yet certified |
+| `Condition`, expression kinds and builders | Native predicate and all/any/not expressions; bounded depth/operands, short-circuit and exception tests | Not yet certified |
+| `LocalAction`, `Effect`, `OutputEvent` | Typed native callbacks and returned intent values, phase order, owned payloads and exception rollback | Not yet certified |
+| `BehaviorRef`, registry, roles and `BoundInvariant` | Exact native Story plus implementation references; wrong role/missing implementation rejection | Not yet certified |
+| `DefinitionRecord`, state/transition/condition/disposition records, `BehaviorUse` | Native portable specification records and checked binding; no implicit code loading or string IDs | Covered: [portable records](#portable-records-and-identity-codecs) |
+| `MachineInstance`, `Event`, `MachineDecision`, `ValidatedDecision` | Native instance/event/single-use decision APIs; owned snapshots, explicit revision checks and disposal | Not yet certified |
+| `DispatchOutcome`, `TransitionRecord`, effect/output intents | Native discriminated outcomes and records retaining exact native identifiers and payload types | Not yet certified |
+| `EventDisposition` | Explicit harmless-event dispositions, conditions and reasons distinct from refusal | Not yet certified |
+| `Capability`, status/report/snapshot | Advisory native capability values and bounded checked snapshots; no hidden authorization authority | Not yet certified |
+| `Composition`, routes, registry/addresses, bound dispatch, batches/reports/limits | Explicit typed routing under caller control, multi-machine examples, ordered partial progress on failure, bounded propagation and namespace isolation | Not yet certified |
+| `RetryPolicy`, schedule, waits, correlation and wake intent | Native durations/correlations and caller-owned wake values; stale/foreign/cancelled wake tests; no scheduling | Not yet certified |
+| Scenario sets/replay/assertions/reports/traces/limits | Native replay and independent safety assertions; bounded counterexamples and coverage evidence | Not yet certified |
+| Inspection limits/coverage and diagram labels | Native inspection and Mermaid generation with application labels separate from identity; deterministic escaping and limit errors | Not yet certified |
+| All construction, binding, routing, dispatch, retry and inspection errors | Native exception taxonomy with typed context and original callback causes; no raw Rust `Result` or generic string-only errors | Not yet certified |
 
 Composition is not a distributed transaction: earlier accepted steps remain
 accepted if a later delivery fails or hits a propagation bound. Reports must
 preserve that progress and unconsumed work as defined by the kernel. Callback
 failure still prevents acceptance of the failing step. Documentation and tests
 must make this distinction visible.
+
+### Identity codec API
+
+Rust `IdentityMap<T, R>` is a bounded one-to-one map for a single role, and
+`MachineIds` is the family of sixteen roles. Neither language can name a Rust
+type per role, so the native API makes the role a value and keeps the kernel as
+the authority:
+
+- `IdentityRole` lists the `MachineIds` roles. `Behavior` is spelled `story`,
+  matching `BehaviorRef.story`: a Python `Enum` and a frozen TypeScript object
+  of string literals.
+- `IdentityMap` takes a role, `(identity, representation)` entries and
+  `max_entries`/`maxEntries` (default and ceiling 4096). Python makes it
+  `Generic[IdT, ReprT]`. In TypeScript it is `IdentityMap<R, T, X>`, where the
+  role literal `R` is part of the type.
+- Entries are interned with the language's own identity rules. Python uses
+  type-qualified keys; JavaScript uses `Map` semantics, so object tokens compare
+  by identity. The interned index pairs are then validated by the kernel's
+  `IdentityMap::try_new` through the bridge (`status_machina_bridge::codec`),
+  and every `encode`/`decode` also goes through it. The kernel decides the
+  bound, the one-to-one rule and their error precedence. Python and JavaScript
+  only bound how many entries they read (at most the bound plus one) and
+  resolve the result back to the original native values.
+- `MachineIdentityMaps` holds at most one codec per role and rejects one whose
+  role differs from its slot. Python uses a frozen dataclass with one field per
+  role, generic over the state, event and representation types. TypeScript
+  checks the role-keyed object at compile time, and types `encode`/`decode` by
+  the configured role.
+- Errors are native classes under `IdentityMapError`. The kernel's
+  `IdentityMapError` variants become `IdentityMapLimitError`,
+  `DuplicateIdentityError`, `DuplicateRepresentationError`,
+  `UnknownIdentityError` and `UnknownRepresentationError`. A wrong or missing
+  role is an `IdentityRoleError`. Their context holds the role, the limit, the
+  entry position and the native identity or representation concerned. In Python
+  the unknown-value errors are also `LookupError`s and the limit error is also a
+  `LimitError`.
+
+Codecs never feed runtime matching. Adapters decode external names, build
+native records or specifications, and encode outcomes afterwards.
 
 ## Packaging and release acceptance
 
@@ -265,8 +306,8 @@ formatter/Clippy hook validation. The private adapter also tests bounded value
 leases, checked graph construction, unaccepted decisions, disposal and host-specific
 thread capability. Its dependencies do not enter the core runtime graph.
 
-BND-03 and BND-04 are Partial. The compiled Python extension passes 31 native
-application and lifecycle tests; the Node addon passes 34. These cover enum/symbol
+BND-03 and BND-04 are Partial. The compiled Python extension passes 47 native
+application and lifecycle tests; the Node addon passes 48. These cover enum/symbol
 identities, domain data, detached snapshots, callback exceptions, checked decision
 acceptance, disposal, bounded value-slot reuse and reentrancy. Python also tests
 cross-thread rejection during evaluation and garbage collection of callback
@@ -322,6 +363,43 @@ Inspection never evaluates application behavior. Python and Node runnable order
 examples generate identical Mermaid embedded in their READMEs; three additional
 private Rust tests reject malformed label metadata before renderer lookups.
 
-Composition, retry/scenario APIs, portable records, capability snapshots and
+### Portable records and identity codecs
+
+The native records mirror `DefinitionRecord`, `StateRecord`,
+`TransitionDefinitionRecord`, `DispositionRecord`, `ConditionRecord` and
+`BehaviorUse`. Python uses frozen dataclasses and TypeScript uses frozen classes.
+Condition records are a `kind`-discriminated union (`PredicateRecord`,
+`AllRecord`, `AnyRecord`, `NotRecord`). The field names follow the native
+specification types (`source`/`target`/`internal`/`outputs`); Rust uses
+`from`/`to`/`kind`/`output_events`. A record holds only native identities and
+exact `BehaviorRef` selections. Constructors reject callables, plain objects,
+foreign values and unknown fields, and bound every phase to 16 entries.
+
+`bind(registry)` lowers the record to the private checked transport with
+reference bindings only. `Template::bind_record` rebuilds the borrowed Rust
+records in an arena and calls `DefinitionRecord::bind`. It rejects any inline
+callback or capability, so no code can be selected except from the explicit
+registry. Native recursion stops at the kernel depth of 32, reporting the same
+condition identity the kernel would. `RecordBuildError` becomes a native
+exception: `BindingError` subclasses for an unknown Story, an unknown
+implementation or a role mismatch, record-specific errors naming the
+condition/transition/disposition, and `RecordError` for graph rules. Context is
+resolved back to the native identities.
+
+Evidence: `bindings/core/tests/record.rs` (5) and `codec.rs` (4);
+`python/tests/test_records.py` (7) and `test_identity.py` (9);
+`npm/tests/records.test.mjs` (7) and `identity.test.mjs` (7). Positive tests run
+bound records end to end: guards, actions, effects and outputs in declared
+order, short-circuited condition records, dispositions, and preserved callback
+causes. An adapter decodes IRIs through `MachineIdentityMaps` into a record,
+binds and runs it, and encodes the outcome. Negative tests cover each rejection
+listed above, codec duplicates with entry positions, limits, lazy consumption of
+endless inputs, role mismatches, type-qualified keys and the absence of label or
+`String()` fallbacks. The typing fixtures `python/tests/typing/records.py` and
+`npm/tests/typing/records.mts` reject a wrong initial state, callables in place
+of references, a missing registry, a codec of the wrong identity type and a
+codec in the wrong role slot.
+
+Composition, retry/scenario APIs, capability snapshots and
 installed-artifact/platform evidence remain outstanding. These passing tests do
 not establish publication readiness or complete native-model parity.
