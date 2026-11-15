@@ -50,6 +50,34 @@ class MaintenancePolicyTests(unittest.TestCase):
                                         env={**os.environ, **results})
                 self.assertEqual(result.returncode == 0, results == passing)
 
+    def test_release_path_waits_for_every_build_job(self):
+        # Either all builds are ok or nothing gets published: the shared release
+        # pipeline must start only after every native build passed for this revision.
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        jobs = {match.group(1): match.start()
+                for match in re.finditer(r'^  ([a-z][a-z-]*):\n', workflow, flags=re.MULTILINE)}
+        bodies = {}
+        ordered = sorted(jobs.items(), key=lambda item: item[1])
+        for (name, start), following in zip(ordered, ordered[1:] + [(None, len(workflow))]):
+            bodies[name] = workflow[start:following[1]]
+        release = [name for name, body in bodies.items() if 'cargo-maintenance.yml@' in body]
+        self.assertEqual(release, ['ci'])
+        shared = bodies['ci']
+        needs = re.search(r'^    needs: \[([^\]]*)\]\n', shared, flags=re.MULTILINE)
+        self.assertIsNotNone(needs, 'the release call must declare its build dependencies')
+        required = {name.strip() for name in needs.group(1).split(',')}
+        builds = {name for name, body in bodies.items()
+                  if name not in ('ci', 'test') and re.search(r'^    steps:\n', body, flags=re.MULTILINE)}
+        self.assertEqual(builds, {'prepare', 'python-bindings', 'node-bindings'})
+        self.assertEqual(required, builds)
+        # always() or a result filter would let a failed, cancelled or skipped build through.
+        condition = re.search(r'^    if: (.*)\n', shared, flags=re.MULTILINE).group(1)
+        self.assertNotIn('always()', condition)
+        self.assertNotIn('needs.', condition)
+        self.assertNotIn('continue-on-error', workflow)
+        for job in ('python-bindings', 'node-bindings'):
+            self.assertNotRegex(bodies[job], r'^    if:', f'{job} must run on every event')
+
     def test_native_bindings_are_built_and_tested_on_every_runner(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         for job, commands in [

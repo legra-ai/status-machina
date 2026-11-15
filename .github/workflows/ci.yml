@@ -17,7 +17,11 @@ jobs:
   ci:
     # Validate PRs privately; activation on main requires the approved public repository.
     if: github.event.repository.private == false || github.event_name == 'pull_request'
-    needs: prepare
+    # Release gate: either every build passes or nothing is published. Without
+    # always(), this call, and with it every version commit and publication of
+    # the shared pipeline, starts only after every binding job succeeded for this
+    # run's revision. A failed, cancelled or skipped binding job skips it.
+    needs: [prepare, python-bindings, node-bindings]
     uses: legra-ai/github-actions/.github/workflows/cargo-maintenance.yml@29002202e2829a98b1208ba3640c0e733ef15602
     with:
       crate-name: status-machina
