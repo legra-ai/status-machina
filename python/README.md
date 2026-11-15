@@ -32,6 +32,55 @@ A capability may also use an exact `BehaviorRef` to a registered EKGF Story
 implementation. Its identifier, Story and implementation may all be native enums
 or other hashable domain identities, independently of display labels.
 
+## Portable records and identity codecs
+
+A `DefinitionRecord` is a data-only graph: native identities and exact
+`BehaviorRef` selections, with no callables, module paths or string codec. Bind
+it against an explicit `BehaviorRegistry`; the Rust kernel's
+`DefinitionRecord::bind` resolves every use site and applies the ordinary
+builder rules. Binding runs no callback and never loads code.
+
+```python
+from status_machina import (
+    BehaviorUse, DefinitionRecord, PredicateRecord, StateRecord, TransitionDefinitionRecord,
+)
+
+record = DefinitionRecord(
+    id=InvoiceGraph.V1, initial=Phase.DRAFT,
+    states=(StateRecord(Phase.DRAFT), StateRecord(Phase.SENT, terminal=True)),
+    transitions=(TransitionDefinitionRecord(
+        Edge.SEND, Phase.DRAFT, Input.SEND, Phase.SENT,
+        guard=PredicateRecord(BehaviorUse(Use.HAS_LINES, has_lines_v1)),
+        actions=(BehaviorUse(Use.STAMP, stamp_v1),),
+    ),),
+)
+definition = record.bind(registry)   # Definition[Phase, Input, Any]
+assert definition.record is record
+```
+
+Condition records are `PredicateRecord`, `AllRecord`, `AnyRecord` and
+`NotRecord`, discriminated by `kind`; `DispositionRecord` declares a harmless
+event. Records reject callables and foreign values when constructed. Binding
+failures are `RecordError` subclasses whose `context` holds native identities:
+`UnknownBehaviorError` (`story`), `UnknownImplementationError` (`story`,
+`implementation`) and `RoleMismatchError` (`expected`/`actual` `BehaviorRole`)
+are `BindingError`s; `ConditionRecordError`, `TransitionRecordError` and
+`DispositionRecordError` name the invalid record, and graph rules such as
+unreachable states name the `state`/`transition`.
+
+`IdentityMap(IdentityRole.STATE, entries, max_entries=4096)` is the kernel
+`IdentityMap` for one role: an explicit, bounded, one-to-one codec between
+native identities and caller-owned representations such as IRIs. Keys include
+their concrete type, so `1`, `True` and members of different `IntEnum` classes
+never alias, and nothing is derived from `str` or `repr`. `MachineIdentityMaps`
+holds at most one codec per `IdentityRole` field and rejects a codec of another
+role. Failures are `IdentityMapError` subclasses: `DuplicateIdentityError` and
+`DuplicateRepresentationError` (with the offending `entry`),
+`UnknownIdentityError`/`UnknownRepresentationError` (also `LookupError`),
+`IdentityMapLimitError` (also `LimitError`) and `IdentityRoleError`. Runtime
+matching never consults a codec; decode external names before building records
+and encode outcomes afterwards.
+
 ## Inspect and draw a definition
 
 The [runnable Python order example](examples/order.py) checks an approval transition

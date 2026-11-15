@@ -20,6 +20,10 @@ use host::PyHost;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use status_machina_bridge::build::Template;
+use status_machina_bridge::codec::{
+    Codec,
+    CodecFailure,
+};
 use status_machina_bridge::runtime::{
     Decision,
     Machine,
@@ -45,6 +49,13 @@ impl NativeDefinition {
     fn new(py: Python<'_>, source: &str) -> PyResult<Self> {
         Ok(Self {
             template: Arc::new(Template::parse(source).map_err(|e| translate(py, e))?),
+        })
+    }
+    /// Bind a reference-only portable record through `DefinitionRecord::bind`.
+    #[staticmethod]
+    fn bind_record(py: Python<'_>, source: &str) -> PyResult<Self> {
+        Ok(Self {
+            template: Arc::new(Template::bind_record(source).map_err(|e| translate(py, e))?),
         })
     }
     fn label_inventory(&self) -> String {
@@ -206,8 +217,32 @@ impl NativeDecision {
         Ok(())
     }
 }
+/// Kernel `IdentityMap` over private per-codec indexes; values stay in Python.
+#[pyclass(name = "_IdentityMap", frozen, module = "status_machina._native")]
+struct NativeIdentityMap {
+    codec: Codec,
+}
+#[pymethods]
+impl NativeIdentityMap {
+    #[new]
+    fn new(pairs: Vec<(u32, u32)>, max_entries: usize) -> PyResult<Self> {
+        Ok(Self {
+            codec: Codec::try_new(&pairs, max_entries).map_err(codec_failure)?,
+        })
+    }
+    fn encode(&self, identity: u32) -> PyResult<u32> {
+        self.codec.encode(identity).map_err(codec_failure)
+    }
+    fn decode(&self, representation: u32) -> PyResult<u32> {
+        self.codec.decode(representation).map_err(codec_failure)
+    }
+}
+fn codec_failure(failure: CodecFailure) -> PyErr {
+    NativeFailure::new_err(failure.encode())
+}
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_class::<NativeIdentityMap>()?;
     module.add_class::<NativeDefinition>()?;
     module.add_class::<NativeInstance>()?;
     module.add_class::<NativeDecision>()?;

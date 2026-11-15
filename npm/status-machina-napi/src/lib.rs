@@ -23,6 +23,10 @@ use napi::Env;
 use napi::bindgen_prelude::Function;
 use napi_derive::napi;
 use status_machina_bridge::build::Template;
+use status_machina_bridge::codec::{
+    Codec,
+    CodecFailure,
+};
 use status_machina_bridge::runtime::{
     Decision,
     Machine,
@@ -58,6 +62,15 @@ impl NativeDefinition {
     pub fn new(env: Env, source: String) -> napi::Result<Self> {
         Ok(Self {
             template: Arc::new(Template::parse(&source).map_err(translate)?),
+            environment: env.raw() as usize,
+            thread: thread::current().id(),
+        })
+    }
+    /// Bind a reference-only portable record through `DefinitionRecord::bind`.
+    #[napi(factory)]
+    pub fn bind_record(env: Env, source: String) -> napi::Result<Self> {
+        Ok(Self {
+            template: Arc::new(Template::bind_record(&source).map_err(translate)?),
             environment: env.raw() as usize,
             thread: thread::current().id(),
         })
@@ -252,4 +265,44 @@ impl NativeDecision {
         write(&self.decision)?.take();
         Ok(())
     }
+}
+/// Kernel `IdentityMap` over private per-codec indexes; values stay in
+/// JavaScript.
+#[napi]
+pub struct NativeIdentityMap {
+    codec: Codec,
+}
+#[napi]
+impl NativeIdentityMap {
+    /// Pair `identities[i]` with `representations[i]`, in caller order.
+    #[napi(constructor)]
+    pub fn new(
+        identities: Vec<u32>,
+        representations: Vec<u32>,
+        max_entries: u32,
+    ) -> napi::Result<Self> {
+        if identities.len() != representations.len() {
+            return Err(napi::Error::new(
+                napi::Status::InvalidArg,
+                "identity and representation indexes must pair up",
+            ));
+        }
+        // bounded: JavaScript consumes at most max_entries + 1 entries, and the
+        // kernel ceiling is 4096.
+        let pairs: Vec<(u32, u32)> = identities.into_iter().zip(representations).collect();
+        Ok(Self {
+            codec: Codec::try_new(&pairs, max_entries as usize).map_err(codec_failure)?,
+        })
+    }
+    #[napi]
+    pub fn encode(&self, identity: u32) -> napi::Result<u32> {
+        self.codec.encode(identity).map_err(codec_failure)
+    }
+    #[napi]
+    pub fn decode(&self, representation: u32) -> napi::Result<u32> {
+        self.codec.decode(representation).map_err(codec_failure)
+    }
+}
+fn codec_failure(failure: CodecFailure) -> napi::Error {
+    napi::Error::new(napi::Status::GenericFailure, failure.encode())
 }

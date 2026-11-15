@@ -8,7 +8,7 @@ import threading
 from typing import NoReturn, TypeVar
 from . import _native
 from . import errors
-from .model import CapabilityStatus
+from .model import BehaviorRole, CapabilityStatus
 
 _ERROR_TYPES = {
     "definition": errors.DefinitionError, "callback": errors.CallbackError,
@@ -18,7 +18,14 @@ _ERROR_TYPES = {
     "foreign_instance": errors.ForeignDecisionError, "revision_exhausted": errors.RevisionError,
     "inspection": errors.InspectionError,
     "disposed": errors.DisposedError, "busy": errors.BusyError,
+    "record": errors.RecordError, "record_condition": errors.ConditionRecordError,
+    "record_transition": errors.TransitionRecordError,
+    "record_disposition": errors.DispositionRecordError,
+    "unknown_behavior": errors.UnknownBehaviorError,
+    "unknown_implementation": errors.UnknownImplementationError,
+    "role_mismatch": errors.RoleMismatchError,
 }
+_CONTEXT_ROLES = ("state", "condition", "transition", "disposition", "story", "implementation")
 
 def translate(error, ids=None) -> NoReturn:
     info = json.loads(str(error))
@@ -26,9 +33,12 @@ def translate(error, ids=None) -> NoReturn:
     if code not in _ERROR_TYPES:
         raise RuntimeError("Unrecognized native failure category") from error
     context = {key: value for key, value in info.items() if key not in ("code", "message") and value is not None}
-    for role in ("state", "condition"):
+    for role in _CONTEXT_ROLES:
         if role in context and ids is not None:
             context[role] = ids.resolve(role, context[role])
+    for key in ("expected", "actual"):
+        if f"{key}_role" in context:
+            context[key] = BehaviorRole(context.pop(f"{key}_role"))
     for key in ("expected_revision", "current_revision"):
         if key in context:
             context[key] = int(context[key])

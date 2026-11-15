@@ -47,14 +47,7 @@ pub struct Template<H: Host> {
 }
 impl<H: Host> Template<H> {
     pub fn parse(source: &str) -> Result<Self, Error<H>> {
-        if source.len() > 1_048_576 {
-            return Err(Error::construction(
-                "definition",
-                "specification exceeds 1 MiB",
-            ));
-        }
-        let spec: spec::Definition =
-            serde_json::from_str(source).map_err(|e| Error::construction("specification", e))?;
+        let spec = Self::read(source)?;
         let labels = crate::inspection::LabelInventory::from_spec(&spec);
         let registry = Self::registry(spec.behaviors, spec.max_bindings)?;
         let build = Builder {
@@ -111,7 +104,19 @@ impl<H: Host> Template<H> {
             registry,
         })
     }
-    fn registry(behaviors: Vec<spec::Behavior>, limit: usize) -> Result<Registry<H>, Error<H>> {
+    pub(crate) fn read(source: &str) -> Result<spec::Definition, Error<H>> {
+        if source.len() > 1_048_576 {
+            return Err(Error::construction(
+                "definition",
+                "specification exceeds 1 MiB",
+            ));
+        }
+        serde_json::from_str(source).map_err(|e| Error::construction("specification", e))
+    }
+    pub(crate) fn registry(
+        behaviors: Vec<spec::Behavior>,
+        limit: usize,
+    ) -> Result<Registry<H>, Error<H>> {
         let mut registry = Registry::builder()
             .max_bindings(limit)
             .map_err(|e| Error::construction("Story registry", e))?;
