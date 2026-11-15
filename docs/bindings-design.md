@@ -19,7 +19,7 @@ npm name is occupied. Availability checks do not reserve either unpublished name
 | BND-04 | Node.js checked construction, native values, execution and inspection through napi-rs, with JavaScript and TypeScript APIs | BND-02 | Partial |
 | BND-05 | Native Story bindings, capabilities, bounded composition, retries and scenario coverage, with model-by-model parity evidence in both languages | BND-03, BND-04 | Partial |
 | BND-06 | Installable wheels, source distribution and npm artifacts; complete examples and installed-artifact tests without a Rust toolchain | BND-05 | Not started |
-| BND-07 | Extend the shared tested-revision pipeline to gate and publish all three ecosystems, with synchronized versions and interrupted-publication recovery | BND-06 | Not started |
+| BND-07 | Extend the shared tested-revision pipeline to gate and publish all three ecosystems, with synchronized versions and interrupted-publication recovery | BND-06 | Partial |
 | BND-08 | Initial native packages published and verified from the approved tested revision on every declared platform | BND-07 | Not started |
 
 The kernel stays independent of Python, Node.js, their dependency graphs and
@@ -277,8 +277,21 @@ The `python-bindings` and `node-bindings` jobs cover Ubuntu 24.04, `macos-latest
 and Windows, with Python 3.10/3.14 and Node.js 22/24. They run the bridge, PyO3
 and napi crate tests, `maturin develop`, mypy, `tsc --noEmit` and the typing
 fixtures. The required `test` gate fails unless every one of them passes. They
-test the checkout, not installed artifacts. They do not gate publication yet;
-that remains BND-06/BND-07 work.
+test the checkout, not installed artifacts.
+
+BND-07 is Partial: native checks now gate the sole publisher. The shared
+`cargo-maintenance.yml` call (`ci`) declares `needs: [prepare, python-bindings,
+node-bindings]` without `always()`. Its version commit and its crates.io
+publication therefore start only after every binding job, on every runner and
+interpreter, succeeded for the run's revision. A failed, cancelled or skipped
+job skips the whole release path, so a Rust-only release can no longer hide a
+binding failure. `scripts/test_maintenance.py` checks that the release call
+depends on every build job of the workflow. The shared pipeline also has to
+publish only from the release revision's own run, so the bindings validate the
+exact published revision, not only the source of its version commit. That
+change is legra-ai/github-actions#114. Its pin is not adopted until it merges.
+Native artifacts, PyPI/npm publication, synchronized versions and
+multi-registry recovery remain outstanding.
 
 Python and TypeScript static examples check state/event identity, initial data
 and data unions that functional actions can replace. They include deliberately
