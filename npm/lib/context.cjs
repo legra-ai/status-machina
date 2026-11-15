@@ -8,6 +8,8 @@ class Context {
     this.inputSnapshot = internals.inputSnapshot; this.identity = identity; this.capacity = internals.limits.maxValues;
     this.values = new Map(); this.nextKey = 0; this.freeKeys = []; this.arenaId = undefined; this.native = undefined;
     this.closed = false; this.busy = false; this.sources = undefined;
+    // The BoundComposition holding exclusive use, like a Rust `&mut` borrow.
+    this.owner = undefined;
     this.invoke = encoded => this.callback(encoded);
   }
   allocate(value) {
@@ -28,8 +30,9 @@ class Context {
     if (!context.values.has(reference.key)) throw new Error('Native value lease is missing');
     return context.values.get(reference.key);
   }
-  operation(body, allowClosed = false, sources) {
+  operation(body, allowClosed = false, sources, owner) {
     if (this.busy) throw new BusyError('An operation is already active on this instance');
+    if (this.owner !== undefined && owner !== this.owner) throw new BusyError('The machine is exclusively bound to a composition');
     if (this.closed && !allowClosed) throw new DisposedError('The machine has been disposed');
     this.busy = true;
     try {

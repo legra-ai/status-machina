@@ -37,6 +37,35 @@ class DuplicateIdentityError extends IdentityMapError {}
 class DuplicateRepresentationError extends IdentityMapError {}
 class UnknownIdentityError extends IdentityMapError {}
 class UnknownRepresentationError extends IdentityMapError {}
+class CompositionError extends StatusMachinaError {}
+class InstanceRegistryError extends CompositionError {}
+class InstanceRegistryLimitError extends InstanceRegistryError {}
+class AddressMismatchError extends InstanceRegistryError {}
+class DuplicateInstanceError extends InstanceRegistryError {}
+class CompositionDefinitionError extends CompositionError {}
+class CompositionLimitError extends CompositionDefinitionError {}
+class DuplicateRouteError extends CompositionDefinitionError {}
+class UnregisteredRouteAddressError extends CompositionDefinitionError {}
+class UndeclaredRouteEventError extends CompositionDefinitionError {}
+class UndeclaredCapabilityError extends CompositionDefinitionError {}
+/** `outputs` holds every intent of the refused batch, unconsumed. */
+class RouteBatchError extends CompositionError {
+  constructor(message, context = {}, options) { super(message, context, options); this.outputs = context.outputs ?? Object.freeze([]); }
+}
+class UnregisteredSourceError extends RouteBatchError {}
+class BatchLimitError extends RouteBatchError {}
+class CompositionBindingError extends CompositionError {}
+class DuplicateBindingError extends CompositionBindingError {}
+class UnregisteredBindingError extends CompositionBindingError {}
+class BindingMismatchError extends CompositionBindingError {}
+class MissingBindingError extends CompositionBindingError {}
+class AliasedBindingError extends CompositionBindingError {}
+class PropagationLimitsError extends CompositionError {}
+class CapabilitySnapshotError extends CompositionError {}
+class CapabilitySnapshotLimitError extends CapabilitySnapshotError {}
+class ReportInstanceMismatchError extends CapabilitySnapshotError {}
+class DuplicateObservationError extends CapabilitySnapshotError {}
+class ForeignSnapshotError extends CapabilitySnapshotError {}
 const types = Object.freeze({ inspection: InspectionError, definition: DefinitionError, callback: CallbackError,
   invariant: InvariantError, postcondition: PostconditionError, ambiguous: AmbiguousTransitionError,
   action: ActionError, stale_revision: StaleDecisionError, foreign_definition: ForeignDecisionError,
@@ -45,8 +74,17 @@ const types = Object.freeze({ inspection: InspectionError, definition: Definitio
   record_disposition: DispositionRecordError, unknown_behavior: UnknownBehaviorError,
   unknown_implementation: UnknownImplementationError, role_mismatch: RoleMismatchError });
 const contextRoles = Object.freeze(['state', 'condition', 'transition', 'disposition', 'story', 'implementation']);
+/** True for a typed failure thrown by the native addon. */
+function isNative(error) {
+  return error !== null && typeof error === 'object' && error.code === 'GenericFailure'
+    && typeof error.message === 'string' && error.message.startsWith('{');
+}
 function translate(error, ids) {
-  if (error.code !== 'GenericFailure' || typeof error.message !== 'string' || !error.message.startsWith('{')) throw error;
+  if (!isNative(error)) throw error;
+  throw exception(error, ids);
+}
+/** The typed exception for a native failure; its `cause` is the original. */
+function exception(error, ids) {
   const info = JSON.parse(error.message);
   const Type = info.code === 'callback' && info.phase === 'snapshot' ? SnapshotError : types[info.code];
   if (Type === undefined) throw new Error('Unrecognized native failure category', { cause: error });
@@ -65,7 +103,7 @@ function translate(error, ids) {
     if (Object.hasOwn(context, name)) context[name === 'expected_revision' ? 'expectedRevision' : 'currentRevision'] = BigInt(context[name]);
     delete context[name];
   }
-  throw new Type(info.message, context, { cause: error.cause });
+  return new Type(info.message, context, { cause: error.cause });
 }
 module.exports = { StatusMachinaError, DefinitionError, DispatchError, CallbackError, SnapshotError,
   InvariantError, PostconditionError, AmbiguousTransitionError, ActionError, StaleDecisionError,
@@ -73,4 +111,4 @@ module.exports = { StatusMachinaError, DefinitionError, DispatchError, CallbackE
   RecordError, ConditionRecordError, TransitionRecordError, DispositionRecordError, BindingError,
   UnknownBehaviorError, UnknownImplementationError, RoleMismatchError, IdentityMapError, IdentityRoleError,
   IdentityMapLimitError, DuplicateIdentityError, DuplicateRepresentationError, UnknownIdentityError,
-  UnknownRepresentationError, translate };
+  UnknownRepresentationError, CompositionError, InstanceRegistryError, InstanceRegistryLimitError, AddressMismatchError, DuplicateInstanceError, CompositionDefinitionError, CompositionLimitError, DuplicateRouteError, UnregisteredRouteAddressError, UndeclaredRouteEventError, UndeclaredCapabilityError, RouteBatchError, UnregisteredSourceError, BatchLimitError, CompositionBindingError, DuplicateBindingError, UnregisteredBindingError, BindingMismatchError, MissingBindingError, AliasedBindingError, PropagationLimitsError, CapabilitySnapshotError, CapabilitySnapshotLimitError, ReportInstanceMismatchError, DuplicateObservationError, ForeignSnapshotError, translate, exception, isNative };

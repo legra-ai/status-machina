@@ -345,3 +345,151 @@ export class MachineIdentityMaps<M extends IdentityMapsByRole> {
   encode<R extends ConfiguredRole<M>>(role: R, identity: IdentityOf<M[R]>): RepresentationOf<M[R]>;
   decode<R extends ConfiguredRole<M>>(role: R, representation: RepresentationOf<M[R]>): IdentityOf<M[R]>;
 }
+
+/** Any owned machine, whatever its state, event, data, payload and facts types. */
+export type AnyMachine = Machine<any, any, any, any, any>;
+/** A caller-owned address: one instance identity within one routing scope. */
+export class InstanceAddress<S extends Identity = Identity, I extends Identity = Identity> {
+  constructor(scope: S, instance: I);
+  readonly scope: S;
+  readonly instance: I;
+  /** Component-wise Map semantics; object tokens compare by identity. */
+  equals(other: unknown): boolean;
+}
+/** Deliver `event` emitted at `source` to `destination` as `inputEvent`, optionally gated by a capability. */
+export class Route<K extends Identity = Identity> {
+  constructor(options: { readonly source: InstanceAddress; readonly event: Identity; readonly destination: InstanceAddress;
+    readonly inputEvent: K; readonly capability?: Identity });
+  readonly source: InstanceAddress;
+  readonly event: Identity;
+  readonly destination: InstanceAddress;
+  readonly inputEvent: K;
+  readonly capability: Identity | undefined;
+}
+/** Bounded `[address, machine]` registrations (1..512, default 128); the composition retains no machine. */
+export class InstanceRegistry {
+  constructor(options?: { readonly entries?: Iterable<readonly [InstanceAddress, AnyMachine]>; readonly maxInstances?: number });
+  readonly entries: readonly (readonly [InstanceAddress, AnyMachine])[];
+  readonly maxInstances: number;
+}
+/** An input addressed to exactly one registered instance. */
+export class Delivery<K extends Identity = Identity, P = unknown> {
+  constructor(destination: InstanceAddress, event: Event<K, P>);
+  readonly destination: InstanceAddress;
+  readonly event: Event<K, P>;
+}
+/** Explicit work budgets for one propagate call, each within 1..4096. */
+export class PropagationLimits {
+  constructor(options: { readonly maxSteps: number; readonly maxIntents: number });
+  readonly maxSteps: number;
+  readonly maxIntents: number;
+}
+export const PropagationStatus: Readonly<{ Quiescent: 'quiescent'; StepLimit: 'step_limit'; IntentLimit: 'intent_limit';
+  UnboundDestination: 'unbound_destination'; DispatchFailed: 'dispatch_failed' }>;
+export type PropagationStatusValue = (typeof PropagationStatus)[keyof typeof PropagationStatus];
+/** One routing result, discriminated by `kind`; nothing has been dispatched. */
+export type RoutedItem =
+  { readonly kind: 'routed'; readonly source: InstanceAddress; readonly destination: InstanceAddress; readonly event: Event<Identity> } |
+  { readonly kind: 'unmatched'; readonly source: InstanceAddress; readonly intent: OutputIntent } |
+  { readonly kind: 'deferred'; readonly source: InstanceAddress; readonly destination: InstanceAddress;
+    readonly capability: Identity; readonly status: CapabilityStatusValue; readonly intent: OutputIntent };
+export type UnroutedItem = Exclude<RoutedItem, { readonly kind: 'routed' }>;
+/** One completed dispatch; its effects and outputs are reported separately. */
+export interface PropagationStep { readonly destination: InstanceAddress; readonly outcome: Outcome<Identity, Identity>; }
+/** Accepted external work with the instance that requested it; nothing ran. */
+export interface AddressedEffect { readonly source: InstanceAddress; readonly intent: EffectIntent; }
+interface PropagationProgress {
+  readonly steps: readonly PropagationStep[];
+  readonly effects: readonly AddressedEffect[];
+  readonly unrouted: readonly UnroutedItem[];
+  /** The unaccepted input first, then remaining work; caller inputs are the original Delivery objects. */
+  readonly pending: readonly Delivery[];
+}
+/** Ordered partial progress: accepted steps are never rolled back by a later failure or budget stop. */
+export type PropagationReport = PropagationProgress & (
+  { readonly status: Exclude<PropagationStatusValue, 'dispatch_failed'>; readonly error?: undefined } |
+  { readonly status: 'dispatch_failed'; readonly error: DispatchError });
+/** Caller-observed revisions and capability reports, lowered by one composition. */
+export class CapabilitySnapshot {
+  private constructor();
+  private readonly _brand;
+  readonly revisions: readonly (readonly [InstanceAddress, bigint])[];
+  readonly reports: readonly (readonly [InstanceAddress, CapabilityReport])[];
+  readonly maxObservations: number;
+}
+export interface CompositionOptions {
+  readonly sources: InstanceRegistry;
+  readonly destinations: InstanceRegistry;
+  readonly routes?: Iterable<Route>;
+  /** 1..512, default 128. */
+  readonly maxRoutes?: number;
+  /** 1..256, default 128. */
+  readonly maxBatch?: number;
+}
+export interface CapabilitySnapshotOptions {
+  readonly revisions?: Iterable<readonly [InstanceAddress, bigint]>;
+  /** Reports from `Machine.evaluateCapability`; never rebuilt from their fields. */
+  readonly reports?: Iterable<readonly [InstanceAddress, CapabilityReport]>;
+  /** 1..1024, default 256. */
+  readonly maxObservations?: number;
+}
+/** Immutable, bounded routing between registered machine instances; it never dispatches by itself. */
+export class Composition {
+  constructor(options: CompositionOptions);
+  private readonly _brand;
+  readonly routes: readonly Route[];
+  readonly maxRoutes: number;
+  readonly maxBatch: number;
+  capabilities(options?: CapabilitySnapshotOptions): CapabilitySnapshot;
+  routeBatch(source: InstanceAddress, outputs: Iterable<OutputIntent>, options?: { readonly capabilities?: CapabilitySnapshot }): readonly RoutedItem[];
+  /** Take exclusive use of every registered machine until the binding is disposed. */
+  bind(instances: ReadonlyMap<InstanceAddress, AnyMachine> | Iterable<readonly [InstanceAddress, AnyMachine]>): BoundComposition;
+}
+export interface PropagateOptions {
+  readonly limits: PropagationLimits;
+  readonly facts?: unknown;
+  readonly capabilities?: CapabilitySnapshot;
+}
+/** Exclusive use of bound machines, like Rust `&mut` borrows; bound machines throw BusyError. */
+export class BoundComposition implements Disposable {
+  private constructor();
+  private readonly _brand;
+  propagate(inputs: Iterable<Delivery>, options: PropagateOptions): PropagationReport;
+  dispose(): void;
+  [Symbol.dispose](): void;
+}
+/** A composition was rejected by the kernel; `context.reason` is the kernel variant. */
+export class CompositionError extends StatusMachinaError {}
+/** `context` names the `registry`, `entry`, `address` and `machine`. */
+export class InstanceRegistryError extends CompositionError {}
+export class InstanceRegistryLimitError extends InstanceRegistryError {}
+export class AddressMismatchError extends InstanceRegistryError {}
+export class DuplicateInstanceError extends InstanceRegistryError {}
+/** `context.route` is the native Route and `context.index` its position. */
+export class CompositionDefinitionError extends CompositionError {}
+export class CompositionLimitError extends CompositionDefinitionError {}
+export class DuplicateRouteError extends CompositionDefinitionError {}
+export class UnregisteredRouteAddressError extends CompositionDefinitionError {}
+export class UndeclaredRouteEventError extends CompositionDefinitionError {}
+export class UndeclaredCapabilityError extends CompositionDefinitionError {}
+/** The batch was refused before routing; `outputs` holds every intent. */
+export class RouteBatchError extends CompositionError {
+  readonly outputs: readonly OutputIntent[];
+}
+export class UnregisteredSourceError extends RouteBatchError {}
+export class BatchLimitError extends RouteBatchError {}
+/** Exclusive binding was refused before any machine was dispatched. */
+export class CompositionBindingError extends CompositionError {}
+export class DuplicateBindingError extends CompositionBindingError {}
+export class UnregisteredBindingError extends CompositionBindingError {}
+export class BindingMismatchError extends CompositionBindingError {}
+/** `context.address` is the first registered address left unbound. */
+export class MissingBindingError extends CompositionBindingError {}
+export class AliasedBindingError extends CompositionBindingError {}
+export class PropagationLimitsError extends CompositionError {}
+/** `context` names the `list`, `entry` and `address`. */
+export class CapabilitySnapshotError extends CompositionError {}
+export class CapabilitySnapshotLimitError extends CapabilitySnapshotError {}
+export class ReportInstanceMismatchError extends CapabilitySnapshotError {}
+export class DuplicateObservationError extends CapabilitySnapshotError {}
+export class ForeignSnapshotError extends CapabilitySnapshotError {}

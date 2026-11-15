@@ -83,6 +83,81 @@ and `IdentityRoleError`. Codecs are uncloneable, like definitions. Runtime
 matching never consults a codec; decode external names before building records
 and encode outcomes afterwards.
 
+## Compose machines
+
+A `Composition` routes the outputs of registered machines to other registered
+machines. The Rust kernel's `InstanceRegistry`, `Composition` and
+`BoundComposition` decide every rule; JavaScript only lowers native values. The
+[runnable composition example](examples/composition.mjs) gives one order identity
+an address in three routing scopes and propagates a payment through all three:
+
+```js
+const [sales, warehouse, finance] = ['sales', 'warehouse', 'finance'].map(scope => new InstanceAddress(scope, 'order-7'));
+const composition = new Composition({
+  sources: new InstanceRegistry({ entries: [[sales, order], [warehouse, shipment]] }),
+  destinations: new InstanceRegistry({ entries: [[warehouse, shipment], [finance, invoice]] }),
+  routes: [new Route({ source: sales, event: Paid, destination: warehouse, inputEvent: Pack }),
+    new Route({ source: warehouse, event: Packed, destination: finance, inputEvent: Issue })],
+});
+const bound = composition.bind([[sales, order], [warehouse, shipment], [finance, invoice]]);
+const report = bound.propagate([new Delivery(sales, { kind: Pay, payload: { order: 'order-7', amount: 120 } })],
+  { limits: new PropagationLimits({ maxSteps: 8, maxIntents: 8 }) });
+bound.dispose();
+// The binding is released: execute effects now, outside any machine operation.
+for (const effect of report.effects) console.log(`${effect.source.scope} effect: ${effect.intent.payload}`);
+```
+
+It prints:
+
+```text
+sales: OPEN -> PAID
+warehouse: WAITING -> PACKED
+finance: DRAFT -> ISSUED
+warehouse effect: label for order-7
+quiescent {"total":120}
+```
+
+- `new InstanceAddress(scope, instance)` compares each component with `Map`
+  semantics (`address.equals(other)`), so equal instance identities in different
+  scopes are different addresses and object tokens compare by identity. A
+  registered address must name its machine's `id`.
+- `new Route({ source, event, destination, inputEvent, capability })` maps one
+  source output event to one destination input event. With a capability, the
+  route defers unless a `composition.capabilities({ revisions, reports })`
+  snapshot observes it `available` at the destination's current revision.
+  Reports must come from `machine.evaluateCapability`; they are advisory.
+- `composition.routeBatch(source, outputs)` returns ordered items discriminated
+  by `kind` (`routed`, `unmatched`, `deferred`) and dispatches nothing.
+  Unmatched and deferred items keep the original output intent object.
+- `composition.bind(entries)` takes exclusive use of every registered machine,
+  like a Rust `&mut` borrow: until `dispose()` (or `using`), the machines throw
+  `BusyError` for direct operations. `propagate` dispatches in FIFO order in
+  the caller's stack, within explicit `PropagationLimits` (1..4096 each).
+
+Composition is not a distributed transaction. A `PropagationReport` keeps every
+accepted step, the addressed effects they returned, unrouted outputs and the
+`pending` deliveries. When a later step fails, `status` is `dispatch_failed` and
+`error` is the typed exception with the original `cause`; earlier steps stay
+accepted and the failed delivery leads `pending`, ready to propagate again.
+`step_limit`, `intent_limit` and `unbound_destination` stop the same way. Caller
+inputs come back in `pending` as the original `Delivery` objects. TypeScript
+narrows `report.error` to `DispatchError` on `status === 'dispatch_failed'`.
+
+Rejections are `CompositionError` subclasses carrying the kernel `reason` in
+`context`: `InstanceRegistryError` (`AddressMismatchError`,
+`DuplicateInstanceError`, `InstanceRegistryLimitError`) with the `registry`,
+`entry`, `address` and `machine`; `CompositionDefinitionError`
+(`DuplicateRouteError`, `UnregisteredRouteAddressError`,
+`UndeclaredRouteEventError`, `UndeclaredCapabilityError`,
+`CompositionLimitError`) with the native `route`; `RouteBatchError`
+(`UnregisteredSourceError`, `BatchLimitError`) with every `outputs` item;
+`CompositionBindingError` (`DuplicateBindingError`, `UnregisteredBindingError`,
+`BindingMismatchError`, `MissingBindingError`, `AliasedBindingError`);
+`PropagationLimitsError`; and `CapabilitySnapshotError`
+(`ReportInstanceMismatchError`, `DuplicateObservationError`,
+`CapabilitySnapshotLimitError`, `ForeignSnapshotError`). Compositions,
+snapshots and bindings are uncloneable, like machines.
+
 ## Inspect and draw a definition
 
 The [runnable Node.js order example](examples/order.mjs) checks an approval transition
