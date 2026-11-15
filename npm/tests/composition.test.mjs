@@ -38,14 +38,16 @@ function pipeline(scope = a, capability = undefined) {
   const composition = new Composition({ sources: new InstanceRegistry({ entries: [[source, order]] }),
     destinations: new InstanceRegistry({ entries: [[destination, shipment]] }), routes: [route] });
   const bind = () => composition.bind([[source, order], [destination, shipment]]);
+  // Node.js 22 has no `using` declarations; dispose explicitly.
+  const within = body => { const bound = bind(); try { return body(bound); } finally { bound.dispose(); } };
   const pay = (amount = 10) => new Delivery(source, { kind: Pay, payload: new Payment('order-1', amount) });
-  return { order, shipment, source, destination, route, composition, bind, pay };
+  return { order, shipment, source, destination, route, composition, bind, within, pay };
 }
 
 test('outputs are routed FIFO with native payloads and addressed effects', () => {
   const p = pipeline();
   const payment = p.pay();
-  const report = (() => { using bound = p.bind(); return bound.propagate([payment], { limits }); })();
+  const report = p.within(bound => bound.propagate([payment], { limits }));
   assert.equal(report.status, PropagationStatus.Quiescent);
   assert.deepEqual(report.steps.map(step => step.destination), [p.source, p.destination]);
   assert.equal(report.steps[1].outcome.record.target, Shipment.Shipping);
@@ -78,19 +80,20 @@ test('a later failure keeps accepted steps and resumes from pending', () => {
 test('budget stops return original inputs and unbound destinations', () => {
   const p = pipeline();
   const first = p.pay(1); const second = p.pay(2);
-  using bound = p.bind();
-  let report = bound.propagate([first, second], { limits: new PropagationLimits({ maxSteps: 8, maxIntents: 1 }) });
-  assert.equal(report.status, PropagationStatus.IntentLimit);
-  assert.equal(report.steps.length, 0);
-  assert.equal(report.pending[0], first);
-  report = bound.propagate([first, second], { limits: new PropagationLimits({ maxSteps: 1, maxIntents: 8 }) });
-  assert.equal(report.status, PropagationStatus.StepLimit);
-  assert.equal(report.pending[0], second);
-  assert.ok(report.pending[1].destination.equals(p.destination));
-  const stray = new Delivery(new InstanceAddress(a, 'unknown'), { kind: Pay, payload: undefined });
-  report = bound.propagate([stray], { limits });
-  assert.equal(report.status, PropagationStatus.UnboundDestination);
-  assert.equal(report.pending[0], stray);
+  p.within(bound => {
+    let report = bound.propagate([first, second], { limits: new PropagationLimits({ maxSteps: 8, maxIntents: 1 }) });
+    assert.equal(report.status, PropagationStatus.IntentLimit);
+    assert.equal(report.steps.length, 0);
+    assert.equal(report.pending[0], first);
+    report = bound.propagate([first, second], { limits: new PropagationLimits({ maxSteps: 1, maxIntents: 8 }) });
+    assert.equal(report.status, PropagationStatus.StepLimit);
+    assert.equal(report.pending[0], second);
+    assert.ok(report.pending[1].destination.equals(p.destination));
+    const stray = new Delivery(new InstanceAddress(a, 'unknown'), { kind: Pay, payload: undefined });
+    report = bound.propagate([stray], { limits });
+    assert.equal(report.status, PropagationStatus.UnboundDestination);
+    assert.equal(report.pending[0], stray);
+  });
 });
 
 test('scopes isolate equal instance identities with Map semantics', () => {
@@ -98,7 +101,7 @@ test('scopes isolate equal instance identities with Map semantics', () => {
   assert.ok(!tenant.source.equals(other.source));
   assert.ok(tenant.source.equals(new InstanceAddress(a, 'order-1')));
   assert.throws(() => other.composition.bind([[tenant.source, other.order], [other.destination, other.shipment]]), UnregisteredBindingError);
-  const report = (() => { using bound = tenant.bind(); return bound.propagate([other.pay()], { limits }); })();
+  const report = tenant.within(bound => bound.propagate([other.pay()], { limits }));
   assert.equal(report.status, PropagationStatus.UnboundDestination);
   assert.deepEqual([tenant.order.revision, other.order.revision], [0n, 0n]);
 });
@@ -123,7 +126,7 @@ test('propagation defers until the capability is observed', () => {
   const p = pipeline(a, Ready);
   const snapshot = p.composition.capabilities({ revisions: [[p.destination, 0n]],
     reports: [[p.destination, p.shipment.evaluateCapability(Ready, false)]] });
-  const result = (() => { using bound = p.bind(); return bound.propagate([p.pay()], { limits, capabilities: snapshot }); })();
+  const result = p.within(bound => bound.propagate([p.pay()], { limits, capabilities: snapshot }));
   const deferred = result.unrouted.filter(item => item.kind === 'deferred');
   assert.equal(deferred[0].status, CapabilityStatus.Unavailable);
   assert.equal(p.shipment.revision, 0n);
