@@ -1,5 +1,5 @@
 //! Private N-API adapter. Application values remain in JavaScript-owned arenas.
-mod composition;
+pub mod composition;
 mod error;
 mod host;
 
