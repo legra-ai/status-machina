@@ -22,4 +22,8 @@ module-name = "status_machina._native"
 features = ["pyo3/extension-module"]
 
 [dependency-groups]
-dev = ["maturin>=1.7,<2", "ruff>=0.9", "mypy>=1.15"]
+dev = ["maturin>=1.7,<2", "ruff>=0.9", "mypy>=1.15", "uv>=0.6.7"]
+
+[tool.mypy]
+files = ["status_machina", "tests/typing"]
+warn_unused_ignores = true

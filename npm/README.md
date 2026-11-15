@@ -72,3 +72,17 @@ the definition's state/event types.
 
 The planned macOS target is macOS 26 on ARM64, tested on `macos-latest`.
 Intel macOS is outside the native package support matrix.
+
+## Develop from source
+
+Building from source needs the Rust toolchain pinned in `rust-toolchain.toml`.
+From this directory:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm build      # compile the native addon
+pnpm test       # CommonJS and ESM suites
+pnpm typecheck  # declarations and the typing fixtures in tests/typing
+```
+
+CI runs these commands on Linux, macOS and Windows with Node.js 22 and 24.
