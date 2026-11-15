@@ -69,3 +69,59 @@ class UnknownIdentityError(IdentityMapError, LookupError):
     """The identity has no registered representation; none is derived from str/repr."""
 class UnknownRepresentationError(IdentityMapError, LookupError):
     """The representation has no registered identity; no default is substituted."""
+
+class CompositionError(StatusMachinaError):
+    """A composition was rejected by the kernel; ``context['reason']`` is the kernel variant."""
+class InstanceRegistryError(CompositionError):
+    """An InstanceRegistry entry was rejected; ``context`` names the registry, entry and address."""
+class InstanceRegistryLimitError(InstanceRegistryError, LimitError):
+    """The registry bound is invalid (1..512) or an instance/event inventory bound was reached."""
+class AddressMismatchError(InstanceRegistryError):
+    """The address does not name the supplied machine's identity."""
+class DuplicateInstanceError(InstanceRegistryError):
+    """The machine is already registered at this address."""
+class CompositionDefinitionError(CompositionError):
+    """A route or composition limit was rejected; ``context['route']`` is the native Route."""
+class CompositionLimitError(CompositionDefinitionError, LimitError):
+    """The route (1..512) or batch (1..256) bound is invalid, or the routes exceed it."""
+class DuplicateRouteError(CompositionDefinitionError):
+    """Two routes share one source address and output event."""
+class UnregisteredRouteAddressError(CompositionDefinitionError):
+    """A route endpoint is not in its registry; ``reason`` says which endpoint."""
+class UndeclaredRouteEventError(CompositionDefinitionError):
+    """The source never emits the routed event, or the destination never accepts its input event."""
+class UndeclaredCapabilityError(CompositionDefinitionError):
+    """A route requires a capability absent from the destination definition's inventory."""
+class RouteBatchError(CompositionError):
+    """A batch was refused before routing; ``outputs`` holds every intent, unconsumed."""
+    def __init__(self, message: str, **context: object) -> None:
+        super().__init__(message, **context)
+        self.outputs = context.get("outputs", ())
+class UnregisteredSourceError(RouteBatchError):
+    """The batch source address is not registered as a source."""
+class BatchLimitError(RouteBatchError, LimitError):
+    """The batch holds more outputs than the composition's ``max_batch``."""
+class CompositionBindingError(CompositionError):
+    """Exclusive binding was refused before any machine was dispatched."""
+class DuplicateBindingError(CompositionBindingError):
+    """One address was bound twice."""
+class UnregisteredBindingError(CompositionBindingError):
+    """The bound address is in neither registry."""
+class BindingMismatchError(CompositionBindingError):
+    """The bound machine's identity or event signature differs from its registration."""
+class MissingBindingError(CompositionBindingError):
+    """A registered address has no binding; ``context['address']`` is the first one."""
+class AliasedBindingError(CompositionBindingError):
+    """One machine was bound at two addresses; exclusive use cannot alias."""
+class PropagationLimitsError(CompositionError, LimitError):
+    """Both propagation budgets must be explicit integers within 1..4096."""
+class CapabilitySnapshotError(CompositionError):
+    """A capability snapshot was rejected; ``context`` names the list, entry and address."""
+class CapabilitySnapshotLimitError(CapabilitySnapshotError, LimitError):
+    """The observation bound is invalid (1..1024) or the observations exceed it."""
+class ReportInstanceMismatchError(CapabilitySnapshotError):
+    """The report observed another instance than the address names."""
+class DuplicateObservationError(CapabilitySnapshotError):
+    """An address has two revisions, or two reports of one capability."""
+class ForeignSnapshotError(CapabilitySnapshotError):
+    """The snapshot was built by another composition and its address table."""

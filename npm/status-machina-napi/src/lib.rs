@@ -1,4 +1,5 @@
 //! Private N-API adapter. Application values remain in JavaScript-owned arenas.
+pub mod composition;
 mod error;
 mod host;
 
@@ -13,6 +14,7 @@ use std::thread::{
     ThreadId,
 };
 
+use composition::NativeCapabilityReport;
 use error::{
     CoreError,
     encode,
@@ -36,7 +38,7 @@ use status_machina_bridge::value::Host;
 fn read<T>(value: &RefCell<T>) -> napi::Result<Ref<'_, T>> {
     value.try_borrow().map_err(|_| translate(CoreError::Busy))
 }
-fn write<T>(value: &RefCell<T>) -> napi::Result<RefMut<'_, T>> {
+pub(crate) fn write<T>(value: &RefCell<T>) -> napi::Result<RefMut<'_, T>> {
     value
         .try_borrow_mut()
         .map_err(|_| translate(CoreError::Busy))
@@ -142,8 +144,8 @@ impl NativeDefinition {
 }
 #[napi]
 pub struct NativeInstance {
-    machine: RefCell<Machine<JsHost>>,
-    host: Arc<JsHost>,
+    pub(crate) machine: RefCell<Machine<JsHost>>,
+    pub(crate) host: Arc<JsHost>,
 }
 #[napi]
 impl NativeInstance {
@@ -215,6 +217,8 @@ impl NativeInstance {
             )),
         })
     }
+    /// Observation metadata; `capabilityReport` then hands out the kernel
+    /// report a composition snapshot needs.
     #[napi]
     pub fn evaluate_capability(
         &self,
@@ -222,13 +226,17 @@ impl NativeInstance {
         id: u32,
         facts: u32,
         invoker: Function<'_, String, String>,
-    ) -> napi::Result<String> {
+    ) -> napi::Result<NativeObservation> {
         let _frame = self.host.activate(env, invoker)?;
-        Ok(encode(
-            &read(&self.machine)?
-                .evaluate_capability(id, facts)
-                .map_err(translate)?,
-        ))
+        let observation = read(&self.machine)?
+            .evaluate_capability(id, facts)
+            .map_err(translate)?;
+        Ok(NativeObservation {
+            metadata: encode(&observation.report),
+            report: RefCell::new(Some(NativeCapabilityReport {
+                report: observation.kernel,
+            })),
+        })
     }
     #[napi]
     pub fn accept(&self, env: Env, decision: &NativeDecision) -> napi::Result<String> {
@@ -244,6 +252,25 @@ impl NativeInstance {
         self.host.check(env)?;
         write(&self.machine)?.dispose();
         Ok(())
+    }
+}
+/// One capability observation: its metadata and the kernel report.
+#[napi]
+pub struct NativeObservation {
+    metadata: String,
+    report: RefCell<Option<NativeCapabilityReport>>,
+}
+#[napi]
+impl NativeObservation {
+    #[napi]
+    pub fn metadata(&self) -> String {
+        self.metadata.clone()
+    }
+    #[napi]
+    pub fn report(&self) -> napi::Result<NativeCapabilityReport> {
+        write(&self.report)?
+            .take()
+            .ok_or_else(|| translate(CoreError::Disposed))
     }
 }
 #[napi]

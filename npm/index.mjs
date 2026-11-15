@@ -6,6 +6,9 @@ export const { StatusMachinaError, DefinitionError, DispatchError, CallbackError
   UnknownBehaviorError, UnknownImplementationError, RoleMismatchError, IdentityMapError, IdentityRoleError,
   IdentityMapLimitError, DuplicateIdentityError, DuplicateRepresentationError, UnknownIdentityError,
   UnknownRepresentationError,
+  CompositionError, InstanceRegistryError, InstanceRegistryLimitError, AddressMismatchError, DuplicateInstanceError, CompositionDefinitionError, CompositionLimitError, DuplicateRouteError, UnregisteredRouteAddressError, UndeclaredRouteEventError, UndeclaredCapabilityError, RouteBatchError, UnregisteredSourceError, BatchLimitError, CompositionBindingError, DuplicateBindingError, UnregisteredBindingError, BindingMismatchError, MissingBindingError, AliasedBindingError, PropagationLimitsError, CapabilitySnapshotError, CapabilitySnapshotLimitError, ReportInstanceMismatchError, DuplicateObservationError, ForeignSnapshotError,
   CapabilityStatus, Definition, Machine, Decision, BehaviorRef, BehaviorRegistry, BehaviorRole,
   BehaviorUse, PredicateRecord, AllRecord, AnyRecord, NotRecord, StateRecord, TransitionDefinitionRecord,
-  DispositionRecord, DefinitionRecord, IdentityRole, IdentityMap, MachineIdentityMaps } = api;
+  DispositionRecord, DefinitionRecord, IdentityRole, IdentityMap, MachineIdentityMaps,
+  InstanceAddress, Route, InstanceRegistry, Delivery, PropagationLimits, PropagationStatus, Composition,
+  BoundComposition, CapabilitySnapshot } = api;

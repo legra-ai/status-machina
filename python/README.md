@@ -81,6 +81,79 @@ role. Failures are `IdentityMapError` subclasses: `DuplicateIdentityError` and
 matching never consults a codec; decode external names before building records
 and encode outcomes afterwards.
 
+## Compose machines
+
+A `Composition` routes the outputs of registered machines to other registered
+machines. The Rust kernel's `InstanceRegistry`, `Composition` and
+`BoundComposition` decide every rule; Python only lowers native values. The
+[runnable composition example](examples/composition.py) gives one order identity
+an address in three routing scopes and propagates a payment through all three:
+
+```python
+sales, warehouse, finance = (InstanceAddress(scope, 'order-7') for scope in ('sales', 'warehouse', 'finance'))
+composition = Composition(
+    sources=InstanceRegistry(((sales, order), (warehouse, shipment))),
+    destinations=InstanceRegistry(((warehouse, shipment), (finance, invoice))),
+    routes=(Route(sales, OrderOutput.PAID, warehouse, ShipmentInput.PACK),
+            Route(warehouse, ShipmentOutput.PACKED, finance, InvoiceInput.ISSUE)),
+)
+with composition.bind({sales: order, warehouse: shipment, finance: invoice}) as bound:
+    report = bound.propagate([Delivery(sales, Event(OrderInput.PAY, Paid('order-7', 120)))],
+        limits=PropagationLimits(max_steps=8, max_intents=8))
+# The binding is released: execute effects now, outside any machine operation.
+for effect in report.effects:
+    print(f'{effect.source.scope} effect: {effect.intent.payload}')
+```
+
+It prints:
+
+```text
+sales: OPEN -> PAID
+warehouse: WAITING -> PACKED
+finance: DRAFT -> ISSUED
+warehouse effect: label for order-7
+QUIESCENT Ledger(total=120)
+```
+
+- `InstanceAddress(scope, instance)` compares type-qualified, so equal instance
+  identities in different scopes, or scopes of different `IntEnum` classes, are
+  different addresses. A registered address must name its machine's `id`.
+- `Route(source, event, destination, input_event, capability=None)` maps one
+  source output event to one destination input event. With a capability, the
+  route defers unless a `composition.capabilities(revisions=..., reports=...)`
+  snapshot observes it `AVAILABLE` at the destination's current revision. Reports
+  must come from `Machine.evaluate_capability`; they are advisory.
+- `composition.route_batch(source, outputs)` returns ordered `Routed`,
+  `Unmatched` and `Deferred` items (discriminated by `kind`) and dispatches
+  nothing. Unmatched and deferred items keep the original `OutputIntent`.
+- `composition.bind(...)` takes exclusive use of every registered machine, like
+  a Rust `&mut` borrow: until the binding is disposed, the machines raise
+  `BusyError` for direct operations. `propagate` dispatches in FIFO order in the
+  caller's stack, within explicit `PropagationLimits` (1..4096 each).
+
+Composition is not a distributed transaction. A `PropagationReport` keeps every
+accepted `PropagationStep`, the `AddressedEffect`s they returned, unrouted
+outputs and the `pending` deliveries. When a later step fails, its status is
+`DISPATCH_FAILED` and `error` holds the typed exception with the original
+`__cause__`; earlier steps stay accepted and the failed delivery leads `pending`,
+ready to propagate again. `STEP_LIMIT`, `INTENT_LIMIT` and `UNBOUND_DESTINATION`
+stop the same way. Caller inputs come back in `pending` as the original
+`Delivery` objects.
+
+Rejections are `CompositionError` subclasses carrying the kernel `reason`:
+`InstanceRegistryError` (`AddressMismatchError`, `DuplicateInstanceError`,
+`InstanceRegistryLimitError`) with the `registry`, `entry`, `address` and
+`machine`; `CompositionDefinitionError` (`DuplicateRouteError`,
+`UnregisteredRouteAddressError`, `UndeclaredRouteEventError`,
+`UndeclaredCapabilityError`, `CompositionLimitError`) with the native `route`;
+`RouteBatchError` (`UnregisteredSourceError`, `BatchLimitError`) with every
+`outputs` item; `CompositionBindingError` (`DuplicateBindingError`,
+`UnregisteredBindingError`, `BindingMismatchError`, `MissingBindingError`,
+`AliasedBindingError`); `PropagationLimitsError`; and `CapabilitySnapshotError`
+(`ReportInstanceMismatchError`, `DuplicateObservationError`,
+`CapabilitySnapshotLimitError`, `ForeignSnapshotError`). Limit errors are also
+`LimitError`s.
+
 ## Inspect and draw a definition
 
 The [runnable Python order example](examples/order.py) checks an approval transition

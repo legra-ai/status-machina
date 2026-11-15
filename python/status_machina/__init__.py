@@ -7,7 +7,20 @@ from .errors import (
     DispositionRecordError, BindingError, UnknownBehaviorError, UnknownImplementationError,
     RoleMismatchError, IdentityMapError, IdentityRoleError, IdentityMapLimitError,
     DuplicateIdentityError, DuplicateRepresentationError, UnknownIdentityError,
-    UnknownRepresentationError,
+    UnknownRepresentationError, CompositionError, InstanceRegistryError, InstanceRegistryLimitError,
+    AddressMismatchError, DuplicateInstanceError, CompositionDefinitionError, CompositionLimitError,
+    DuplicateRouteError, UnregisteredRouteAddressError, UndeclaredRouteEventError,
+    UndeclaredCapabilityError, RouteBatchError, UnregisteredSourceError, BatchLimitError,
+    CompositionBindingError, DuplicateBindingError, UnregisteredBindingError, BindingMismatchError,
+    MissingBindingError, AliasedBindingError, PropagationLimitsError, CapabilitySnapshotError,
+    CapabilitySnapshotLimitError, ReportInstanceMismatchError, DuplicateObservationError,
+    ForeignSnapshotError,
+)
+from .composition import BoundComposition, CapabilitySnapshot, Composition
+from .routing import (
+    AddressedEffect, Deferred, Delivery, InstanceAddress, InstanceRegistry, PropagationLimits,
+    PropagationReport, PropagationStatus, PropagationStep, Route, Routed, RoutedBatch, RoutedItem,
+    Unmatched,
 )
 from .identity import IdentityMap, IdentityRole, MachineIdentityMaps
 from .inspection import DiagramLabels, InspectionLimits, StateCoverage, StructuralCoverage
@@ -38,4 +51,15 @@ __all__ = [
     "IdentityMap", "IdentityRole", "MachineIdentityMaps", "IdentityMapError", "IdentityRoleError",
     "IdentityMapLimitError", "DuplicateIdentityError", "DuplicateRepresentationError",
     "UnknownIdentityError", "UnknownRepresentationError",
+    "BoundComposition", "CapabilitySnapshot", "Composition", "AddressedEffect", "Deferred", "Delivery",
+    "InstanceAddress", "InstanceRegistry", "PropagationLimits", "PropagationReport", "PropagationStatus",
+    "PropagationStep", "Route", "Routed", "RoutedBatch", "RoutedItem", "Unmatched",
+    "CompositionError", "InstanceRegistryError", "InstanceRegistryLimitError", "AddressMismatchError",
+    "DuplicateInstanceError", "CompositionDefinitionError", "CompositionLimitError", "DuplicateRouteError",
+    "UnregisteredRouteAddressError", "UndeclaredRouteEventError", "UndeclaredCapabilityError",
+    "RouteBatchError", "UnregisteredSourceError", "BatchLimitError", "CompositionBindingError",
+    "DuplicateBindingError", "UnregisteredBindingError", "BindingMismatchError", "MissingBindingError",
+    "AliasedBindingError", "PropagationLimitsError", "CapabilitySnapshotError",
+    "CapabilitySnapshotLimitError", "ReportInstanceMismatchError", "DuplicateObservationError",
+    "ForeignSnapshotError",
 ]

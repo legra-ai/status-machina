@@ -14,6 +14,27 @@ function revision(value) {
   if (typeof value !== 'bigint' || value < 0n || value > 0xffffffffffffffffn) throw new TypeError('expectedRevision must be a nonnegative uint64 BigInt');
   return value.toString();
 }
+/** Owning contexts of live machines, for composition binding only. */
+const contexts = new WeakMap();
+/** The kernel report behind each evaluateCapability observation. */
+const reports = new WeakMap();
+/**
+ * A native outcome from kernel metadata. `override.kind` replaces the event of
+ * a refusal or ignored event, since the caller's event may be undeclared.
+ */
+function decodeOutcome(result, ids, resolve, override) {
+  const event = index => override !== undefined ? override.kind : ids.resolve('event', index);
+  if (result.kind === 'refused') return Object.freeze({ kind: 'refused', state: ids.resolve('state', result.state), event: event(result.event) });
+  if (result.kind === 'ignored') return Object.freeze({ kind: 'ignored', disposition: ids.resolve('disposition', result.disposition),
+    state: ids.resolve('state', result.state), event: event(result.event), reason: result.reason });
+  if (result.kind !== 'transitioned') throw new Error('Unrecognized native dispatch outcome');
+  const raw = result.record;
+  const record = Object.freeze({ transition: ids.resolve('transition', raw.transition), source: ids.resolve('state', raw.from_state),
+    target: ids.resolve('state', raw.to_state), previousRevision: BigInt(raw.previous_revision), revision: BigInt(raw.revision) });
+  const effects = Object.freeze(result.effects.map(value => Object.freeze({ id: ids.resolve('effect', value.id), payload: resolve(value.payload) })));
+  const outputs = Object.freeze(result.outputs.map(value => Object.freeze({ kind: ids.resolve('event', value.id), payload: resolve(value.payload) })));
+  return Object.freeze({ kind: 'transitioned', record, effects, outputs });
+}
 class Definition {
   #internal;
   constructor(specification, token = undefined, record = undefined) {
@@ -83,6 +104,7 @@ class Machine {
   constructor(token, context) {
     if (token !== TOKEN) throw new DefinitionError('Create machines through Definition.instantiate');
     this.#context = context;
+    contexts.set(this, context);
     markAsUncloneable(this);
   }
   get id() {
@@ -93,19 +115,7 @@ class Machine {
   get revision() { return this.#context.operation(context => BigInt(context.native.revision())); }
   get data() { return this.#context.operation(context => context.resolve(JSON.parse(context.native.snapshot(context.invoke)))); }
   #outcome(encoded, eventKind) {
-    const result = JSON.parse(encoded);
-    const context = this.#context;
-    const ids = context.ids;
-    if (result.kind === 'refused') return Object.freeze({ kind: 'refused', state: ids.resolve('state', result.state), event: eventKind });
-    if (result.kind === 'ignored') return Object.freeze({ kind: 'ignored', disposition: ids.resolve('disposition', result.disposition),
-      state: ids.resolve('state', result.state), event: eventKind, reason: result.reason });
-    if (result.kind !== 'transitioned') throw new Error('Unrecognized native dispatch outcome');
-    const raw = result.record;
-    const record = Object.freeze({ transition: ids.resolve('transition', raw.transition), source: ids.resolve('state', raw.from_state),
-      target: ids.resolve('state', raw.to_state), previousRevision: BigInt(raw.previous_revision), revision: BigInt(raw.revision) });
-    const effects = Object.freeze(result.effects.map(value => Object.freeze({ id: ids.resolve('effect', value.id), payload: context.resolve(value.payload) })));
-    const outputs = Object.freeze(result.outputs.map(value => Object.freeze({ kind: ids.resolve('event', value.id), payload: context.resolve(value.payload) })));
-    return Object.freeze({ kind: 'transitioned', record, effects, outputs });
+    return decodeOutcome(JSON.parse(encoded), this.#context.ids, reference => this.#context.resolve(reference), { kind: eventKind });
   }
   dispatch(event, facts = undefined, options = {}) {
     return this.#context.operation(context => this.#outcome(context.native.dispatch(context.ids.find('event', event.kind),
@@ -118,9 +128,13 @@ class Machine {
   }
   evaluateCapability(capability, facts = undefined) {
     return this.#context.operation(context => {
-      const report = JSON.parse(context.native.evaluateCapability(context.ids.find('capability', capability), context.allocate(facts), context.invoke));
-      return Object.freeze({ capability: context.ids.resolve('capability', report.capability),
+      const observation = context.native.evaluateCapability(context.ids.find('capability', capability), context.allocate(facts), context.invoke);
+      const report = JSON.parse(observation.metadata());
+      const value = Object.freeze({ capability: context.ids.resolve('capability', report.capability),
         instance: context.identity, revision: BigInt(report.revision), status: report.status });
+      // Snapshots need the kernel report; reports are never rebuilt from fields.
+      reports.set(value, observation.report());
+      return value;
     });
   }
   accept(decision) {
@@ -162,4 +176,4 @@ class Decision {
 }
 /** Bind a checked portable record; only DefinitionRecord.bind calls this. */
 function bindRecord(specification, record) { return new Definition(specification, RECORD, record); }
-module.exports = { Definition, Machine, Decision, bindRecord };
+module.exports = { Definition, Machine, Decision, bindRecord, decodeOutcome, contexts, reports };

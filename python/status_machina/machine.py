@@ -5,7 +5,7 @@ import inspect
 from typing import TYPE_CHECKING, Any, Callable, Generic, Hashable, Iterable, NoReturn, TypeAlias, cast
 from typing_extensions import TypeVar
 from . import _native
-from ._compile import Compiler
+from ._compile import UNKNOWN_EVENT, Compiler
 from ._bounded import bounded
 from ._context import Context, DEFAULT_SNAPSHOT, translate
 from .errors import DefinitionError, DisposedError
@@ -20,6 +20,24 @@ if TYPE_CHECKING:
     from .records import DefinitionRecord
 
 Outcome: TypeAlias = Refused[StateT, KindT] | Ignored[StateT, KindT] | Transitioned[StateT]
+
+def decode_outcome(value, ids, resolve, event_kind=None) -> Outcome:
+    """Native outcome from kernel metadata; ``event_kind`` overrides the resolved event."""
+    def event(index):
+        return event_kind if event_kind is not None or index == UNKNOWN_EVENT else ids.resolve("event", index)
+    if value["kind"] == "refused":
+        return Refused(ids.resolve("state", value["state"]), event(value["event"]))
+    if value["kind"] == "ignored":
+        return Ignored(ids.resolve("disposition", value["disposition"]),
+            ids.resolve("state", value["state"]), event(value["event"]), value["reason"])
+    if value["kind"] != "transitioned":
+        raise RuntimeError("Unrecognized native dispatch outcome")
+    record = value["record"]
+    return Transitioned(TransitionRecord(ids.resolve("transition", record["transition"]),
+        ids.resolve("state", record["from_state"]), ids.resolve("state", record["to_state"]),
+        int(record["previous_revision"]), int(record["revision"])),
+        tuple(EffectIntent(ids.resolve("effect", item["id"]), resolve(item["payload"])) for item in value["effects"]),
+        tuple(OutputIntent(ids.resolve("event", item["id"]), resolve(item["payload"])) for item in value["outputs"]))
 
 class Definition(Generic[StateT, KindT, DataT]):
     """Immutable checked graph. Identifiers remain caller-defined native values."""
@@ -152,6 +170,11 @@ class Machine(Generic[StateT, KindT, DataT]):
             raise DisposedError("The machine has been disposed")
         return self._context.identity
 
+    def _context_native(self) -> _native._Instance:
+        if self._context.closed or self._context.native is None:
+            raise DisposedError("The machine has been disposed")
+        return self._context.native
+
     @property
     def state(self) -> StateT:
         with self._context.operation() as context:
@@ -168,21 +191,8 @@ class Machine(Generic[StateT, KindT, DataT]):
             return context.resolve(json.loads(context.native.snapshot(context.invoke)))
 
     def _outcome(self, encoded, event=None) -> Outcome[StateT, KindT]:
-        value = json.loads(encoded)
-        ids = self._context.ids
-        if value["kind"] == "refused":
-            return Refused(ids.resolve("state", value["state"]), event.kind)
-        if value["kind"] == "ignored":
-            return Ignored(ids.resolve("disposition", value["disposition"]),
-                ids.resolve("state", value["state"]), event.kind, value["reason"])
-        if value["kind"] != "transitioned":
-            raise RuntimeError("Unrecognized native dispatch outcome")
-        record = value["record"]
-        return Transitioned(TransitionRecord(ids.resolve("transition", record["transition"]),
-            ids.resolve("state", record["from_state"]), ids.resolve("state", record["to_state"]),
-            int(record["previous_revision"]), int(record["revision"])),
-            tuple(EffectIntent(ids.resolve("effect", item["id"]), self._context.resolve(item["payload"])) for item in value["effects"]),
-            tuple(OutputIntent(ids.resolve("event", item["id"]), self._context.resolve(item["payload"])) for item in value["outputs"]))
+        return decode_outcome(json.loads(encoded), self._context.ids, self._context.resolve,
+            None if event is None else event.kind)
 
     def dispatch(self, event: Event[KindT, object], *, facts: object = None, expected_revision: int | None = None) -> Outcome[StateT, KindT]:
         with self._context.operation() as context:
@@ -199,10 +209,14 @@ class Machine(Generic[StateT, KindT, DataT]):
     def evaluate_capability(self, capability: Hashable, *, facts: object) -> CapabilityReport:
         """Observe an advisory policy at this instance's exact current revision."""
         with self._context.operation() as context:
-            raw = json.loads(context.native.evaluate_capability(context.ids.find("capability", capability),
-                context.allocate(facts), context.invoke))
-            return CapabilityReport(context.ids.resolve("capability", raw["capability"]),
+            encoded, native = context.native.evaluate_capability(context.ids.find("capability", capability),
+                context.allocate(facts), context.invoke)
+            raw = json.loads(encoded)
+            report = CapabilityReport(context.ids.resolve("capability", raw["capability"]),
                 context.identity, int(raw["revision"]), CapabilityStatus(raw["status"]))
+            # The kernel report a CapabilitySnapshot needs; reports are never rebuilt from fields.
+            object.__setattr__(report, "_native", native)
+            return report
 
     def accept(self, decision: Decision) -> Outcome[StateT, KindT]:
         if decision._context is None:

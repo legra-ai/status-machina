@@ -205,7 +205,7 @@ may already be partly implemented, as the implementation evidence describes.
 | `DispatchOutcome`, `TransitionRecord`, effect/output intents | Native discriminated outcomes and records retaining exact native identifiers and payload types | Not yet certified |
 | `EventDisposition` | Explicit harmless-event dispositions, conditions and reasons distinct from refusal | Not yet certified |
 | `Capability`, status/report/snapshot | Advisory native capability values and bounded checked snapshots; no hidden authorization authority | Not yet certified |
-| `Composition`, routes, registry/addresses, bound dispatch, batches/reports/limits | Explicit typed routing under caller control, multi-machine examples, ordered partial progress on failure, bounded propagation and namespace isolation | Not yet certified |
+| `Composition`, routes, registry/addresses, bound dispatch, batches/reports/limits | Explicit typed routing under caller control, multi-machine examples, ordered partial progress on failure, bounded propagation and namespace isolation | Covered: [native composition](#native-composition) |
 | `RetryPolicy`, schedule, waits, correlation and wake intent | Native durations/correlations and caller-owned wake values; stale/foreign/cancelled wake tests; no scheduling | Not yet certified |
 | Scenario sets/replay/assertions/reports/traces/limits | Native replay and independent safety assertions; bounded counterexamples and coverage evidence | Not yet certified |
 | Inspection limits/coverage and diagram labels | Native inspection and Mermaid generation with application labels separate from identity; deterministic escaping and limit errors | Not yet certified |
@@ -306,8 +306,8 @@ formatter/Clippy hook validation. The private adapter also tests bounded value
 leases, checked graph construction, unaccepted decisions, disposal and host-specific
 thread capability. Its dependencies do not enter the core runtime graph.
 
-BND-03 and BND-04 are Partial. The compiled Python extension passes 47 native
-application and lifecycle tests; the Node addon passes 48. These cover enum/symbol
+BND-03 and BND-04 are Partial. The compiled Python extension passes 60 native
+application and lifecycle tests; the Node addon passes 61. These cover enum/symbol
 identities, domain data, detached snapshots, callback exceptions, checked decision
 acceptance, disposal, bounded value-slot reuse and reentrancy. Python also tests
 cross-thread rejection during evaluation and garbage collection of callback
@@ -400,6 +400,80 @@ endless inputs, role mismatches, type-qualified keys and the absence of label or
 of references, a missing registry, a codec of the wrong identity type and a
 codec in the wrong role slot.
 
-Composition, retry/scenario APIs, capability snapshots and
+### Native composition
+
+Both languages expose `InstanceAddress`, `Route`, `InstanceRegistry`,
+`Composition`, `CapabilitySnapshot`, `BoundComposition`, `Delivery`,
+`PropagationLimits`, `PropagationStatus` and the `Routed`/`Unmatched`/`Deferred`
+items (discriminated by `kind`), plus `PropagationStep`, `AddressedEffect` and
+`PropagationReport`. Python uses frozen dataclasses and an `Enum`; JavaScript
+uses frozen classes and objects, with a TypeScript union over `kind` and a
+report union that narrows `error` to `DispatchError` on `dispatch_failed`.
+
+The kernel decides every rule through `status_machina_bridge::composition`:
+`InstanceRegistry::builder`, `Composition::builder`, `route_batch`,
+`CapabilitySnapshot::builder`, `Composition::bind` and
+`BoundComposition::propagate`. Neither language selects routes, checks
+signatures or orders work. Each composition owns a table of native addresses.
+Python compares them type-qualified and JavaScript compares each component
+with `Map` semantics, so an equal instance identity in another scope is another
+address. A registry entry lowers to the kernel address of its machine only when
+the address names the machine's `id`; otherwise the kernel reports
+`AddressMismatch`. Addresses outside the table get call-local scopes, so the
+kernel reports them as unregistered or unbound. Native readers consume at most
+one entry beyond each declared bound and leave the bound to the kernel.
+
+API decisions:
+
+- `OutputEventIntent::new` is public in the Rust crate. Natively held output
+  intents are rebuilt for `route_batch`. Routing never dispatches, and
+  `Delivery::new` already accepts arbitrary events, so this widens nothing.
+  `CapabilityReport` stays kernel-built: a native report keeps a hidden handle
+  from `evaluate_capability`, and a snapshot rejects any other report.
+- A capability snapshot belongs to the composition that lowered its addresses;
+  another composition rejects it as `ForeignSnapshotError`.
+- `bind` is exclusive like a Rust `&mut` borrow. Until the binding is disposed,
+  bound machines refuse direct operations with `BusyError`, and binding one
+  machine at two addresses is an `AliasedBindingError`. In Rust that is a borrow
+  error at compile time.
+- A route whose capability the destination definition does not declare fails
+  as `UndeclaredCapabilityError` after the kernel accepted the routes, since
+  native capability identities are definition-scoped.
+- The kernel's `Composition::build` names no route. On rejection the bridge
+  rebuilds growing prefixes to report the first rejected route. For
+  `MissingInstance` it names the first registered address left unbound.
+- Reports preserve the kernel's FIFO progress. The first `min(steps, inputs)`
+  steps consumed the caller inputs, and unconsumed inputs lead `pending` as the
+  original `Delivery` objects. Accepted steps survive a later failure, whose
+  typed exception keeps the original callback cause.
+- Payload mismatch and `RouteBuildError` are unrepresentable natively: all
+  native payloads share one kernel type, and native routes require their
+  destination and input event. They map to the base error classes.
+
+Errors follow the kernel types: `InstanceRegistryError`,
+`CompositionDefinitionError`, `RouteBatchError` (with `outputs`),
+`CompositionBindingError`, `PropagationLimitsError` and
+`CapabilitySnapshotError`, all under `CompositionError`, with one subclass per
+reachable variant and the kernel `reason`, entry, route and native address in
+their context. In Python the limit errors are also `LimitError`s.
+
+Evidence: `bindings/core/tests/composition.rs` (6); `python/tests/test_composition.py`
+(12) and `npm/tests/composition.test.mjs` (12), plus one example test in each
+language. Positive tests propagate across machines with native payloads and
+addressed effects, and resume from `pending` after a later failure. They
+cover step and intent budgets, unbound destinations, scope isolation between
+numerically equal enum scopes and between symbols, ordered batches and capability
+deferral by stale, unavailable and available observations. Negative tests cover
+every reachable registry, route, batch, binding, limit and snapshot rejection
+with its context. They also cover exclusivity, reentrant propagation from a
+callback and fabricated reports; in Node, cloning a composition, binding or
+snapshot throws `DataCloneError`. The runnable `examples/composition.py` and
+`examples/composition.mjs` propagate one order through three scopes and are shown
+in the package READMEs. The typing fixtures `python/tests/typing/composition.py`
+and `npm/tests/typing/composition.mts` reject raw identities as route endpoints,
+missing budgets, non-integer budgets, bare payloads as deliveries and
+definitions as registry entries.
+
+Retry/scenario APIs, the remaining capability-model evidence and
 installed-artifact/platform evidence remain outstanding. These passing tests do
 not establish publication readiness or complete native-model parity.

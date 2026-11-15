@@ -28,6 +28,10 @@ _ERROR_TYPES = {
 _CONTEXT_ROLES = ("state", "condition", "transition", "disposition", "story", "implementation")
 
 def translate(error, ids=None) -> NoReturn:
+    raise exception(error, ids) from error.__cause__
+
+def exception(error, ids=None) -> errors.StatusMachinaError:
+    """The typed exception for a native failure; its ``__cause__`` is the original."""
     info = json.loads(str(error))
     code = info["code"]
     if code not in _ERROR_TYPES:
@@ -42,10 +46,12 @@ def translate(error, ids=None) -> NoReturn:
     for key in ("expected_revision", "current_revision"):
         if key in context:
             context[key] = int(context[key])
-    exception = _ERROR_TYPES[code]
+    kind = _ERROR_TYPES[code]
     if code == "callback" and info.get("phase") == "snapshot":
-        exception = errors.SnapshotError
-    raise exception(info["message"], **context) from error.__cause__
+        kind = errors.SnapshotError
+    result = kind(info["message"], **context)
+    result.__cause__ = error.__cause__
+    return result
 
 class Context:
     """One instance arena; no definition-level inventory roots instance payloads."""
@@ -64,6 +70,8 @@ class Context:
         self.closed = False
         self._lock = threading.Lock()
         self._sources = None
+        # The BoundComposition holding exclusive use, like a Rust `&mut` borrow.
+        self.owner = None
 
     def allocate(self, value):
         if len(self.values) == self.capacity:
@@ -95,10 +103,12 @@ class Context:
         return self._sources[key["arena"]].values[key["key"]]
 
     @contextmanager
-    def operation(self, *, allow_closed=False, sources=None):
+    def operation(self, *, allow_closed=False, sources=None, owner=None):
         if not self._lock.acquire(blocking=False):
             raise errors.BusyError("An operation is already active on this instance")
         try:
+            if self.owner is not None and owner is not self.owner:
+                raise errors.BusyError("The machine is exclusively bound to a composition")
             if self.closed and not allow_closed:
                 raise errors.DisposedError("The machine has been disposed")
             self.sweep()
