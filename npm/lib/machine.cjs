@@ -1,4 +1,5 @@
 'use strict';
+const { markAsUncloneable } = require('node:worker_threads');
 const native = require('./native.cjs');
 const { Context } = require('./context.cjs');
 const { Compiler, BehaviorRegistry, bounded, checkedLimits } = require('./compile.cjs');
@@ -42,6 +43,9 @@ class Definition {
     Object.defineProperties(this, { id: { value: specification.id, enumerable: true },
       initial: { value: specification.initial, enumerable: true }, states: { value: states, enumerable: true },
       capabilities: { value: capabilities, enumerable: true }, transitions: { value: transitions, enumerable: true } });
+    // Callbacks and native resources are bound to this Node environment and
+    // thread: postMessage/workerData must reject the object, not clone it empty.
+    markAsUncloneable(this);
     Object.freeze(this);
   }
   _internal() { return this.#internal; }
@@ -75,6 +79,7 @@ class Machine {
   constructor(token, context) {
     if (token !== TOKEN) throw new DefinitionError('Create machines through Definition.instantiate');
     this.#context = context;
+    markAsUncloneable(this);
   }
   get id() {
     if (this.#context.closed) throw new DisposedError('The machine has been disposed');
@@ -133,6 +138,7 @@ class Decision {
   constructor(token, context, executable, eventKind) {
     if (token !== TOKEN) throw new DefinitionError('Create decisions through Machine.evaluate');
     this.#owned = { context, native: executable, eventKind };
+    markAsUncloneable(this);
   }
   get expectedRevision() {
     if (this.#owned === undefined) throw new DisposedError('The decision has already been consumed');

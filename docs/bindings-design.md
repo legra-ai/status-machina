@@ -226,7 +226,7 @@ exceptions; ship JavaScript plus TypeScript declarations and explicit exports.
 Neither ordinary package installation may need Rust, Cargo, maturin or napi CLI.
 
 Initial declared support follows a tested matrix: Python 3.10–3.14 and Node.js
-22/24; Linux glibc x86_64/aarch64, macOS 26 ARM64, and Windows
+22 (from 22.10)/24; Linux glibc x86_64/aarch64, macOS 26 ARM64, and Windows
 x86_64/aarch64. Each advertised artifact needs build and installed-package test
 evidence on its matching target. The sole macOS CI target is `macos-latest`
 (currently macOS 26 ARM64); Intel macOS is outside the native package matrix.
@@ -266,11 +266,25 @@ leases, checked graph construction, unaccepted decisions, disposal and host-spec
 thread capability. Its dependencies do not enter the core runtime graph.
 
 BND-03 and BND-04 are Partial. The compiled Python extension passes 31 native
-application and lifecycle tests; the Node addon passes 29. These cover enum/symbol
+application and lifecycle tests; the Node addon passes 34. These cover enum/symbol
 identities, domain data, detached snapshots, callback exceptions, checked decision
 acceptance, disposal, bounded value-slot reuse and reentrancy. Python also tests
 cross-thread rejection during evaluation and garbage collection of callback
 cycles. Node tests both CommonJS and ESM entry points and cyclic typed-view data.
+
+Node worker isolation is tested in `npm/tests/workers.test.mjs`. Four workers
+and the main thread each build and run their own machines concurrently. Every
+callback runs only on the thread that created its machine. A worker's callback
+failure keeps its worker-local exception class as the cause. `Definition`,
+`Machine` and `Decision` are marked uncloneable, so `postMessage` and `workerData`
+throw `DataCloneError` for them, even nested. Before this they silently cloned to
+empty objects. The handles stay usable after the rejected send. Workers are
+terminated while they hold machines and pending decisions, both idle and inside
+a non-returning callback. Termination neither crashes nor hangs, and repeated
+rounds stay within a fixed resident-memory bound. `markAsUncloneable` sets the
+package floor at Node.js 22.10, and the loader refuses older releases. V8 never
+shares objects between workers, so JavaScript cannot reach the napi adapter's
+own environment/thread checks from another thread. They remain defensive.
 
 CI builds both modules from source and runs these suites on every pull request.
 The `python-bindings` and `node-bindings` jobs cover Ubuntu 24.04, `macos-latest`

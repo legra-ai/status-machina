@@ -27,7 +27,7 @@
     "directory": "npm"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.10"
   },
   "napi": {
     "binaryName": "status_machina",
