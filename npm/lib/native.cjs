@@ -1,6 +1,9 @@
 'use strict';
 const { join } = require('node:path');
-if (Number(process.versions.node.split('.')[0]) < 22) throw new Error('Status Machina requires Node.js 22 or newer');
+// worker_threads.markAsUncloneable, which keeps thread-bound machines out of
+// postMessage/workerData, first shipped in Node.js 22.10.
+const [major, minor] = process.versions.node.split('.').map(Number);
+if (major < 22 || (major === 22 && minor < 10)) throw new Error('Status Machina requires Node.js 22.10 or newer');
 const platform = process.platform;
 const arch = process.arch;
 let suffix;

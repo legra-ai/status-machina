@@ -70,6 +70,18 @@ roles are `states`, `transitions`, `events`, `conditions` and `dispositions`, ea
 a native `Map`. Coverage objects, arrays and rows are frozen; TypeScript retains
 the definition's state/event types.
 
+## Worker threads
+
+Each `Definition`, `Machine` and `Decision` belongs to the Node environment and
+thread that created it, and its callbacks run only there. Every worker builds its
+own definitions and machines; they run independently of those of other threads.
+Passing one to `postMessage` or `workerData`, even nested inside another value,
+throws the platform's `DataCloneError` instead of cloning an empty object. Send
+domain data and rebuild the definition in the receiving worker. Terminating a
+worker releases the machines and decisions it still holds, including during a
+callback. This needs `worker_threads.markAsUncloneable`, so the package requires
+Node.js 22.10 or newer.
+
 The planned macOS target is macOS 26 on ARM64, tested on `macos-latest`.
 Intel macOS is outside the native package support matrix.
 
