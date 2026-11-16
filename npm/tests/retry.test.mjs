@@ -5,7 +5,7 @@ import {
   CallbackError, CapBelowInitialError, Definition, Duration, ExponentialBackoff, FixedDelay, InvalidWaitCapacityError,
   RetryAt, RetryError, RetryExhausted, RetryPolicy, RetryPolicyError, RetryRangeError, RetryWaitError, RetryWaits,
   TooFewAttemptsError, WaitCapacityReachedError, WaitCorrelation, ZeroDelayError,
-} from '../index.mjs';
+} from '@legra-ai/status-machina';
 
 const NOW = new Date(Date.UTC(2026, 10, 15, 9, 30));
 const HOURS = Duration.ofHours(6);

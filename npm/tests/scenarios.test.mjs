@@ -5,7 +5,7 @@ import {
   MissingAssertionPredicateError, RoleMismatchError, ScenarioAssertion, ScenarioCountLimitError, ScenarioError,
   ScenarioFailure, ScenarioLimit, ScenarioLimits, ScenarioLimitsError, ScenarioNodeLimitError, ScenarioReplay,
   ScenarioSet, ScenarioStepLimitError, SnapshotError, UnknownBehaviorError,
-} from '../index.mjs';
+} from '@legra-ai/status-machina';
 
 const Phase = Object.freeze({ Cart: Symbol('cart'), Paid: Symbol('paid'), Shipped: Symbol('shipped') });
 const Input = Object.freeze({ Pay: Symbol('pay'), Ship: Symbol('ship'), Rush: Symbol('rush'), Undeclared: Symbol('undeclared') });

@@ -458,7 +458,7 @@ dependencies = [
 
 [[package]]
 name = "status-machina-bridge"
-version = "0.1.0"
+version = "0.1.13"
 dependencies = [
  "serde",
  "serde_json",
@@ -470,7 +470,7 @@ dependencies = [
 
 [[package]]
 name = "status-machina-napi"
-version = "0.1.0"
+version = "0.1.13"
 dependencies = [
  "napi",
  "napi-build",
@@ -483,9 +483,10 @@ dependencies = [
 
 [[package]]
 name = "status-machina-pyo3"
-version = "0.1.0"
+version = "0.1.13"
 dependencies = [
  "pyo3",
+ "pyo3-build-config",
  "serde",
  "serde_json",
  "status-machina",

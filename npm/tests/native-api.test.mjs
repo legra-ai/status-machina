@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ActionError, CallbackError, Definition, DisposedError, InvariantError } from '../index.mjs';
+import { ActionError, CallbackError, Definition, DisposedError, InvariantError } from '@legra-ai/status-machina';
 
 const Phase = Object.freeze({ Open: Symbol('open'), Closed: Symbol('closed') });
 const Input = Object.freeze({ Close: Symbol('close'), Unknown: Symbol('close') });

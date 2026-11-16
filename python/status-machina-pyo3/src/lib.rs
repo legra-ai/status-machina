@@ -1,5 +1,12 @@
 //! Private Python extension; native application objects stay in visible Python
 //! arenas.
+
+#[cfg(Py_GIL_DISABLED)]
+compile_error!(
+    "Status Machina does not support free-threaded CPython: its wheels use the abi3 stable ABI, \
+     which free-threaded interpreters cannot load; use a standard (GIL) CPython 3.10 or newer"
+);
+
 mod composition;
 mod error;
 mod host;

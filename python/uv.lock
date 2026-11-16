@@ -336,7 +336,7 @@ wheels = [
 
 [[package]]
 name = "status-machina"
-version = "0.1.0"
+version = "0.1.13"
 source = { editable = "." }
 dependencies = [
     { name = "typing-extensions" },
@@ -355,7 +355,7 @@ requires-dist = [{ name = "typing-extensions", specifier = ">=4.12" }]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "maturin", specifier = ">=1.7,<2" },
+    { name = "maturin", specifier = ">=1.16,<2" },
     { name = "mypy", specifier = ">=1.15" },
     { name = "ruff", specifier = ">=0.9" },
     { name = "uv", specifier = ">=0.6.7" },

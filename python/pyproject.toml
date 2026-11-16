@@ -1,16 +1,32 @@
 [build-system]
-requires = ["maturin>=1.7,<2"]
+requires = ["maturin>=1.16,<2"]
 build-backend = "maturin"
 
 [project]
 name = "status-machina"
-version = "0.1.0"
+version = "0.1.13"
 description = "Native typed, caller-driven state machines with checked composition"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["typing-extensions>=4.12"]
 license = "MIT OR Apache-2.0"
+license-files = ["licenses/LICENSE-MIT", "licenses/LICENSE-APACHE"]
 authors = [{ name = "Jacobus Geluk", email = "jacobus.geluk@dataroad.com" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Rust",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Typing :: Typed",
+]
 
 [project.urls]
 Repository = "https://github.com/legra-ai/status-machina"
@@ -20,9 +36,11 @@ manifest-path = "status-machina-pyo3/Cargo.toml"
 python-source = "."
 module-name = "status_machina._native"
 features = ["pyo3/extension-module"]
+# Never package interpreter caches from a developer tree.
+exclude = ["status_machina/**/__pycache__/**"]
 
 [dependency-groups]
-dev = ["maturin>=1.7,<2", "ruff>=0.9", "mypy>=1.15", "uv>=0.6.7"]
+dev = ["maturin>=1.16,<2", "ruff>=0.9", "mypy>=1.15", "uv>=0.6.7"]
 
 [tool.mypy]
 files = ["status_machina", "tests/typing"]

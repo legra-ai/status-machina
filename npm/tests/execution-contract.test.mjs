@@ -5,7 +5,7 @@ import {
   DefinitionLimitError, DisposedError, DuplicateIdentifierError, DuplicateImplementationError, EventOnDrop,
   InvariantError, PostconditionError, RoleMismatchError, StaleDecisionError, UnknownBehaviorError,
   UnknownCapabilityError, UnknownImplementationError,
-} from '../index.mjs';
+} from '@legra-ai/status-machina';
 
 const Phase = Object.freeze({ Draft: Symbol('draft'), Sent: Symbol('sent') });
 const Input = Object.freeze({ Send: Symbol('send'), Other: Symbol('other') });

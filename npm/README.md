@@ -9,8 +9,9 @@ Development is in progress. This package has not been published yet.
 
 The current implementation supports checked definitions, dispatch, isolated
 snapshots, single-use decisions, exact callback causes and explicit disposal.
-Model parity is certified; installed artifacts and the platform/release matrix remain
-under development; see the repository's binding design.
+Model parity is certified and installable artifacts are tested on every
+supported platform; publication remains under development; see the repository's
+binding design.
 
 Capabilities are synchronous advisory policies over detached data and facts.
 The native instance identity and `bigint` revision accompany every report:
@@ -438,8 +439,23 @@ worker releases the machines and decisions it still holds, including during a
 callback. This needs `worker_threads.markAsUncloneable`, so the package requires
 Node.js 22.10 or newer.
 
-The planned macOS target is macOS 26 on ARM64, tested on `macos-latest`.
-Intel macOS is outside the native package support matrix.
+## Supported platforms
+
+The one npm package carries a native addon for each platform below. CI
+installs the packed tarball and runs the full suite, worker isolation, the
+examples and the TypeScript fixtures against it on each platform with Node.js
+22 and 24, without a Rust toolchain:
+
+| Platform | Addon |
+| --- | --- |
+| Linux x86_64, glibc 2.28 or newer | `status_machina.linux-x64-gnu.node` |
+| Linux arm64, glibc 2.28 or newer | `status_machina.linux-arm64-gnu.node` |
+| macOS 26 or newer, Apple silicon | `status_machina.darwin-arm64.node` |
+| Windows x64 | `status_machina.win32-x64-msvc.node` |
+| Windows arm64 | `status_machina.win32-arm64-msvc.node` |
+
+Intel macOS and musl Linux are not supported; the loader names the platform it
+refuses and never builds from source.
 
 ## Develop from source
 

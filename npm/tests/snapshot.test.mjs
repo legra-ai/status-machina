@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-const { snapshot } = require('../lib/snapshot.cjs');
+import { requireInternal } from './support/package.mjs';
+const { snapshot } = requireInternal('lib/snapshot.cjs');
 
 test('native typed views preserve cycles through their backing buffer', () => {
   const view = new Uint8Array([1, 2]);

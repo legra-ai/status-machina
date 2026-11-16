@@ -413,8 +413,23 @@ Pass `limits=InspectionLimits(max_entries=..., max_output_bytes=...)` to either
 inspection method. Use `DiagramLabels(states=..., transitions=..., events=...,
 conditions=..., dispositions=...)` for the rendered roles.
 
-The planned macOS target is macOS 26 on ARM64, tested on `macos-latest`.
-Intel macOS is outside the native package support matrix.
+## Supported platforms
+
+One `cp310-abi3` wheel per platform serves CPython 3.10 through 3.14; CI
+installs each wheel and runs the full suite, the examples and the mypy fixtures
+against it on its own platform, without a Rust toolchain:
+
+| Platform | Wheel tag | Tested CPython |
+| --- | --- | --- |
+| Linux x86_64, glibc 2.28 or newer | `manylinux_2_28_x86_64` | 3.10–3.14 |
+| Linux aarch64, glibc 2.28 or newer | `manylinux_2_28_aarch64` | 3.10–3.14 |
+| macOS 26 or newer, Apple silicon | `macosx_26_0_arm64` | 3.10–3.14 |
+| Windows x86_64 | `win_amd64` | 3.10–3.14 |
+| Windows ARM64 | `win_arm64` | 3.11–3.14 (CPython has no ARM64 3.10) |
+
+Intel macOS, musl Linux and other interpreters are not supported. Free-threaded
+CPython (3.13t, 3.14t) cannot load abi3 extensions; no wheel installs there,
+and a source build stops with an explicit error rather than reenabling the GIL.
 
 ## Develop from source
 
@@ -431,3 +446,10 @@ uv run --locked mypy             # source and static typing contracts
 The dev group installs `uv` into the environment. `maturin develop` installs
 with that copy, so an older `uv` on `PATH` cannot break the rebuild. CI runs
 these commands on Linux, macOS and Windows with Python 3.10 and 3.14.
+
+The source distribution is the explicit developer path for building from
+source. Any PEP 517 frontend builds it (`pip wheel status_machina-*.tar.gz`);
+it needs Rust 1.99.1 or newer with Cargo, a C linker for the platform and
+access to crates.io for the locked dependencies, and fetches maturin itself.
+It needs no Git checkout. CI builds and tests a wheel from it with exactly Rust
+1.99.1.

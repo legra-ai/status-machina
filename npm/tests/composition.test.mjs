@@ -7,7 +7,7 @@ import {
   ForeignSnapshotError, InstanceAddress, InstanceRegistry, InstanceRegistryLimitError, MissingBindingError,
   PropagationLimits, PropagationLimitsError, PropagationStatus, ReportInstanceMismatchError, Route, UndeclaredCapabilityError,
   UndeclaredRouteEventError, UnregisteredBindingError, UnregisteredRouteAddressError, UnregisteredSourceError,
-} from '../index.mjs';
+} from '@legra-ai/status-machina';
 
 const Order = Object.freeze({ Open: Symbol('open'), Paid: Symbol('paid') });
 const Pay = Symbol('pay');

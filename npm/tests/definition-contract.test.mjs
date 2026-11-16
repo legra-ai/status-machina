@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import * as api from '../index.mjs';
+import * as api from '@legra-ai/status-machina';
 import {
   AmbiguousTransitionError, CallbackError, Definition, DefinitionError, DefinitionLimitError, DuplicateIdentifierError,
   InitialInvariantError, InternalTransitionError, InvalidConditionError, InvalidDispositionError, LimitError,
   StatusMachinaError, TerminalTransitionError, UnknownStateError, UnreachableStateError,
-} from '../index.mjs';
+} from '@legra-ai/status-machina';
 
 const Phase = Object.freeze({ Open: Symbol('open'), Review: Symbol('review'), Closed: Symbol('closed'), Ghost: Symbol('ghost') });
 const Input = Object.freeze({ Submit: Symbol('submit'), Close: Symbol('close'), Ping: Symbol('ping') });

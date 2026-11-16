@@ -8,5 +8,5 @@
     "lib": ["ES2022", "ESNext.Disposable"],
     "types": ["node"]
   },
-  "include": ["index.d.ts", "tests/typing/*.mts", "tests/typing/*.cts"]
+  "include": ["index.d.ts"]
 }

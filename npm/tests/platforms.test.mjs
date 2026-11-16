@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import vm from 'node:vm';
 import test from 'node:test';
-const source = await readFile(new URL('../lib/native.cjs', import.meta.url), 'utf8');
+import { packageRoot } from './support/package.mjs';
+const source = await readFile(path.join(packageRoot, 'lib', 'native.cjs'), 'utf8');
 function load(platform, arch, node = '22.10.0') {
   const marker = {}; const loaded = [];
   const context = { __dirname: '/status-machina/lib', module: { exports: undefined },
@@ -23,7 +24,7 @@ test('macOS native package loads only the ARM64 addon', () => {
   assert.throws(() => load('darwin', 'x64'), /Unsupported Status Machina platform: darwin\/x64/);
 });
 test('declared macOS artifact targets contain ARM64 only', async () => {
-  const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const manifest = JSON.parse(await readFile(path.join(packageRoot, 'package.json'), 'utf8'));
   assert.deepEqual(manifest.napi.targets.filter(target => target.endsWith('apple-darwin')), ['aarch64-apple-darwin']);
 });
 test('the loader refuses Node.js releases without markAsUncloneable', () => {

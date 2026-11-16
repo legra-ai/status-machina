@@ -1,7 +1,7 @@
 // Worker-thread fixture for workers.test.mjs: every machine below is created,
 // evaluated and disposed inside this worker's own Node environment.
 import { parentPort, threadId, workerData } from 'node:worker_threads';
-import { CallbackError, Definition } from '../../index.mjs';
+import { CallbackError, Definition } from '@legra-ai/status-machina';
 
 const Phase = Object.freeze({ Open: Symbol('open'), Closed: Symbol('closed') });
 const Input = Object.freeze({ Close: Symbol('close'), Reopen: Symbol('reopen'), Spin: Symbol('spin') });
