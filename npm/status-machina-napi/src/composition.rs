@@ -57,11 +57,11 @@ fn exclusive<'a>(
         .map(|machine| write(&machine.machine))
         .collect()
 }
-/// A call-local value arena for caller inputs and facts; no callback runs in
-/// it.
+/// A call-local value arena: composition inputs and facts, where no callback
+/// runs, or every value of one scenario replay, whose callbacks run in it.
 #[napi]
 pub struct NativeArena {
-    host: Arc<JsHost>,
+    pub(crate) host: Arc<JsHost>,
 }
 #[napi]
 impl NativeArena {
@@ -81,6 +81,11 @@ impl NativeArena {
     #[napi]
     pub fn arena_id(&self) -> String {
         self.host.arena().id()
+    }
+    #[napi]
+    pub fn live_keys(&self, env: Env) -> napi::Result<Vec<u32>> {
+        self.host.check(env)?;
+        Ok(self.host.arena().live())
     }
 }
 /// The kernel report behind one `Machine.evaluateCapability` observation.

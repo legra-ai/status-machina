@@ -598,3 +598,105 @@ export class WaitCapacityReachedError extends RetryWaitError {}
 export class WaitGenerationExhaustedError extends RetryWaitError {}
 /** A value lies outside its kernel type; `context.field` names it and `context.value` holds it. */
 export class RetryRangeError extends RetryError {}
+
+/** Positive replay budgets validated by the kernel; omitted fields take the kernel defaults (64, 256, 4096, 4096, 4096). */
+export class ScenarioLimits {
+  constructor(options?: { readonly maxScenarios?: number; readonly maxStepsPerScenario?: number; readonly maxNodes?: number;
+    readonly maxOutputs?: number; readonly maxTraceEntries?: number });
+  readonly maxScenarios: number;
+  readonly maxStepsPerScenario: number;
+  readonly maxNodes: number;
+  readonly maxOutputs: number;
+  readonly maxTraceEntries: number;
+}
+/** One dispatch: the event and the facts it is evaluated against. */
+export interface ScenarioStep<K extends Identity, P = unknown, F = unknown> {
+  readonly event: Event<K, P>;
+  readonly facts?: F;
+}
+/** An identified, ordered, finite list of steps; read lazily, at most 4097 steps. */
+export interface Scenario<C extends Identity, K extends Identity, P = unknown, F = unknown> {
+  readonly id: C;
+  readonly steps: Iterable<ScenarioStep<K, P, F>>;
+}
+/** A non-empty bounded set of scenarios, checked by the kernel's ScenarioSet builder. */
+export class ScenarioSet<C extends Identity, K extends Identity> {
+  constructor(options: { readonly scenarios: Iterable<Scenario<C, K>>; readonly limits?: ScenarioLimits });
+  private readonly _brand;
+  readonly scenarios: readonly { readonly id: C; readonly steps: readonly ScenarioStep<K>[] }[];
+  readonly limits: ScenarioLimits;
+}
+/** The compact outcome of one replayed step, discriminated by `kind`. */
+export type ScenarioStepKind =
+  { readonly kind: 'transitioned'; readonly transition: Identity } |
+  { readonly kind: 'ignored'; readonly disposition: Identity } |
+  { readonly kind: 'refused' } |
+  { readonly kind: 'dispatch_failed' };
+/** Metadata of one replayed step; Rust `kind()` is `outcome`. Never payloads or machine data. */
+export interface ScenarioObservation<C extends Identity, S extends Identity, K extends Identity> {
+  readonly scenario: C;
+  readonly step: number;
+  readonly inputEvent: K;
+  readonly before: S;
+  readonly after: S;
+  readonly outcome: ScenarioStepKind;
+  readonly outputEvents: readonly Identity[];
+  readonly effects: readonly Identity[];
+}
+/** One independently named safety predicate that returns true while the property holds. */
+export class ScenarioAssertion<A extends Identity = Identity, C extends Identity = Identity, S extends Identity = Identity, K extends Identity = Identity> {
+  constructor(options: { readonly id: A; readonly evaluate: ((observation: ScenarioObservation<C, S, K>) => boolean) | BehaviorRef });
+  readonly id: A;
+  readonly evaluate: ((observation: ScenarioObservation<C, S, K>) => boolean) | BehaviorRef;
+}
+export const ScenarioFailure: Readonly<{ EvaluationFailed: 'evaluation_failed'; InvalidInitialData: 'invalid_initial_data';
+  Ambiguous: 'ambiguous'; InvariantFailed: 'invariant_failed'; PostconditionFailed: 'postcondition_failed';
+  ActionFailed: 'action_failed'; RevisionExhausted: 'revision_exhausted'; DefinitionMismatch: 'definition_mismatch';
+  InstanceMismatch: 'instance_mismatch'; StaleRevision: 'stale_revision' }>;
+export type ScenarioFailureValue = (typeof ScenarioFailure)[keyof typeof ScenarioFailure];
+export const ScenarioLimit: Readonly<{ Outputs: 'outputs'; TraceEntries: 'trace_entries' }>;
+export type ScenarioLimitValue = (typeof ScenarioLimit)[keyof typeof ScenarioLimit];
+/** The step prefix, through the failing step, that falsified `assertion`. */
+export interface CounterexampleTrace<C extends Identity, S extends Identity, K extends Identity> {
+  readonly scenario: C;
+  readonly assertion: Identity;
+  readonly steps: readonly ScenarioObservation<C, S, K>[];
+}
+/** The bounded replay outcome, discriminated by `kind`. */
+export type ScenarioResult<C extends Identity, S extends Identity, K extends Identity> =
+  /** Every supplied step was checked and passed: coverage of exactly these scenarios and nodes, not a proof. */
+  { readonly kind: 'complete_within_scenarios'; readonly scenarios: number; readonly nodes: number } |
+  { readonly kind: 'counterexample'; readonly trace: CounterexampleTrace<C, S, K> } |
+  { readonly kind: 'limit_reached'; readonly scenario: C; readonly step: number; readonly limit: ScenarioLimitValue } |
+  /** Step 0 with no steps: the initial data failed, or raised in, the initial state's invariant. */
+  { readonly kind: 'execution_failed'; readonly scenario: C; readonly step: number; readonly failure: ScenarioFailureValue;
+    readonly steps: readonly ScenarioObservation<C, S, K>[] };
+/** A result whose name states its bound: only the supplied scenarios were checked. */
+export interface BoundedScenarioReport<C extends Identity, S extends Identity, K extends Identity> {
+  readonly result: ScenarioResult<C, S, K>;
+}
+export interface ScenarioReplayOptions<C extends Identity, S extends Identity, K extends Identity, D> {
+  readonly id: Identity;
+  readonly data: D;
+  readonly scenarios: ScenarioSet<C, K>;
+  readonly assertions?: Iterable<ScenarioAssertion<Identity, C, S, K>>;
+}
+/** Caller-driven replay of explicit finite scenarios on fresh ephemeral instances. */
+export const ScenarioReplay: Readonly<{
+  run<S extends Identity, K extends Identity, D, P, F, C extends Identity>(definition: Definition<S, K, D, P, F>,
+    options: ScenarioReplayOptions<C, S, K, D>): BoundedScenarioReport<C, S, K>;
+}>;
+/** Scenario replay was rejected by the kernel; `context.reason` is the kernel variant. */
+export class ScenarioError extends StatusMachinaError {}
+export class ScenarioLimitsError extends ScenarioError {}
+/** `context.entry` is the refused scenario's position and `context.scenario` its identity. */
+export class ScenarioSetError extends ScenarioError {}
+export class EmptyScenarioSetError extends ScenarioSetError {}
+export class ScenarioCountLimitError extends ScenarioSetError {}
+export class ScenarioStepLimitError extends ScenarioSetError {}
+export class ScenarioNodeLimitError extends ScenarioSetError {}
+export class ScenarioAssertionError extends ScenarioError {}
+export class MissingAssertionPredicateError extends ScenarioAssertionError {}
+export class ScenarioReplayError extends ScenarioError {}
+/** More safety assertions than the kernel's ceiling of 128. */
+export class AssertionLimitError extends ScenarioReplayError {}

@@ -231,6 +231,79 @@ duration, an attempt count outside 0..2**32-1, a generation outside
 0..2**64-1, a `Date` sum beyond its range or an instant the platform's
 `SystemTime` cannot hold. Its `context` names the `field` and holds the `value`.
 
+## Replay scenarios against safety assertions
+
+`ScenarioReplay.run` replays explicit, finite scenarios on fresh instances of one
+definition and checks independent safety assertions after every step. The Rust
+kernel's `ScenarioLimits`, `ScenarioSet`, `ScenarioAssertion` and
+`ScenarioReplay` decide every limit, set bound, assertion order, dispatch,
+budget and trace rule; JavaScript only interns identities, with `Map`
+semantics, and resolves the report. The
+[runnable scenario example](examples/scenarios.mjs) finds the transition that
+ships an unpaid order:
+
+```js
+const neverShipsUnpaid = new ScenarioAssertion({ id: 'never-ships-unpaid',
+  evaluate: step => !(step.before === Phase.Cart && step.after === Phase.Shipped) });
+
+function run(...scenarios) {
+  const { result } = ScenarioReplay.run(definition, { id: 'replay', data: { paid: [] },
+    scenarios: new ScenarioSet({ scenarios, limits: new ScenarioLimits({ maxStepsPerScenario: 8 }) }),
+    assertions: [neverShipsUnpaid] });
+```
+
+It prints:
+
+```text
+complete within 1 scenarios, 2 steps
+counterexample to never-ships-unpaid in rush:
+  0: RUSH CART -> SHIPPED
+```
+
+- `new ScenarioLimits({ maxScenarios, maxStepsPerScenario, maxNodes,
+  maxOutputs, maxTraceEntries })` defaults to the kernel's 64, 256, 4096, 4096
+  and 4096; the ceilings are 1024, 4096, 65536, 65536 and 65536.
+- `new ScenarioSet({ scenarios, limits })` holds `{ id, steps }` scenarios, each
+  step an `{ event: { kind, payload }, facts }` object. It reads iterables
+  lazily, at most one entry past a bound, so an endless generator fails with its
+  bound. Scenario identities are any values; two scenarios may share one.
+- `new ScenarioAssertion({ id, evaluate })` takes a synchronous predicate that
+  returns `true` while the property holds, or an exact `BehaviorRef` to an
+  `assertion` implementation in the definition's `BehaviorRegistry`. Assertions
+  run in order; at most 128 are accepted. Like every callback they must be pure,
+  total and bounded, which the binding cannot prove.
+- Each scenario starts from a snapshot of `data`; the caller's object is never
+  mutated. Each step performs exactly one dispatch. Output events are counted
+  and discarded, never dispatched, and effects are never executed.
+- A frozen observation holds the `scenario` identity, the zero-based `step`,
+  the `inputEvent` kind, the states `before` and `after`, the `outcome`
+  (`{ kind: 'transitioned', transition }`, `{ kind: 'ignored', disposition }`,
+  `{ kind: 'refused' }` or `{ kind: 'dispatch_failed' }`) and the produced
+  `outputEvents` and `effects` identities. It never holds payloads or machine
+  data.
+- `report.result` is discriminated by `kind`: `complete_within_scenarios`
+  (`scenarios`, `nodes`), the coverage of exactly the supplied scenarios and
+  steps and not a proof over other inputs; `counterexample`, whose `trace` names
+  the scenario, the failing assertion and the step prefix through the failing
+  step; `limit_reached` (`scenario`, `step`, `limit`: a `ScenarioLimit`); or
+  `execution_failed` (`scenario`, `step`, `failure`: a `ScenarioFailure`,
+  `steps`). Step 0 with no steps means the initial data failed, or raised in,
+  the initial state's invariant.
+- Every distinct input value occupies one value slot of the definition's
+  `limits.maxValues` for the whole replay; repeated values share their slot.
+
+A thrown guard, action, constructor, snapshot or assertion stops replay with
+`CallbackError` (`SnapshotError` for snapshots) whose `phase` names the stage
+and whose `cause` is the original exception. Rejections are `ScenarioError`
+subclasses carrying the kernel `reason`: `ScenarioLimitsError`;
+`ScenarioSetError` (`EmptyScenarioSetError`, `ScenarioCountLimitError`,
+`ScenarioStepLimitError`, `ScenarioNodeLimitError`), whose `context` names the
+refused `scenario` and its `entry` position; `ScenarioAssertionError`
+(`MissingAssertionPredicateError`); and `ScenarioReplayError`
+(`AssertionLimitError`). An assertion reference that does not resolve throws
+`UnknownBehaviorError`, `UnknownImplementationError` or `RoleMismatchError`
+naming the `assertion` and its `entry`.
+
 ## Inspect and draw a definition
 
 The [runnable Node.js order example](examples/order.mjs) checks an approval transition
