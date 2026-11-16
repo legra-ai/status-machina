@@ -127,6 +127,14 @@ class MaintenancePolicyTests(unittest.TestCase):
         for path in (ROOT / '.github/workflows').glob('*.yml'):
             self.assertNotRegex(path.read_text(), r'cargo-auto-version-bump.yml|cargo-crate-ci.yml|--auto --rebase')
 
+    def test_shared_actions_use_one_revision(self):
+        # The shared pipeline publishes only from the version commit's own run;
+        # mixed pins could pair a newer action with an older release workflow.
+        pins = set()
+        for path in (ROOT / '.github/workflows').glob('*.yml'):
+            pins.update(re.findall(r'legra-ai/github-actions/\S+@([0-9a-f]{40})', path.read_text()))
+        self.assertEqual(len(pins), 1, pins)
+
     def test_daily_scoped_maintenance(self):
         config = (ROOT / '.github/dependabot.yml').read_text()
         self.assertEqual(config.count('interval: daily'), 2)

@@ -341,11 +341,12 @@ publication therefore start only after every binding job, on every runner and
 interpreter, succeeded for the run's revision. A failed, cancelled or skipped
 job skips the whole release path, so a Rust-only release can no longer hide a
 binding failure. `scripts/test_maintenance.py` checks that the release call
-depends on every build job of the workflow. The shared pipeline also has to
-publish only from the release revision's own run, so the bindings validate the
-exact published revision, not only the source of its version commit. That
-change is legra-ai/github-actions#114. Its pin is not adopted until it merges.
-Native artifacts, PyPI/npm publication, synchronized versions and
+depends on every build job of the workflow, and that every shared action and
+workflow uses one pinned revision. That pin includes legra-ai/github-actions#114:
+the source run only writes the version commit, after its tests and binding
+jobs passed, and publication happens only in the version commit's own run,
+gated by that run's binding jobs. The published revision is therefore the
+revision the bindings tested. Native artifacts, PyPI/npm publication, synchronized versions and
 multi-registry recovery remain outstanding.
 
 Python and TypeScript static examples check state/event identity, initial data
