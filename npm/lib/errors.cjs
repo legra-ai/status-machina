@@ -79,6 +79,19 @@ class WaitCapacityReachedError extends RetryWaitError {}
 class WaitGenerationExhaustedError extends RetryWaitError {}
 /** A value lies outside its kernel type; `context.field` names it and `context.value` holds it. */
 class RetryRangeError extends RetryError {}
+/** Scenario replay was rejected by the kernel; `context.reason` is the kernel variant. */
+class ScenarioError extends StatusMachinaError {}
+class ScenarioLimitsError extends ScenarioError {}
+/** `context.entry` is the refused scenario's position and `context.scenario` its identity. */
+class ScenarioSetError extends ScenarioError {}
+class EmptyScenarioSetError extends ScenarioSetError {}
+class ScenarioCountLimitError extends ScenarioSetError {}
+class ScenarioStepLimitError extends ScenarioSetError {}
+class ScenarioNodeLimitError extends ScenarioSetError {}
+class ScenarioAssertionError extends ScenarioError {}
+class MissingAssertionPredicateError extends ScenarioAssertionError {}
+class ScenarioReplayError extends ScenarioError {}
+class AssertionLimitError extends ScenarioReplayError {}
 const types = Object.freeze({ inspection: InspectionError, definition: DefinitionError, callback: CallbackError,
   invariant: InvariantError, postcondition: PostconditionError, ambiguous: AmbiguousTransitionError,
   action: ActionError, stale_revision: StaleDecisionError, foreign_definition: ForeignDecisionError,
@@ -126,4 +139,7 @@ module.exports = { StatusMachinaError, DefinitionError, DispatchError, CallbackE
   IdentityMapLimitError, DuplicateIdentityError, DuplicateRepresentationError, UnknownIdentityError,
   UnknownRepresentationError, CompositionError, InstanceRegistryError, InstanceRegistryLimitError, AddressMismatchError, DuplicateInstanceError, CompositionDefinitionError, CompositionLimitError, DuplicateRouteError, UnregisteredRouteAddressError, UndeclaredRouteEventError, UndeclaredCapabilityError, RouteBatchError, UnregisteredSourceError, BatchLimitError, CompositionBindingError, DuplicateBindingError, UnregisteredBindingError, BindingMismatchError, MissingBindingError, AliasedBindingError, PropagationLimitsError, CapabilitySnapshotError, CapabilitySnapshotLimitError, ReportInstanceMismatchError, DuplicateObservationError, ForeignSnapshotError, RetryError, RetryPolicyError, ZeroDelayError, TooFewAttemptsError, CapBelowInitialError,
   RetryWaitError, InvalidWaitCapacityError, WaitCapacityReachedError, WaitGenerationExhaustedError, RetryRangeError,
+  ScenarioError, ScenarioLimitsError, ScenarioSetError, EmptyScenarioSetError, ScenarioCountLimitError,
+  ScenarioStepLimitError, ScenarioNodeLimitError, ScenarioAssertionError, MissingAssertionPredicateError,
+  ScenarioReplayError, AssertionLimitError,
   translate, exception, isNative };

@@ -22,3 +22,9 @@ test('documented retry example consumes each wake once in a separate Node proces
   assert.deepEqual(stdout.split(/\r?\n/).filter(Boolean), ['wait timer-1 until 10:00', 'wake: transitioned', 'duplicate: ignored',
     'wait timer-2 until 12:00', 'wake: transitioned', 'duplicate: ignored', 'attempts: 3']);
 });
+test('documented scenario example finds the unpaid rush counterexample in a separate Node process', async () => {
+  const example = fileURLToPath(new URL('../examples/scenarios.mjs', import.meta.url));
+  const { stdout } = await execute(process.execPath, [example], { timeout: 10000, maxBuffer: 8192 });
+  assert.deepEqual(stdout.split(/\r?\n/).filter(Boolean), ['complete within 1 scenarios, 2 steps',
+    'counterexample to never-ships-unpaid in rush:', '  0: RUSH CART -> SHIPPED']);
+});

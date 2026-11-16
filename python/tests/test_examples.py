@@ -37,3 +37,9 @@ class ExampleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(output.splitlines(), [
             'wait timer-1 until 10:00', 'wake: transitioned', 'duplicate: ignored',
             'wait timer-2 until 12:00', 'wake: transitioned', 'duplicate: ignored', 'attempts: 3'])
+
+    async def test_scenarios_example_finds_the_unpaid_rush_counterexample(self):
+        output = await self.run_example('scenarios.py')
+        self.assertEqual(output.splitlines(), [
+            'complete within 1 scenarios, 2 steps', 'counterexample to never-ships-unpaid in rush:',
+            '  0: RUSH CART -> SHIPPED'])

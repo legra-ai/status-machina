@@ -3,6 +3,7 @@ pub mod composition;
 mod error;
 mod host;
 pub mod retry;
+pub mod scenario;
 
 use std::cell::{
     Ref,
@@ -15,7 +16,10 @@ use std::thread::{
     ThreadId,
 };
 
-use composition::NativeCapabilityReport;
+use composition::{
+    NativeArena,
+    NativeCapabilityReport,
+};
 use error::{
     CoreError,
     encode,
@@ -105,6 +109,24 @@ impl NativeDefinition {
         self.template
             .diagram(&labels, entries as usize, bytes as usize)
             .map_err(translate)
+    }
+    /// Replay scenarios on fresh instances whose values live in `arena`.
+    #[napi]
+    pub fn replay(
+        &self,
+        env: Env,
+        arena: &NativeArena,
+        source: String,
+        invoker: Function<'_, String, String>,
+    ) -> napi::Result<String> {
+        self.check(env)?;
+        let _frame = arena.host.activate(env, invoker)?;
+        Ok(encode(
+            &self
+                .template
+                .replay(&arena.host, &source)
+                .map_err(scenario::fault)?,
+        ))
     }
     #[napi]
     #[allow(

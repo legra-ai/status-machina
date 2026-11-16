@@ -148,3 +148,27 @@ class RetryRangeError(RetryError, ValueError):
     """A value lies outside its kernel type: a negative duration, an attempt count outside
     0..2**32-1, a generation outside 0..2**64-1 or an instant outside the platform's
     ``SystemTime``. ``context['field']`` names it and ``context['value']`` holds it."""
+
+class ScenarioError(StatusMachinaError):
+    """Scenario replay was rejected by the kernel; ``context['reason']`` is the kernel variant."""
+class ScenarioLimitsError(ScenarioError, LimitError):
+    """A replay limit is zero or above its kernel ceiling (``ScenarioLimitsBuildError``)."""
+class ScenarioSetError(ScenarioError):
+    """The kernel refused the scenario set (``ScenarioSetBuildError``); ``context['entry']`` is the
+    refused scenario's position and ``context['scenario']`` its identity."""
+class EmptyScenarioSetError(ScenarioSetError):
+    """A scenario set needs at least one scenario."""
+class ScenarioCountLimitError(ScenarioSetError, LimitError):
+    """More scenarios than ``max_scenarios``; ``context['limit']`` is the bound."""
+class ScenarioStepLimitError(ScenarioSetError, LimitError):
+    """A scenario has more steps than ``max_steps_per_scenario``."""
+class ScenarioNodeLimitError(ScenarioSetError, LimitError):
+    """The scenarios together have more steps than ``max_nodes``."""
+class ScenarioAssertionError(ScenarioError):
+    """The kernel refused a safety assertion (``ScenarioAssertionBuildError``)."""
+class MissingAssertionPredicateError(ScenarioAssertionError):
+    """A safety assertion needs a predicate or an exact ``BehaviorRef``."""
+class ScenarioReplayError(ScenarioError):
+    """The kernel refused the replay configuration (``ScenarioReplayBuildError``)."""
+class AssertionLimitError(ScenarioReplayError, LimitError):
+    """More safety assertions than the kernel's ceiling of 128."""

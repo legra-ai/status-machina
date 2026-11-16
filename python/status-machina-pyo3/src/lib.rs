@@ -4,6 +4,7 @@ mod composition;
 mod error;
 mod host;
 mod retry;
+mod scenario;
 
 use std::sync::{
     Arc,
@@ -31,6 +32,11 @@ use pyo3::prelude::*;
 use retry::{
     NativeRetryPolicy,
     NativeRetryWaits,
+};
+use scenario::{
+    scenario_assertion,
+    scenario_limits,
+    scenario_set,
 };
 use status_machina_bridge::build::Template;
 use status_machina_bridge::codec::{
@@ -97,6 +103,22 @@ impl NativeDefinition {
         self.template
             .diagram(labels, entries, bytes)
             .map_err(|e| translate(py, e))
+    }
+    /// Replay scenarios on fresh instances whose values live in `arena`.
+    fn replay(
+        &self,
+        py: Python<'_>,
+        arena: &NativeArena,
+        source: &str,
+        invoker: Py<PyAny>,
+    ) -> PyResult<String> {
+        let _frame = arena.host.activate(invoker).map_err(|e| translate(py, e))?;
+        Ok(encode(
+            &self
+                .template
+                .replay(&arena.host, source)
+                .map_err(|e| scenario::fault(py, e))?,
+        ))
     }
     fn instantiate(
         &self,
@@ -272,6 +294,9 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<NativeRetryPolicy>()?;
     module.add_class::<NativeRetryWaits>()?;
     module.add_function(wrap_pyfunction!(propagation_limits, module)?)?;
+    module.add_function(wrap_pyfunction!(scenario_limits, module)?)?;
+    module.add_function(wrap_pyfunction!(scenario_set, module)?)?;
+    module.add_function(wrap_pyfunction!(scenario_assertion, module)?)?;
     module.add("NativeFailure", module.py().get_type::<NativeFailure>())?;
     Ok(())
 }

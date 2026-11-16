@@ -9,8 +9,12 @@ export const { StatusMachinaError, DefinitionError, DispatchError, CallbackError
   CompositionError, InstanceRegistryError, InstanceRegistryLimitError, AddressMismatchError, DuplicateInstanceError, CompositionDefinitionError, CompositionLimitError, DuplicateRouteError, UnregisteredRouteAddressError, UndeclaredRouteEventError, UndeclaredCapabilityError, RouteBatchError, UnregisteredSourceError, BatchLimitError, CompositionBindingError, DuplicateBindingError, UnregisteredBindingError, BindingMismatchError, MissingBindingError, AliasedBindingError, PropagationLimitsError, CapabilitySnapshotError, CapabilitySnapshotLimitError, ReportInstanceMismatchError, DuplicateObservationError, ForeignSnapshotError,
   RetryError, RetryPolicyError, ZeroDelayError, TooFewAttemptsError, CapBelowInitialError, RetryWaitError,
   InvalidWaitCapacityError, WaitCapacityReachedError, WaitGenerationExhaustedError, RetryRangeError,
+  ScenarioError, ScenarioLimitsError, ScenarioSetError, EmptyScenarioSetError, ScenarioCountLimitError,
+  ScenarioStepLimitError, ScenarioNodeLimitError, ScenarioAssertionError, MissingAssertionPredicateError,
+  ScenarioReplayError, AssertionLimitError,
   CapabilityStatus, Definition, Machine, Decision, BehaviorRef, BehaviorRegistry, BehaviorRole,
   BehaviorUse, PredicateRecord, AllRecord, AnyRecord, NotRecord, StateRecord, TransitionDefinitionRecord,
   DispositionRecord, DefinitionRecord, IdentityRole, IdentityMap, MachineIdentityMaps,
   InstanceAddress, Route, InstanceRegistry, Delivery, PropagationLimits, PropagationStatus, Composition,
-  BoundComposition, CapabilitySnapshot, Duration, FixedDelay, ExponentialBackoff, RetryAt, RetryExhausted, RetryPolicy, WaitCorrelation, RetryWaits } = api;
+  BoundComposition, CapabilitySnapshot, Duration, FixedDelay, ExponentialBackoff, RetryAt, RetryExhausted, RetryPolicy, WaitCorrelation, RetryWaits,
+  ScenarioLimits, ScenarioSet, ScenarioAssertion, ScenarioReplay, ScenarioFailure, ScenarioLimit } = api;

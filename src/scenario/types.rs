@@ -52,6 +52,36 @@ impl ScenarioLimits {
             max_trace_entries: DEFAULT_TRACE_ENTRIES,
         }
     }
+
+    /// Return the bound on supplied scenarios.
+    #[must_use]
+    pub const fn max_scenarios(&self) -> usize {
+        self.max_scenarios
+    }
+
+    /// Return the bound on ordered event/fact steps in each scenario.
+    #[must_use]
+    pub const fn max_steps_per_scenario(&self) -> usize {
+        self.max_steps_per_scenario
+    }
+
+    /// Return the bound on total dispatch nodes across the scenario set.
+    #[must_use]
+    pub const fn max_nodes(&self) -> usize {
+        self.max_nodes
+    }
+
+    /// Return the bound on combined output and effect intents.
+    #[must_use]
+    pub const fn max_outputs(&self) -> usize {
+        self.max_outputs
+    }
+
+    /// Return the bound on retained trace entries for the current scenario.
+    #[must_use]
+    pub const fn max_trace_entries(&self) -> usize {
+        self.max_trace_entries
+    }
 }
 
 /// Builder for finite scenario replay limits.
