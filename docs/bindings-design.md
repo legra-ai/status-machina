@@ -1,7 +1,8 @@
 # Native Python and Node.js APIs
 
-Status: implementation plan. The Rust core is published; native language bindings
-are under implementation and neither package is published yet. This document defines the acceptance
+Status: implementation plan. The Rust core is published; the native language
+bindings are implemented and their installable artifacts are built and tested
+on every declared platform, but neither package is published yet. This document defines the acceptance
 boundary for both packages. A completed design is not a completed binding.
 
 The Python distribution is `status-machina`, imported as `status_machina`.
@@ -16,9 +17,9 @@ npm name is occupied. Availability checks do not reserve either unpublished name
 | BND-01 | Native API, identity, payload, callback and ownership contracts, with a complete public-model inventory and release acceptance matrix | — | Done |
 | BND-02 | Fallible kernel evaluation and snapshots; callback failure stops evaluation before acceptance, without panic transport or sentinel results | BND-01 | Done |
 | BND-03 | Python checked construction, native values, execution and inspection through PyO3, with typed Python source and exceptions | BND-02 | Done |
-| BND-04 | Node.js checked construction, native values, execution and inspection through napi-rs, with JavaScript and TypeScript APIs | BND-02 | Partial |
+| BND-04 | Node.js checked construction, native values, execution and inspection through napi-rs, with JavaScript and TypeScript APIs | BND-02 | Done |
 | BND-05 | Native Story bindings, capabilities, bounded composition, retries and scenario coverage, with model-by-model parity evidence in both languages | BND-03, BND-04 | Done |
-| BND-06 | Installable wheels, source distribution and npm artifacts; complete examples and installed-artifact tests without a Rust toolchain | BND-05 | Not started |
+| BND-06 | Installable wheels, source distribution and npm artifacts; complete examples and installed-artifact tests without a Rust toolchain | BND-05 | Done |
 | BND-07 | Extend the shared tested-revision pipeline to gate and publish all three ecosystems, with synchronized versions and interrupted-publication recovery | BND-06 | Partial |
 | BND-08 | Initial native packages published and verified from the approved tested revision on every declared platform | BND-07 | Not started |
 
@@ -276,6 +277,35 @@ only with equivalent evidence. Unsupported targets fail clearly; no source-build
 fallback disguises an absent native artifact. Python source builds are an
 explicit developer path tested through the source distribution.
 
+The platform minimums are decided and enforced as follows:
+
+- **Linux: glibc 2.28.** Wheels are `manylinux_2_28` and addons link against the
+  same floor. Both are linked through Zig's glibc 2.28 stubs on the target's
+  own runner (`maturin --zig`, or `scripts/zig_cc.py` as the napi linker), and
+  `scripts/verify_glibc.py` rejects any artifact that requires a newer symbol
+  version. The installed tests run on Ubuntu 24.04, which is newer than the
+  floor. The floor is a link-time guarantee, not a tested runtime.
+- **macOS: 26.0, ARM64 only.** `MACOSX_DEPLOYMENT_TARGET=26.0`. Wheels are
+  `macosx_26_0_arm64`, and `scripts/verify_macos_minimum.py` requires each
+  Mach-O `minos` to equal 26.0. That is exactly what `macos-latest` tests, so
+  no older macOS is advertised. There is no Intel artifact.
+- **Windows: x64 and ARM64 (MSVC).** Built and tested on `windows-latest` and
+  `windows-11-arm`. CPython publishes no Windows ARM64 3.10, so that platform's
+  tested range is 3.11–3.14; the abi3 wheel is the same one for every version.
+- **Python: one `cp310-abi3` wheel per platform**, tested on 3.10–3.14.
+  Free-threaded CPython is unsupported. abi3 extensions cannot load there, so
+  installers reject the wheel. A source build on a free-threaded interpreter
+  stops at a `compile_error!` (via `pyo3-build-config`'s `Py_GIL_DISABLED`
+  cfg); otherwise PyO3 would fall back to a version-specific build that
+  reenables the GIL on import.
+- **Node.js: 22.10 or newer** (`engines` and the loader), tested on 22 and 24.
+  One npm package carries all five `.node` addons, and the loader picks one by
+  platform and refuses others. No install scripts run.
+- **Source distribution: Rust 1.99.1** (the crates' `rust-version`) with Cargo,
+  a platform C linker and crates.io access; pip/PEP 517 fetches
+  `maturin>=1.16`. No Git checkout is needed: the root build script's rhusky
+  hook installation is a no-op outside a repository.
+
 Build wheels and npm native artifacts from the exact shared preparation revision.
 Install them in clean environments without repository source paths or a Rust
 toolchain. Run full examples, native type checks and contract tests against the
@@ -306,7 +336,7 @@ formatter/Clippy hook validation. The private adapter also tests bounded value
 leases, checked graph construction, unaccepted decisions, disposal and host-specific
 thread capability. Its dependencies do not enter the core runtime graph.
 
-BND-03 is Done and BND-04 is Partial; see [model certification](#model-certification)
+BND-03 and BND-04 are Done; see [model certification](#model-certification)
 for the final evidence. The first lifecycle slice had the compiled Python extension pass 60 native
 application and lifecycle tests and the Node addon 61. These cover enum/symbol
 identities, domain data, detached snapshots, callback exceptions, checked decision
@@ -333,11 +363,13 @@ The `python-bindings` and `node-bindings` jobs cover Ubuntu 24.04, `macos-latest
 and Windows, with Python 3.10/3.14 and Node.js 22/24. They run the bridge, PyO3
 and napi crate tests, `maturin develop`, mypy, `tsc --noEmit` and the typing
 fixtures. The required `test` gate fails unless every one of them passes. They
-test the checkout, not installed artifacts.
+test the checkout; the [installable artifacts](#installable-artifacts) jobs
+test what users install.
 
 BND-07 is Partial: native checks now gate the sole publisher. The shared
-`cargo-maintenance.yml` call (`ci`) declares `needs: [prepare, python-bindings,
-node-bindings]` without `always()`. Its version commit and its crates.io
+`cargo-maintenance.yml` call (`ci`) declares `needs:` on `prepare`, both
+binding jobs and every artifact build and installed-artifact job, without
+`always()`. Its version commit and its crates.io
 publication therefore start only after every binding job, on every runner and
 interpreter, succeeded for the run's revision. A failed, cancelled or skipped
 job skips the whole release path, so a Rust-only release can no longer hide a
@@ -347,8 +379,14 @@ workflow uses one pinned revision. That pin includes legra-ai/github-actions#114
 the source run only writes the version commit, after its tests and binding
 jobs passed, and publication happens only in the version commit's own run,
 gated by that run's binding jobs. The published revision is therefore the
-revision the bindings tested. Native artifacts, PyPI/npm publication, synchronized versions and
-multi-registry recovery remain outstanding.
+revision the bindings tested. Versions are synchronized: release preparation's
+`cargo version-info bump` runs the `pre_bump_hook` `scripts/sync_binding_versions.py`,
+which rewrites the binding crates, `pyproject.toml`, `uv.lock` and `package.json`
+to the crate version before `Cargo.lock` is refreshed. The shared release
+script commits every changed file, so the version commit, and every artifact
+built from it, carries one version. With the pinned `cargo-version-info@1.0.13`
+a `bump --no-commit` moves all eight files. PyPI/npm publication from that
+revision's artifacts and multi-registry recovery remain outstanding (BND-07/08).
 
 Python and TypeScript static examples check state/event identity, initial data
 and data unions that functional actions can replace. They include deliberately
@@ -364,6 +402,68 @@ states with equal labels, and fail on missing labels or UTF-8/entry/output limit
 Inspection never evaluates application behavior. Python and Node runnable order
 examples generate identical Mermaid embedded in their READMEs; three additional
 private Rust tests reject malformed label metadata before renderer lookups.
+
+### Installable artifacts
+
+BND-06 is Done. Every pull request and main run builds, checks and uploads the
+artifacts, then tests them as installed:
+
+| Job | Runners | Output and checks |
+| --- | --- | --- |
+| `python-wheels` | the five target runners | `status_machina-<v>-cp310-abi3-<platform>.whl` (`manylinux_2_28_x86_64`, `manylinux_2_28_aarch64`, `macosx_26_0_arm64`, `win_amd64`, `win_arm64`), built by `maturin build --release` (`--zig --compatibility manylinux_2_28` on Linux) |
+| `python-sdist` | ubuntu-24.04 | `status_machina-<v>.tar.gz`, then a wheel built from it and tested |
+| `node-addons` | the five target runners | `status_machina.<platform>.node` from `napi build --release` |
+| `npm-package` | ubuntu-24.04 | `legra-ai-status-machina-<v>.tgz` with all five addons (`pnpm pack`) |
+| `python-installed` | the five runners × CPython 3.10–3.14 (24 jobs; no ARM64 3.10) | installed wheel |
+| `node-installed` | the five runners × Node.js 22, 24 (10 jobs) | installed tarball |
+
+`scripts/package_contents.py` checks each artifact before upload. It derives the
+exact expected file set from the tracked sources: every `status_machina`
+module, `py.typed` and `_native.pyi`, exactly one native module and the
+dist-info licenses for a wheel; every `lib/*.cjs`, the entry points,
+declarations, README, licenses and exactly the five declared addons for the
+tarball. It also requires the sdist to hold every Rust and Python build source,
+Cargo.lock and the licenses, and to have no binaries, VCS state, `target/`,
+`node_modules` or npm sources. License copies must be byte-identical to the
+repository's. It checks metadata as well: version equal to the crate's,
+`License-Expression: MIT OR Apache-2.0`, two `License-File` entries,
+`Requires-Python: >=3.10`, the wheel tag, `engines.node >=22.10` and no install
+scripts. `scripts/verify_glibc.py` (`objdump -T`, ceiling 2.28) and
+`scripts/verify_macos_minimum.py` (`otool -l`, exactly 26.0) inspect every
+Linux and macOS wheel and addon. `scripts/test_artifacts.py` rejects a
+perturbed artifact for every one of these clauses.
+
+Each installed-artifact job checks out only `python/tests` and
+`python/examples`, or `npm/tests` and `npm/examples`; the Python job also
+checks out `uv.lock` for the mypy pin. It fails if any package source is
+present. It removes rustup (through Homebrew on macOS) and the Cargo and rustup
+homes, and fails if `cargo`, `rustc`, `rustup`, `maturin` or `napi` remains on
+`PATH`. It then installs the artifact into a fresh virtual environment
+(`pip install --only-binary :all:`) or a fresh pnpm project (`file:` tarball;
+TypeScript and `@types/node` versions taken from the packed manifest). Before
+any test runs, it asserts that the import resolves into `site-packages` or
+`node_modules`. Every Python job then passes all 112 contract, lifecycle,
+records, composition, retry, scenario and example tests, and mypy over the six
+`tests/typing` fixtures. Every Node job passes all 111 tests, including the four
+worker-isolation tests, both entry points and the examples, and `tsc -p
+tests/typing` over the seven fixtures against the installed declarations. The
+Node tests import the package by name (`tests/support/package.mjs` resolves
+internals through the resolved package root), so the same files test the
+checkout through self-reference.
+
+The sdist job extracts the archive outside any Git repository. It builds it
+with `pip wheel` (isolated PEP 517 build that fetches maturin), with `CI` and
+`GITHUB_ACTIONS` unset so rhusky's hook installation runs as on a user machine,
+and with `RUSTUP_TOOLCHAIN` set to the `rust-version`, 1.99.1. It then asserts
+that no hooks were created. The resulting wheel passes the same 112 tests. The
+same job proves the free-threaded refusal on CPython 3.14t: pip rejects the
+abi3 wheel as unsupported, and a source build fails with the explicit
+`compile_error!`.
+
+Every one of these jobs is in the release call's and the `test` gate's `needs`.
+The release path therefore starts only when every artifact built and passed
+its installed tests on every runner and version. These are workflow artifacts
+only; nothing is published by this slice.
 
 ### Portable records and identity codecs
 
@@ -672,19 +772,19 @@ records keep their own construction bounds.
 
 BND-03 is Done: Python checked construction, native values, execution and
 inspection through PyO3, typed source (`py.typed`, mypy fixtures) and the
-exception taxonomy are evidenced on every CI runner and interpreter. Running
-the same suites against installed wheels is BND-06 work.
+exception taxonomy are evidenced on every CI runner and interpreter, and the
+same suites pass against the installed wheels (BND-06).
 
-BND-04 stays Partial. Every napi-rs construction, value, execution, inspection,
-JavaScript and TypeScript clause above is evidenced, but each worker thread
-loads the native addon from the package, and the worker isolation suite
-(`npm/tests/workers.test.mjs`) runs against the checkout, not the installed npm
-artifact. Those installed-artifact worker tests are a BND-06 deliverable; BND-04
-closes when they pass.
+BND-04 is Done. Every napi-rs construction, value, execution, inspection,
+JavaScript and TypeScript clause above is evidenced. Its last clause was the
+worker isolation suite (`npm/tests/workers.test.mjs`), in which each worker
+thread loads the native addon from the package; it now passes against the
+installed npm tarball on all five runners with Node.js 22 and 24 (see
+[installable artifacts](#installable-artifacts)).
 
 BND-05 is Done: every parity row above is Covered with evidence in both
-languages. Its dependency on BND-04 is met for every model clause; the only
-open BND-04 clause is the installed-artifact worker evidence owned by BND-06.
+languages, and its BND-04 dependency is fully met.
 
-Installed-artifact and platform evidence remain outstanding (BND-06 to BND-08).
-These passing tests do not establish publication readiness.
+Installed-artifact and platform evidence is complete (BND-06). Registry
+publication from the tested revision and its recovery remain outstanding
+(BND-07, BND-08).
