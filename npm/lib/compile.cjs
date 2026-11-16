@@ -1,5 +1,5 @@
 'use strict';
-const { DefinitionError, LimitError } = require('./errors.cjs');
+const { DefinitionError, DefinitionLimitError, LimitError } = require('./errors.cjs');
 const UNKNOWN_EVENT = 0xffffffff;
 function bounded(iterable, limit, label) {
   if (!Number.isInteger(limit) || limit < 1 || limit > 65536) throw new LimitError(`${label} limit must be an integer between 1 and 65536`);
@@ -7,6 +7,15 @@ function bounded(iterable, limit, label) {
   for (const value of iterable) {
     if (values.length === limit) throw new LimitError(`${label} exceeds its declared limit`, { limit });
     values.push(value);
+  }
+  return Object.freeze(values);
+}
+/** Read at most one entry beyond a kernel bound, so the kernel rejects the excess. */
+function readahead(iterable, limit) {
+  const values = [];
+  for (const value of iterable) {
+    values.push(value);
+    if (values.length > limit) break;
   }
   return Object.freeze(values);
 }
@@ -46,7 +55,7 @@ class BehaviorRegistry {
   constructor({ implementations = [], maxBindings = 128 } = {}) {
     if (!Number.isInteger(maxBindings) || maxBindings < 1 || maxBindings > 4096) throw new LimitError('maxBindings must be between 1 and 4096');
     this.maxBindings = maxBindings;
-    this.implementations = bounded(implementations, maxBindings, 'Story registry').map(value => Object.freeze({ ...value }));
+    this.implementations = readahead(implementations, maxBindings).map(value => Object.freeze({ ...value }));
     Object.freeze(this.implementations); Object.freeze(this);
   }
 }
@@ -71,34 +80,35 @@ class Compiler {
   }
   named(value, role) { return { id: this.ids.intern(role, role === 'event' ? value.kind : value.id), implementation: this.implementation(value.describe) }; }
   condition(value, depth = 1) {
-    if (depth > 32) throw new DefinitionError('Condition nesting exceeds 32');
+    // Stop reading; the kernel rejects the 33rd level itself.
+    if (depth > 33) throw new DefinitionLimitError('condition nesting exceeds 32 levels', { reason: 'depth_limit_exceeded', condition: value.id });
     if (['predicate', 'allOf', 'anyOf', 'not'].filter(key => value[key] !== undefined).length !== 1) throw new DefinitionError('A condition needs exactly one expression');
     let expression;
     if (value.predicate !== undefined) expression = { kind: 'predicate', implementation: this.implementation(value.predicate) };
     else if (value.not !== undefined) expression = { kind: 'not', child: this.condition(value.not, depth + 1) };
     else {
       const all = value.allOf !== undefined;
-      expression = { kind: all ? 'all' : 'any', children: bounded(all ? value.allOf : value.anyOf, 16, 'condition operands').map(child => this.condition(child, depth + 1)) };
+      expression = { kind: all ? 'all' : 'any', children: readahead(all ? value.allOf : value.anyOf, 16).map(child => this.condition(child, depth + 1)) };
     }
     return { id: this.ids.intern('condition', value.id), expression };
   }
   state(value) {
     return { id: this.ids.intern('state', value.id), terminal: value.terminal === undefined ? false : value.terminal,
       invariant: value.invariant === undefined ? null : this.implementation(value.invariant),
-      entry_actions: bounded(value.entryActions === undefined ? [] : value.entryActions, 16, 'entry actions').map(v => this.action(v)),
-      exit_actions: bounded(value.exitActions === undefined ? [] : value.exitActions, 16, 'exit actions').map(v => this.action(v)),
-      entry_effects: bounded(value.entryEffects === undefined ? [] : value.entryEffects, 16, 'entry effects').map(v => this.named(v, 'effect')),
-      exit_effects: bounded(value.exitEffects === undefined ? [] : value.exitEffects, 16, 'exit effects').map(v => this.named(v, 'effect')) };
+      entry_actions: readahead(value.entryActions === undefined ? [] : value.entryActions, 16).map(v => this.action(v)),
+      exit_actions: readahead(value.exitActions === undefined ? [] : value.exitActions, 16).map(v => this.action(v)),
+      entry_effects: readahead(value.entryEffects === undefined ? [] : value.entryEffects, 16).map(v => this.named(v, 'effect')),
+      exit_effects: readahead(value.exitEffects === undefined ? [] : value.exitEffects, 16).map(v => this.named(v, 'effect')) };
   }
   transition(value) {
     return { id: this.ids.intern('transition', value.id), source: this.ids.intern('state', value.source),
       target: this.ids.intern('state', value.target), event: this.ids.intern('event', value.event),
       internal: value.internal === undefined ? false : value.internal,
       guard: value.guard === undefined ? null : this.condition(value.guard),
-      postconditions: bounded(value.postconditions === undefined ? [] : value.postconditions, 16, 'postconditions').map(v => this.condition(v)),
-      actions: bounded(value.actions === undefined ? [] : value.actions, 16, 'actions').map(v => this.action(v)),
-      effects: bounded(value.effects === undefined ? [] : value.effects, 16, 'effects').map(v => this.named(v, 'effect')),
-      outputs: bounded(value.outputs === undefined ? [] : value.outputs, 16, 'outputs').map(v => this.named(v, 'event')) };
+      postconditions: readahead(value.postconditions === undefined ? [] : value.postconditions, 16).map(v => this.condition(v)),
+      actions: readahead(value.actions === undefined ? [] : value.actions, 16).map(v => this.action(v)),
+      effects: readahead(value.effects === undefined ? [] : value.effects, 16).map(v => this.named(v, 'effect')),
+      outputs: readahead(value.outputs === undefined ? [] : value.outputs, 16).map(v => this.named(v, 'event')) };
   }
   disposition(value) {
     return { id: this.ids.intern('disposition', value.id), source: this.ids.intern('state', value.source),
@@ -109,4 +119,4 @@ class Compiler {
       role: value.role, callback: this.implementation(value.callback, value.update).callback }));
   }
 }
-module.exports = { CapabilityStatus, bounded, checkedLimits, Compiler, BehaviorRef, BehaviorRegistry, BehaviorRole };
+module.exports = { CapabilityStatus, bounded, readahead, checkedLimits, Compiler, BehaviorRef, BehaviorRegistry, BehaviorRole };

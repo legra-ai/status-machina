@@ -167,9 +167,13 @@ class LifecycleTests(unittest.TestCase):
             for index in range(100):
                 consumed.append(index)
                 yield Action(id=index, apply=lambda *_: None)
-        with self.assertRaises(LimitError):
-            State(Phase.READY, entry_actions=actions())
+        state = State(Phase.READY, entry_actions=actions())
         self.assertEqual(len(consumed), 17)
+        # The kernel rejects the seventeenth action when the definition is built.
+        with self.assertRaises(LimitError) as caught:
+            Definition(id=object(), initial=Phase.READY, states=(state,), transitions=())
+        self.assertEqual((caught.exception.context["reason"], caught.exception.context["state"]),
+            ("state_action_limit_exceeded", Phase.READY))
 
 if __name__ == "__main__":
     unittest.main()

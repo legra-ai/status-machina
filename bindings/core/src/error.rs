@@ -11,6 +11,7 @@ use status_machina::{
 };
 
 use crate::ids::Ids;
+use crate::rejection::Rejection;
 use crate::value::Host;
 
 #[derive(Debug, thiserror::Error)]
@@ -20,7 +21,17 @@ pub enum Error<H: Host> {
     #[error("invalid definition record: {0}")]
     Record(RecordBuildError<Ids<H>>),
     #[error("invalid {role}: {message}")]
-    Construction { role: &'static str, message: String },
+    Construction {
+        role: &'static str,
+        message: String,
+        rejection: Option<Rejected>,
+    },
+    #[error("invalid {role}: {error}")]
+    Binding {
+        role: &'static str,
+        subject: Option<Subject>,
+        error: BindingError<Ids<H>>,
+    },
     #[error(transparent)]
     Dispatch(DispatchError<Ids<H>>),
     #[error("{phase:?} evaluation failed: {error}")]
@@ -38,15 +49,53 @@ pub enum Error<H: Host> {
         limit: Option<usize>,
     },
 }
+/// The native category, kernel variant and element of a construction rejection.
+#[derive(Clone, Copy, Debug)]
+pub struct Rejected {
+    pub code: &'static str,
+    pub reason: &'static str,
+    pub subject: Option<Subject>,
+}
+/// The definition element a construction rejection names, by role index.
+#[derive(Clone, Copy, Debug)]
+pub enum Subject {
+    State(u32),
+    Transition(u32),
+    Condition(u32),
+    Disposition(u32),
+    Action(u32),
+    Effect(u32),
+    Event(u32),
+    Capability(u32),
+}
+impl Subject {
+    fn apply(self, f: &mut Failure) {
+        match self {
+            Self::State(id) => f.state = Some(id),
+            Self::Transition(id) => f.transition = Some(id),
+            Self::Condition(id) => f.condition = Some(id),
+            Self::Disposition(id) => f.disposition = Some(id),
+            Self::Action(id) => f.action = Some(id),
+            Self::Effect(id) => f.effect = Some(id),
+            Self::Event(id) => f.event = Some(id),
+            Self::Capability(id) => f.capability = Some(id),
+        }
+    }
+}
 #[derive(Serialize)]
 pub struct Failure {
     pub code: &'static str,
     pub message: String,
+    pub reason: Option<&'static str>,
     pub phase: Option<String>,
     pub state: Option<u32>,
     pub condition: Option<u32>,
     pub transition: Option<u32>,
     pub disposition: Option<u32>,
+    pub action: Option<u32>,
+    pub effect: Option<u32>,
+    pub event: Option<u32>,
+    pub capability: Option<u32>,
     pub story: Option<u32>,
     pub implementation: Option<u32>,
     pub expected_role: Option<&'static str>,
@@ -73,10 +122,54 @@ impl<H: Host> Error<H> {
             limit,
         }
     }
+    /// A malformed private transport or a bridge-level invariant.
     pub fn construction(role: &'static str, error: impl std::fmt::Display) -> Self {
         Self::Construction {
             role,
             message: error.to_string(),
+            rejection: None,
+        }
+    }
+    /// A kernel builder rejection, typed by its category and variant.
+    pub fn rejected(role: &'static str, subject: Option<Subject>, error: &impl Rejection) -> Self {
+        Self::Construction {
+            role,
+            message: error.to_string(),
+            rejection: Some(Rejected {
+                code: error.code(),
+                reason: error.reason(),
+                subject,
+            }),
+        }
+    }
+    /// A bridge rule over native inventories, typed by category and reason.
+    pub fn refused(
+        role: &'static str,
+        code: &'static str,
+        reason: &'static str,
+        subject: Option<Subject>,
+        message: impl std::fmt::Display,
+    ) -> Self {
+        Self::Construction {
+            role,
+            message: message.to_string(),
+            rejection: Some(Rejected {
+                code,
+                reason,
+                subject,
+            }),
+        }
+    }
+    /// An unresolved or conflicting Story implementation reference.
+    pub fn binding(
+        role: &'static str,
+        subject: Option<Subject>,
+        error: BindingError<Ids<H>>,
+    ) -> Self {
+        Self::Binding {
+            role,
+            subject,
+            error,
         }
     }
     pub fn evaluation(error: EvaluationError) -> Self {
@@ -97,11 +190,16 @@ impl<H: Host> Error<H> {
         let mut f = Failure {
             code: "definition",
             message: self.to_string(),
+            reason: None,
             phase: None,
             state: None,
             condition: None,
             transition: None,
             disposition: None,
+            action: None,
+            effect: None,
+            event: None,
+            capability: None,
             story: None,
             implementation: None,
             expected_role: None,
@@ -118,6 +216,7 @@ impl<H: Host> Error<H> {
             }
             Self::Definition(DefinitionBuildError::EvaluationFailed { .. }) => {
                 f.code = "callback";
+                f.reason = Some("evaluation_failed");
                 f.phase = Some("invariant".into());
             }
             Self::Dispatch(DispatchError::InvariantFailed { state }) => {
@@ -150,8 +249,30 @@ impl<H: Host> Error<H> {
                 f.limit = *limit;
             }
             Self::Record(error) => record(error, &mut f),
-            Self::Definition(error) => definition(error, &mut f),
-            Self::Construction { .. } => {}
+            Self::Definition(error) => {
+                f.code = error.code();
+                f.reason = Some(error.reason());
+                definition(error, &mut f);
+            }
+            Self::Construction {
+                rejection: Some(rejection),
+                ..
+            } => {
+                f.code = rejection.code;
+                f.reason = Some(rejection.reason);
+                if let Some(subject) = rejection.subject {
+                    subject.apply(&mut f);
+                }
+            }
+            Self::Construction {
+                rejection: None, ..
+            } => {}
+            Self::Binding { subject, error, .. } => {
+                binding(error, &mut f);
+                if let Some(subject) = subject {
+                    subject.apply(&mut f);
+                }
+            }
         }
         f
     }
@@ -172,22 +293,30 @@ fn record<H: Host>(error: &RecordBuildError<Ids<H>>, f: &mut Failure) {
     f.code = "record";
     match error {
         RecordBuildError::Binding(error) => binding(error, f),
-        RecordBuildError::Definition(error) => definition(error, f),
-        RecordBuildError::Condition { id, .. } => {
+        RecordBuildError::Definition(error) => {
+            f.reason = Some(error.reason());
+            definition(error, f);
+        }
+        RecordBuildError::Condition { id, source } => {
             f.code = "record_condition";
+            f.reason = Some(source.reason());
             f.condition = Some(*id);
         }
-        RecordBuildError::Transition { id, .. } => {
+        RecordBuildError::Transition { id, source } => {
             f.code = "record_transition";
+            f.reason = Some(source.reason());
             f.transition = Some(*id);
         }
-        RecordBuildError::Disposition { id, .. } => {
+        RecordBuildError::Disposition { id, source } => {
             f.code = "record_disposition";
+            f.reason = Some(source.reason());
             f.disposition = Some(*id);
         }
     }
 }
 fn binding<H: Host>(error: &BindingError<Ids<H>>, f: &mut Failure) {
+    f.code = error.code();
+    f.reason = Some(error.reason());
     match error {
         BindingError::UnknownBehavior { behavior } => {
             f.code = "unknown_behavior";
@@ -209,10 +338,12 @@ fn binding<H: Host>(error: &BindingError<Ids<H>>, f: &mut Failure) {
             f.expected_role = Some(role(*expected));
             f.actual_role = Some(role(*actual));
         }
-        BindingError::InvalidLimit
-        | BindingError::LimitBelowCurrentSize
-        | BindingError::LimitExceeded { .. }
-        | BindingError::DuplicateImplementation { .. } => {}
+        BindingError::DuplicateImplementation { reference } => {
+            f.story = Some(*reference.behavior());
+            f.implementation = Some(*reference.implementation());
+        }
+        BindingError::LimitExceeded { limit } => f.limit = Some(*limit),
+        BindingError::InvalidLimit | BindingError::LimitBelowCurrentSize => {}
     }
 }
 /// Attach the private role-index context of a graph error, for native lookup.

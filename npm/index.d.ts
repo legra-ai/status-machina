@@ -180,14 +180,36 @@ export class ConditionRecordError extends RecordError {}
 export class TransitionRecordError extends RecordError {}
 /** `context.disposition` is the invalid disposition record's identity. */
 export class DispositionRecordError extends RecordError {}
-/** Exact Story resolution failed; no implementation was substituted or loaded. */
-export class BindingError extends RecordError {}
+/** Exact Story resolution failed for a specification, a record or an assertion; nothing was substituted or loaded. */
+export class BindingError extends DefinitionError {}
 /** No implementation of `context.story` is registered. */
 export class UnknownBehaviorError extends BindingError {}
 /** The Story is registered, but not `context.implementation`. */
 export class UnknownImplementationError extends BindingError {}
 /** The selected implementation has the `context.actual` role, not `context.expected`. */
 export class RoleMismatchError extends BindingError {}
+/** A registry declares one Story and implementation pair twice. */
+export class DuplicateImplementationError extends BindingError {}
+/** The initial state, a transition endpoint or a disposition source is not declared; `context.reason` says which. */
+export class UnknownStateError extends DefinitionError {}
+/** Two states, transitions, dispositions or capabilities share one identity. */
+export class DuplicateIdentifierError extends DefinitionError {}
+/** `context.state` cannot be reached from the initial state. */
+export class UnreachableStateError extends DefinitionError {}
+/** The terminal `context.state` declares an outgoing transition. */
+export class TerminalTransitionError extends DefinitionError {}
+/** An internal transition's target must be its source. */
+export class InternalTransitionError extends DefinitionError {}
+/** A condition expression is malformed: an empty group, a missing operand or too deep. */
+export class InvalidConditionError extends DefinitionError {}
+/** A disposition reason must hold 1 to 256 non-whitespace bytes. */
+export class InvalidDispositionError extends DefinitionError {}
+/** A definition, state, transition or Story registry bound was exceeded or is invalid. */
+export class DefinitionLimitError extends DefinitionError {}
+/** Initial data violates the initial state's invariant; no instance was admitted. */
+export class InitialInvariantError extends DefinitionError {}
+/** The definition declares no `context.capability`. */
+export class UnknownCapabilityError extends DefinitionError {}
 /** An identity codec is invalid or was asked for an unregistered value. */
 export class IdentityMapError extends StatusMachinaError {}
 /** A codec was supplied for, or requested from, the wrong identity role. */
@@ -700,3 +722,22 @@ export class MissingAssertionPredicateError extends ScenarioAssertionError {}
 export class ScenarioReplayError extends ScenarioError {}
 /** More safety assertions than the kernel's ceiling of 128. */
 export class AssertionLimitError extends ScenarioReplayError {}
+
+/**
+ * Delivers one event to a synchronous handler when an unfinished operation leaves its `using` scope
+ * (or an explicit `dispose()` in `finally`). On explicit completion, dispatch the completion event first,
+ * then `disarm()`. The handler must return `undefined`: it handles every dispatch error and emitted effect
+ * itself. Garbage collection never delivers.
+ */
+export class EventOnDrop<E> implements Disposable {
+  constructor(event: E, handler: (event: E) => void);
+  readonly armed: boolean;
+  /** The armed event, or `undefined` after disarming; assigning updates it and throws `DisposedError` once disarmed. */
+  get event(): E | undefined;
+  set event(value: E);
+  /** Release the event and handler without delivering; repeated calls do nothing. */
+  disarm(): void;
+  /** Deliver the armed event once; a disarmed or delivered guard does nothing. */
+  dispose(): void;
+  [Symbol.dispose](): void;
+}

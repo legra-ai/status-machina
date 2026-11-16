@@ -15,7 +15,10 @@ use status_machina::{
     Transition,
 };
 
-use crate::error::Error;
+use crate::error::{
+    Error,
+    Subject,
+};
 use crate::ids::Ids;
 use crate::value::{
     Data,
@@ -70,7 +73,13 @@ impl<H: Host> Template<H> {
                 .when(build.condition(disposition.condition)?)
                 .reason(disposition.reason)
                 .build()
-                .map_err(|e| Error::construction("disposition", e))?;
+                .map_err(|e| {
+                    Error::rejected(
+                        "disposition",
+                        Some(Subject::Disposition(disposition.id)),
+                        &e,
+                    )
+                })?;
             definition = definition.disposition(d)?;
         }
         if spec.capabilities.len() > 4096 {
@@ -83,17 +92,25 @@ impl<H: Host> Template<H> {
         let mut capabilities = Vec::with_capacity(spec.capabilities.len());
         for spec in spec.capabilities {
             if capabilities.iter().any(|(id, _)| *id == spec.id) {
-                return Err(Error::construction("capability", "duplicate identifier"));
+                return Err(Error::refused(
+                    "capability",
+                    "duplicate_identifier",
+                    "duplicate_capability",
+                    Some(Subject::Capability(spec.id)),
+                    "duplicate capability identifier",
+                ));
             }
             let id = spec.id;
             let capability = match spec.implementation.select()? {
                 Selection::Inline(cb) => Capability::builder(id)
                     .try_evaluate(move |s, d, f| callback::capability(cb, s, d, f))
                     .build()
-                    .map_err(|e| Error::construction("capability", e))?,
+                    .map_err(|e| {
+                        Error::rejected("capability", Some(Subject::Capability(id)), &e)
+                    })?,
                 Selection::Registered(r) => registry
                     .resolve_capability(id, &r)
-                    .map_err(|e| Error::construction("capability binding", e))?,
+                    .map_err(|e| Error::binding("capability", Some(Subject::Capability(id)), e))?,
             };
             capabilities.push((id, capability));
         }
@@ -119,7 +136,7 @@ impl<H: Host> Template<H> {
     ) -> Result<Registry<H>, Error<H>> {
         let mut registry = Registry::builder()
             .max_bindings(limit)
-            .map_err(|e| Error::construction("Story registry", e))?;
+            .map_err(|e| Error::binding("Story registry", None, e))?;
         for behavior in behaviors {
             let cb = behavior.callback;
             let reference = reference(behavior.reference);
@@ -143,7 +160,7 @@ impl<H: Host> Template<H> {
                     registry.try_assertion(reference, move |o| callback::assertion(cb, o))
                 }
             }
-            .map_err(|e| Error::construction("Story registry", e))?;
+            .map_err(|e| Error::binding("Story registry", None, e))?;
         }
         Ok(registry.build())
     }
@@ -156,7 +173,8 @@ pub(crate) struct Builder<'a, H: Host> {
 }
 impl<H: Host> Builder<'_, H> {
     fn state(&self, spec: spec::State) -> Result<NativeState<H>, Error<H>> {
-        let mut state = StateDefinition::builder(spec.id);
+        let id = spec.id;
+        let mut state = StateDefinition::builder(id);
         if spec.terminal {
             state = state.terminal();
         }
@@ -166,33 +184,34 @@ impl<H: Host> Builder<'_, H> {
                 Selection::Registered(r) => state.bound_invariant(
                     self.registry
                         .resolve_invariant(&r)
-                        .map_err(|e| Error::construction("invariant binding", e))?,
+                        .map_err(|e| Error::binding("invariant", Some(Subject::State(id)), e))?,
                 ),
             };
         }
         for action in spec.entry_actions {
             state = state
                 .entry_action(self.action(action)?)
-                .map_err(|e| Error::construction("entry action", e))?;
+                .map_err(|e| Error::rejected("entry action", Some(Subject::State(id)), &e))?;
         }
         for action in spec.exit_actions {
             state = state
                 .exit_action(self.action(action)?)
-                .map_err(|e| Error::construction("exit action", e))?;
+                .map_err(|e| Error::rejected("exit action", Some(Subject::State(id)), &e))?;
         }
         for effect in spec.entry_effects {
             state = state
                 .entry_effect(self.effect(effect)?)
-                .map_err(|e| Error::construction("entry effect", e))?;
+                .map_err(|e| Error::rejected("entry effect", Some(Subject::State(id)), &e))?;
         }
         for effect in spec.exit_effects {
             state = state
                 .exit_effect(self.effect(effect)?)
-                .map_err(|e| Error::construction("exit effect", e))?;
+                .map_err(|e| Error::rejected("exit effect", Some(Subject::State(id)), &e))?;
         }
         Ok(state.build())
     }
     fn transition(&self, spec: spec::Transition) -> Result<NativeTransition<H>, Error<H>> {
+        let id = Some(Subject::Transition(spec.id));
         let mut transition = Transition::builder_with_effects_and_output_events(spec.id)
             .from(spec.source)
             .on(spec.event)
@@ -206,39 +225,40 @@ impl<H: Host> Builder<'_, H> {
         for condition in spec.postconditions {
             transition = transition
                 .postcondition(self.condition(condition)?)
-                .map_err(|e| Error::construction("postcondition", e))?;
+                .map_err(|e| Error::rejected("postcondition", id, &e))?;
         }
         for action in spec.actions {
             transition = transition
                 .action(self.action(action)?)
-                .map_err(|e| Error::construction("action", e))?;
+                .map_err(|e| Error::rejected("action", id, &e))?;
         }
         for effect in spec.effects {
             transition = transition
                 .effect(self.effect(effect)?)
-                .map_err(|e| Error::construction("effect", e))?;
+                .map_err(|e| Error::rejected("effect", id, &e))?;
         }
         for output in spec.outputs {
             transition = transition
                 .output_event(self.output(output)?)
-                .map_err(|e| Error::construction("output", e))?;
+                .map_err(|e| Error::rejected("output", id, &e))?;
         }
         transition
             .build()
-            .map_err(|e| Error::construction("transition", e))
+            .map_err(|e| Error::rejected("transition", id, &e))
     }
     pub fn condition(&self, spec: spec::Condition) -> Result<NativeCondition<H>, Error<H>> {
+        let subject = Some(Subject::Condition(spec.id));
         let is_all = matches!(&spec.expression, spec::Expression::All { .. });
         match spec.expression {
             spec::Expression::Predicate { implementation } => match implementation.select()? {
                 Selection::Inline(cb) => Condition::builder(spec.id)
                     .try_evaluate(move |d, e, f| callback::predicate(cb, d, e, f))
                     .build()
-                    .map_err(|e| Error::construction("predicate", e)),
+                    .map_err(|e| Error::rejected("predicate", subject, &e)),
                 Selection::Registered(r) => self
                     .registry
                     .resolve_condition(spec.id, &r)
-                    .map_err(|e| Error::construction("condition binding", e)),
+                    .map_err(|e| Error::binding("condition", subject, e)),
             },
             spec::Expression::All { children } | spec::Expression::Any { children } => {
                 let mut group = if is_all {
@@ -249,17 +269,17 @@ impl<H: Host> Builder<'_, H> {
                 for child in children {
                     group = group
                         .condition(self.condition(child)?)
-                        .map_err(|e| Error::construction("condition group", e))?;
+                        .map_err(|e| Error::rejected("condition group", subject, &e))?;
                 }
                 group
                     .build()
-                    .map_err(|e| Error::construction("condition group", e))
+                    .map_err(|e| Error::rejected("condition group", subject, &e))
             }
             spec::Expression::Not { child } => Condition::not(spec.id)
                 .condition(self.condition(*child)?)
-                .map_err(|e| Error::construction("negation", e))?
+                .map_err(|e| Error::rejected("negation", subject, &e))?
                 .build()
-                .map_err(|e| Error::construction("negation", e)),
+                .map_err(|e| Error::rejected("negation", subject, &e)),
         }
     }
     fn action(&self, spec: spec::Named) -> Result<NativeAction<H>, Error<H>> {
@@ -267,11 +287,11 @@ impl<H: Host> Builder<'_, H> {
             Selection::Inline(cb) => LocalAction::builder(spec.id)
                 .try_apply(move |d, e, f| callback::action(cb, d, e, f))
                 .build()
-                .map_err(|e| Error::construction("action", e)),
+                .map_err(|e| Error::rejected("action", Some(Subject::Action(spec.id)), &e)),
             Selection::Registered(r) => self
                 .registry
                 .resolve_action(spec.id, &r)
-                .map_err(|e| Error::construction("action binding", e)),
+                .map_err(|e| Error::binding("action", Some(Subject::Action(spec.id)), e)),
         }
     }
     fn effect(&self, spec: spec::Named) -> Result<NativeEffect<H>, Error<H>> {
@@ -279,11 +299,11 @@ impl<H: Host> Builder<'_, H> {
             Selection::Inline(cb) => Effect::builder(spec.id)
                 .try_describe(move |d, e, f| callback::construct(cb, d, e, f))
                 .build()
-                .map_err(|e| Error::construction("effect", e)),
+                .map_err(|e| Error::rejected("effect", Some(Subject::Effect(spec.id)), &e)),
             Selection::Registered(r) => self
                 .registry
                 .resolve_effect(spec.id, &r)
-                .map_err(|e| Error::construction("effect binding", e)),
+                .map_err(|e| Error::binding("effect", Some(Subject::Effect(spec.id)), e)),
         }
     }
     fn output(&self, spec: spec::Named) -> Result<NativeOutput<H>, Error<H>> {
@@ -291,11 +311,11 @@ impl<H: Host> Builder<'_, H> {
             Selection::Inline(cb) => OutputEvent::builder(spec.id)
                 .try_describe(move |d, e, f| callback::construct(cb, d, e, f))
                 .build()
-                .map_err(|e| Error::construction("output", e)),
+                .map_err(|e| Error::rejected("output", Some(Subject::Event(spec.id)), &e)),
             Selection::Registered(r) => self
                 .registry
                 .resolve_output_event(spec.id, &r)
-                .map_err(|e| Error::construction("output binding", e)),
+                .map_err(|e| Error::binding("output", Some(Subject::Event(spec.id)), e)),
         }
     }
 }

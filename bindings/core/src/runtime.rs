@@ -115,7 +115,15 @@ impl<H: Host> Machine<H> {
         let (_, capability) = capabilities
             .iter()
             .find(|(key, _)| *key == id)
-            .ok_or_else(|| Error::construction("capability", "unknown identifier"))?;
+            .ok_or_else(|| {
+                Error::refused(
+                    "capability",
+                    "unknown_capability",
+                    "unknown_capability",
+                    None,
+                    "the definition declares no such capability",
+                )
+            })?;
         let facts = Value::claim(Arc::clone(&self.host), facts).map_err(Error::evaluation)?;
         let report = instance
             .evaluate_capability(capability, &facts)

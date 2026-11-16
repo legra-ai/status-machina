@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, Hashable, Iterable, No
 from typing_extensions import TypeVar
 from . import _native
 from ._compile import UNKNOWN_EVENT, Compiler
-from ._bounded import bounded
+from ._bounded import bounded, readahead
 from ._context import Context, DEFAULT_SNAPSHOT, translate
-from .errors import DefinitionError, DisposedError
+from .errors import DefinitionError, DisposedError, UnknownCapabilityError
 from .inspection import DiagramLabels, InspectionLimits, StateCoverage, StructuralCoverage
 from .model import (BehaviorRegistry, Disposition, EffectIntent, Event, Ignored, Limits,
     Capability, CapabilityReport, CapabilityStatus, OutputIntent, Refused, State, Transition, Transitioned, TransitionRecord)
@@ -73,9 +73,10 @@ class Definition(Generic[StateT, KindT, DataT]):
         self._id = id
         self._initial = initial
         self._limits = limits
-        self._states = bounded(states, limits.max_states, "state inventory")
-        self._transitions = bounded(transitions, limits.max_transitions, "transition inventory")
-        self._dispositions = bounded(dispositions, 128, "disposition inventory")
+        # The kernel rejects the first entry beyond each declared bound.
+        self._states = readahead(states, limits.max_states)
+        self._transitions = readahead(transitions, limits.max_transitions)
+        self._dispositions = readahead(dispositions, 128)
         self._capabilities = bounded(capabilities, 4096, "capability inventory")
         self._behaviors = behaviors
         self._snapshot = snapshot
@@ -208,6 +209,12 @@ class Machine(Generic[StateT, KindT, DataT]):
 
     def evaluate_capability(self, capability: Hashable, *, facts: object) -> CapabilityReport:
         """Observe an advisory policy at this instance's exact current revision."""
+        try:
+            return self._capability(capability, facts)
+        except UnknownCapabilityError as error:
+            raise UnknownCapabilityError(str(error), **error.context, capability=capability) from None
+
+    def _capability(self, capability: Hashable, facts: object) -> CapabilityReport:
         with self._context.operation() as context:
             encoded, native = context.native.evaluate_capability(context.ids.find("capability", capability),
                 context.allocate(facts), context.invoke)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import inspect
 from typing import Callable, Hashable, cast
-from .errors import DefinitionError, LimitError
+from .errors import DefinitionError, DefinitionLimitError, LimitError
 from .model import Action, BehaviorRef, BehaviorRegistry, Condition, Limits
 
 UNKNOWN_EVENT = 2**32 - 1
@@ -84,8 +84,10 @@ class Compiler:
         return {"id": self.ids.intern(role, identifier), "implementation": self.implementation(value.describe)}
 
     def condition(self, condition: Condition, depth: int = 1) -> dict:
-        if depth > 32:
-            raise DefinitionError("Condition nesting exceeds 32")
+        if depth > 33:
+            # Stop reading; the kernel rejects the 33rd level itself.
+            raise DefinitionLimitError("condition nesting exceeds 32 levels", reason="depth_limit_exceeded",
+                condition=condition.id)
         forms = (condition.predicate, condition.all_of, condition.any_of, condition.negated)
         if sum(item is not None for item in forms) != 1:
             raise DefinitionError("A condition needs exactly one expression")

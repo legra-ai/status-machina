@@ -2,11 +2,11 @@
 const { markAsUncloneable } = require('node:worker_threads');
 const native = require('./native.cjs');
 const { Context } = require('./context.cjs');
-const { Compiler, BehaviorRegistry, bounded, checkedLimits } = require('./compile.cjs');
+const { Compiler, BehaviorRegistry, bounded, readahead, checkedLimits } = require('./compile.cjs');
 const { snapshot } = require('./snapshot.cjs');
 const checked = require('./specification.cjs');
 const inspection = require('./inspection.cjs');
-const { DefinitionError, DisposedError, translate } = require('./errors.cjs');
+const { DefinitionError, DisposedError, UnknownCapabilityError, translate } = require('./errors.cjs');
 const TOKEN = Symbol('owned machine creation');
 const RECORD = Symbol('portable record binding');
 function revision(value) {
@@ -44,9 +44,10 @@ class Definition {
     if (!Object.hasOwn(specification, 'id') || !Object.hasOwn(specification, 'initial')) throw new DefinitionError('Definition requires explicit id and initial values');
     const limits = checkedLimits(specification.limits);
     const compiler = new Compiler(limits);
-    const states = Object.freeze(bounded(specification.states, limits.maxStates, 'state inventory').map(checked.state));
-    const transitions = Object.freeze(bounded(specification.transitions, limits.maxTransitions, 'transition inventory').map(checked.transition));
-    const dispositions = Object.freeze(bounded(specification.dispositions === undefined ? [] : specification.dispositions, 128, 'disposition inventory').map(checked.disposition));
+    // The kernel rejects the first entry beyond each declared bound.
+    const states = Object.freeze(readahead(specification.states, limits.maxStates).map(checked.state));
+    const transitions = Object.freeze(readahead(specification.transitions, limits.maxTransitions).map(checked.transition));
+    const dispositions = Object.freeze(readahead(specification.dispositions === undefined ? [] : specification.dispositions, 128).map(checked.disposition));
     const capabilities = Object.freeze(bounded(specification.capabilities === undefined ? [] : specification.capabilities, 4096, 'capability inventory').map(checked.capability));
     const behaviors = specification.behaviors === undefined ? new BehaviorRegistry() : specification.behaviors;
     const copy = specification.snapshot === undefined ? snapshot : specification.snapshot;
@@ -127,6 +128,13 @@ class Machine {
         context.invoke, revision(options.expectedRevision)), event.kind));
   }
   evaluateCapability(capability, facts = undefined) {
+    try { return this.#capability(capability, facts); }
+    catch (error) {
+      if (!(error instanceof UnknownCapabilityError)) throw error;
+      throw new UnknownCapabilityError(error.message, { ...error.context, capability });
+    }
+  }
+  #capability(capability, facts) {
     return this.#context.operation(context => {
       const observation = context.native.evaluateCapability(context.ids.find('capability', capability), context.allocate(facts), context.invoke);
       const report = JSON.parse(observation.metadata());

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Generic, Hashable, Literal
 from typing_extensions import TypeVar
-from ._bounded import bounded
+from ._bounded import bounded, readahead
 from .errors import LimitError
 
 StateT = TypeVar("StateT", bound=Hashable)
@@ -62,7 +62,7 @@ class BehaviorRegistry:
     def __post_init__(self) -> None:
         if type(self.max_bindings) is not int or not 1 <= self.max_bindings <= 4096:
             raise LimitError("max_bindings must be an integer between 1 and 4096")
-        object.__setattr__(self, "implementations", bounded(self.implementations, self.max_bindings, "Story registry"))
+        object.__setattr__(self, "implementations", readahead(self.implementations, self.max_bindings))
 
 @dataclass(frozen=True)
 class Action(Generic[DataT, PayloadT, FactsT]):
@@ -80,9 +80,9 @@ class Condition(Generic[DataT, PayloadT, FactsT]):
     negated: Condition[DataT, PayloadT, FactsT] | None = None
     def __post_init__(self) -> None:
         if self.all_of is not None:
-            object.__setattr__(self, "all_of", bounded(self.all_of, 16, "all-condition operands"))
+            object.__setattr__(self, "all_of", readahead(self.all_of, 16))
         if self.any_of is not None:
-            object.__setattr__(self, "any_of", bounded(self.any_of, 16, "any-condition operands"))
+            object.__setattr__(self, "any_of", readahead(self.any_of, 16))
 
 @dataclass(frozen=True)
 class Effect(Generic[PayloadT]):
@@ -105,7 +105,7 @@ class State(Generic[StateT, DataT]):
     exit_effects: tuple[Effect, ...] = ()
     def __post_init__(self) -> None:
         for name in ("entry_actions", "exit_actions", "entry_effects", "exit_effects"):
-            object.__setattr__(self, name, bounded(getattr(self, name), 16, name))
+            object.__setattr__(self, name, readahead(getattr(self, name), 16))
 
 @dataclass(frozen=True)
 class Transition(Generic[StateT, KindT, DataT]):
@@ -121,7 +121,7 @@ class Transition(Generic[StateT, KindT, DataT]):
     outputs: tuple[OutputEvent, ...] = ()
     def __post_init__(self) -> None:
         for name in ("postconditions", "actions", "effects", "outputs"):
-            object.__setattr__(self, name, bounded(getattr(self, name), 16, name))
+            object.__setattr__(self, name, readahead(getattr(self, name), 16))
 
 @dataclass(frozen=True)
 class Disposition(Generic[StateT, KindT]):
