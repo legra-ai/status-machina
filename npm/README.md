@@ -9,7 +9,7 @@ Development is in progress. This package has not been published yet.
 
 The current implementation supports checked definitions, dispatch, isolated
 snapshots, single-use decisions, exact callback causes and explicit disposal.
-Full model parity, installed artifacts and the platform/release matrix remain
+Model parity is certified; installed artifacts and the platform/release matrix remain
 under development; see the repository's binding design.
 
 Capabilities are synchronous advisory policies over detached data and facts.
@@ -33,6 +33,91 @@ the original JavaScript error as `CallbackError.cause`; they never become denial
 results. A policy may use an exact `BehaviorRef` to an EKGF Story implementation.
 Enum members, symbols and object identities remain independent of their labels.
 Reports describe an observation and never grant authorization.
+
+## Define and run a machine
+
+`new Definition({ id, initial, states, transitions, dispositions,
+capabilities, behaviors, snapshot, inputSnapshot, limits })` is the one checked
+constructor; the kernel validates the whole graph before any instance exists.
+Identifiers are any values compared with `Map` semantics, so symbols and object
+tokens compare by identity. Unknown specification fields are rejected.
+
+- States `{ id, terminal, invariant, entryActions, exitActions, entryEffects,
+  exitEffects }`. A terminal state has no outgoing transition.
+- Transitions `{ id, source, event, target, internal, guard, postconditions,
+  actions, effects, outputs }`. An external transition runs the source's exit
+  actions, its own actions, then the target's entry actions, even for a
+  self-transition; an `internal: true` transition must target its source and
+  runs only its own actions. Effects follow the same order, then outputs.
+- Conditions `{ id, predicate }`, `{ id, allOf }`, `{ id, anyOf }` or
+  `{ id, not }`: groups short-circuit in declaration order, hold at most 16
+  operands and nest at most 32 levels. A predicate returns a boolean; throwing is
+  a `CallbackError`, never `false`.
+- Actions `{ id, apply }` mutate the isolated candidate and return `undefined`;
+  `{ id, update }` returns replacement data. Effects `{ id, describe }` and
+  outputs `{ kind, describe }` return payloads kept as the application's own
+  values. Each phase holds at most 16 entries.
+- Dispositions `{ id, source, event, condition, reason }` accept a harmless
+  event without a state change: `{ kind: 'ignored' }`, not `'refused'`, and the
+  revision does not advance. The reason holds 1 to 256 non-whitespace bytes.
+- Any behavior may be an exact `new BehaviorRef(story, implementation)`
+  resolved from a `BehaviorRegistry`; a state invariant so bound is the Rust
+  `BoundInvariant`.
+- `limits: { maxStates: 128, maxTransitions: 512, maxValues: 8192,
+  maxCallbacks: 4096 }`; inputs are read one entry past a bound so the kernel
+  reports the excess.
+
+`definition.instantiate({ id, data })` admits a snapshot of `data` after the
+initial invariant holds. `machine.dispatch({ kind, payload }, facts, {
+expectedRevision })` returns a frozen outcome discriminated by `kind`
+(`transitioned` with `record`, `effects` and `outputs`; `ignored`; `refused`).
+The `record` holds `transition`, `source`, `target` and BigInt
+`previousRevision`/`revision`. `machine.evaluate(...)` returns a single-use
+`Decision` that `machine.accept(decision)` checks against the instance and its
+revision without running callbacks. `state`, `revision` and `data` (a detached
+snapshot) read the instance; `dispose()` or `Symbol.dispose` releases it, after
+which every operation throws `DisposedError`.
+
+## Errors
+
+Every error is a `StatusMachinaError` whose `context` names native identities
+(`state`, `transition`, `condition`, `disposition`, `action`, `effect`,
+`event`, `capability`, `story`, `implementation`) and, for kernel rejections,
+the kernel variant as `reason`. Callback failures keep the original error as
+`cause`.
+
+- `DefinitionError`: `UnknownStateError`, `DuplicateIdentifierError`,
+  `UnreachableStateError`, `TerminalTransitionError`, `InternalTransitionError`,
+  `InvalidConditionError`, `InvalidDispositionError`, `DefinitionLimitError`,
+  `InitialInvariantError`, `UnknownCapabilityError`, `BindingError`
+  (`UnknownBehaviorError`, `UnknownImplementationError`, `RoleMismatchError`,
+  `DuplicateImplementationError`) and `RecordError` for portable records.
+- `DispatchError`: `CallbackError` (`SnapshotError`) with its `phase`,
+  `InvariantError`, `PostconditionError`, `AmbiguousTransitionError`,
+  `ActionError`, `StaleDecisionError` (`expectedRevision`, `currentRevision`),
+  `ForeignDecisionError` and `RevisionError`.
+- `DisposedError`, `BusyError`, `LimitError`, `InspectionError`, and the
+  identity, composition, retry and scenario families described below.
+
+## Report abandoned operations on scope exit
+
+`new EventOnDrop(event, handler)` is the native `EventOnDrop`: bound with
+`using` (Node.js 24) or disposed in `finally`, it calls `handler(event)` once
+when the scope exits while still armed, on early return or an exception. On
+completion dispatch the completion event first, then call `disarm()`.
+`guard.event` reads the armed event (`undefined` once disarmed) and can be
+reassigned to update its correlation; a disarmed guard cannot be rearmed. The
+handler is synchronous and returns `undefined`: it dispatches and handles every
+outcome itself. Garbage collection never delivers.
+
+```js
+const guard = new EventOnDrop({ kind: Input.Abandon, payload: orderId }, event => { machine.dispatch(event); });
+try {
+  runOperation();
+  machine.dispatch({ kind: Input.Complete, payload: orderId });
+  guard.disarm();
+} finally { guard.dispose(); }
+```
 
 ## Portable records and identity codecs
 
@@ -61,10 +146,11 @@ const definition = record.bind<Invoice>(registry);   // Definition<Phase, Input,
 Condition records are `PredicateRecord`, `AllRecord`, `AnyRecord` and
 `NotRecord`, a union discriminated by `kind`; `DispositionRecord` declares a
 harmless event. Records are frozen class instances and reject functions, plain
-objects and unknown fields when constructed. Binding failures are `RecordError`
-subclasses whose `context` holds native identities: `UnknownBehaviorError`
-(`story`), `UnknownImplementationError` (`story`, `implementation`) and
-`RoleMismatchError` (`expected`/`actual` `BehaviorRole`) are `BindingError`s;
+objects and unknown fields when constructed. Binding failures carry native identities in
+`context`: `UnknownBehaviorError` (`story`), `UnknownImplementationError`
+(`story`, `implementation`) and `RoleMismatchError` (`expected`/`actual`
+`BehaviorRole`) are `BindingError`s, as for specifications; record failures
+are `RecordError`s:
 `ConditionRecordError`, `TransitionRecordError` and `DispositionRecordError` name
 the invalid record, and graph rules such as unreachable states name the
 `state`/`transition`.

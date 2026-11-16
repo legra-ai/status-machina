@@ -32,6 +32,90 @@ A capability may also use an exact `BehaviorRef` to a registered EKGF Story
 implementation. Its identifier, Story and implementation may all be native enums
 or other hashable domain identities, independently of display labels.
 
+## Define and run a machine
+
+`Definition(id=, initial=, states=, transitions=, dispositions=, capabilities=,
+behaviors=, snapshot=, input_snapshot=, limits=)` is the one checked
+constructor; the kernel validates the whole graph before any instance exists.
+Identifiers are any hashable native values, compared type-qualified, so
+`Phase.OPEN`, `1` and `True` never alias. Specifications are frozen dataclasses:
+
+- `State(id, terminal=, invariant=, entry_actions=, exit_actions=,
+  entry_effects=, exit_effects=)`. A terminal state has no outgoing transition.
+- `Transition(id=, source=, event=, target=, internal=, guard=,
+  postconditions=, actions=, effects=, outputs=)`. An external transition runs
+  the source's exit actions, its own actions, then the target's entry actions,
+  even for a self-transition; an `internal=True` transition must target its
+  source and runs only its own actions. Effects follow the same order (exit,
+  transition, entry), then output events.
+- `Condition(id, predicate)` or `Condition(id, all_of=...)`, `any_of=...` or
+  `negated=...`: groups short-circuit in declaration order, hold at most 16
+  operands and nest at most 32 levels. A predicate returns `bool`; raising is a
+  `CallbackError`, never `False`.
+- `Action(id=, apply=)` mutates the isolated candidate and returns `None`;
+  `Action(id=, update=)` returns replacement data. `Effect(id, describe)` and
+  `OutputEvent(kind, describe)` return payloads kept as the application's own
+  objects in `EffectIntent`/`OutputIntent`. Each phase holds at most 16 entries.
+- `Disposition(id, source, event, condition, reason)` accepts a harmless event
+  without a state change: the outcome is `Ignored`, not `Refused`, and the
+  revision does not advance. The reason holds 1 to 256 non-whitespace bytes.
+- Any behavior may be an exact `BehaviorRef(story, implementation)` resolved
+  from `BehaviorRegistry((Behavior(reference, role, callback), ...))`; a state
+  invariant so bound is the Rust `BoundInvariant`.
+- `Limits(max_states=128, max_transitions=512, max_values=8192,
+  max_callbacks=4096)`; inputs are read one entry past a bound so the kernel
+  reports the excess.
+
+`definition.instantiate(id=, data=)` admits a snapshot of `data` after the
+initial invariant holds. `machine.dispatch(Event(kind, payload), facts=,
+expected_revision=)` returns `Transitioned(record, effects, outputs)`,
+`Ignored(...)` or `Refused(state, event)`, discriminated by `kind`;
+`TransitionRecord` holds the transition, `source`, `target`,
+`previous_revision` and `revision`. `machine.evaluate(...)` returns a
+single-use `Decision` that `machine.accept(decision)` checks against the
+instance and its revision without running callbacks. `state`, `revision` and
+`data` (a detached snapshot) read the instance; `dispose()` or the context
+manager releases it, after which every operation raises `DisposedError`.
+
+## Errors
+
+Every error is a `StatusMachinaError` whose `context` names native identities
+(`state`, `transition`, `condition`, `disposition`, `action`, `effect`,
+`event`, `capability`, `story`, `implementation`) and, for kernel rejections,
+the kernel variant as `reason`. Callback failures keep the original exception as
+`__cause__`.
+
+- `DefinitionError`: `UnknownStateError`, `DuplicateIdentifierError`,
+  `UnreachableStateError`, `TerminalTransitionError`, `InternalTransitionError`,
+  `InvalidConditionError`, `InvalidDispositionError`, `DefinitionLimitError`
+  (also a `LimitError`), `InitialInvariantError`, `UnknownCapabilityError`
+  (also a `LookupError`), `BindingError` (`UnknownBehaviorError`,
+  `UnknownImplementationError`, `RoleMismatchError`,
+  `DuplicateImplementationError`) and `RecordError` for portable records.
+- `DispatchError`: `CallbackError` (`SnapshotError`) with its `phase`,
+  `InvariantError`, `PostconditionError`, `AmbiguousTransitionError`,
+  `ActionError`, `StaleDecisionError` (`expected_revision`,
+  `current_revision`), `ForeignDecisionError` and `RevisionError`.
+- `DisposedError`, `BusyError`, `LimitError`, `InspectionError`, and the
+  identity, composition, retry and scenario families described below.
+
+## Report abandoned operations on scope exit
+
+`EventOnDrop(event, handler)` is the native `EventOnDrop`: used as a context
+manager, it calls `handler(event)` once when the block exits while still armed,
+on early return or an exception. On completion dispatch the completion event
+first, then call `disarm()`. `guard.event` reads the armed event (`None` once
+disarmed) and can be reassigned to update its correlation; a disarmed guard
+cannot be rearmed. The handler is synchronous and returns `None`: it dispatches
+and handles every outcome itself. Garbage collection never delivers.
+
+```python
+with EventOnDrop(Event(Input.ABANDON, order_id), lambda event: machine.dispatch(event)) as guard:
+    run_operation()
+    machine.dispatch(Event(Input.COMPLETE, order_id))
+    guard.disarm()
+```
+
 ## Portable records and identity codecs
 
 A `DefinitionRecord` is a data-only graph: native identities and exact
@@ -61,10 +145,10 @@ assert definition.record is record
 Condition records are `PredicateRecord`, `AllRecord`, `AnyRecord` and
 `NotRecord`, discriminated by `kind`; `DispositionRecord` declares a harmless
 event. Records reject callables and foreign values when constructed. Binding
-failures are `RecordError` subclasses whose `context` holds native identities:
-`UnknownBehaviorError` (`story`), `UnknownImplementationError` (`story`,
-`implementation`) and `RoleMismatchError` (`expected`/`actual` `BehaviorRole`)
-are `BindingError`s; `ConditionRecordError`, `TransitionRecordError` and
+failures carry native identities in `context`: `UnknownBehaviorError`
+(`story`), `UnknownImplementationError` (`story`, `implementation`) and
+`RoleMismatchError` (`expected`/`actual` `BehaviorRole`) are `BindingError`s,
+as for specifications; record failures are `RecordError`s: `ConditionRecordError`, `TransitionRecordError` and
 `DispositionRecordError` name the invalid record, and graph rules such as
 unreachable states name the `state`/`transition`.
 
