@@ -79,15 +79,20 @@ class MacosMinimumTests(unittest.TestCase):
                     pass
 
 
-@unittest.skipUnless(shutil.which('zig') and sys.platform == 'linux', 'Zig is installed in the Linux artifact jobs')
-class ZigLinkerTests(unittest.TestCase):
-    ADAPTER = ROOT / 'scripts/zig_cc.py'
-
+class ZigArgumentTests(unittest.TestCase):
     def test_removes_only_the_unsupported_gnu_linker_optimization(self):
         zig = load('zig_cc')
         self.assertEqual(zig.translate(['cc', '-O3', '-Wl,-O1', '-Wl,--gc-sections', 'main.o']),
                          ['cc', '-O3', '-Wl,--gc-sections', 'main.o'])
         self.assertEqual(zig.translate(['ar', 'rcs', 'lib.a', '-Wl,-O1']), ['ar', 'rcs', 'lib.a', '-Wl,-O1'])
+        self.assertEqual(zig.translate(['cc', '-Wl,--fix-cortex-a53-843419', '-Wl,--as-needed']),
+                         ['cc', '-Wl,--as-needed'])
+
+
+
+@unittest.skipUnless(shutil.which('zig') and sys.platform == 'linux', 'Zig is installed in the Linux artifact jobs')
+class ZigLinkerTests(unittest.TestCase):
+    ADAPTER = ROOT / 'scripts/zig_cc.py'
 
     def test_links_against_the_declared_glibc_ceiling(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -96,6 +101,7 @@ class ZigLinkerTests(unittest.TestCase):
             binary = Path(directory) / 'main'
             target = f'{platform.machine()}-linux-gnu.2.28'
             result = subprocess.run([str(self.ADAPTER), 'cc', '-target', target, '-Wl,-O1',
+                                     '-Wl,--fix-cortex-a53-843419',
                                      str(source), '-o', str(binary)], text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             highest = glibc.require_glibc(glibc.symbol_lines(binary), (2, 28))

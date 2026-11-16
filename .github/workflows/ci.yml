@@ -431,6 +431,7 @@ jobs:
           if command -v rustup >/dev/null 2>&1; then
             rustup self uninstall -y || { echo 'Failed to remove rustup' >&2; exit 1; }
           fi
+          hash -r
           for tool in cargo rustc rustup maturin napi; do
             if command -v "$tool" >/dev/null 2>&1; then
               echo "$tool is still available at $(command -v "$tool")" >&2
@@ -502,6 +503,7 @@ jobs:
           if command -v rustup >/dev/null 2>&1; then
             rustup self uninstall -y || { echo 'Failed to remove rustup' >&2; exit 1; }
           fi
+          hash -r
           for tool in cargo rustc rustup maturin napi; do
             if command -v "$tool" >/dev/null 2>&1; then
               echo "$tool is still available at $(command -v "$tool")" >&2

@@ -36,8 +36,6 @@ manifest-path = "status-machina-pyo3/Cargo.toml"
 python-source = "."
 module-name = "status_machina._native"
 features = ["pyo3/extension-module"]
-# Source builds, including from the sdist, use the tested dependency graph.
-locked = true
 # Never package interpreter caches from a developer tree.
 exclude = ["status_machina/**/__pycache__/**"]
 
