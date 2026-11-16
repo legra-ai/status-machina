@@ -10,7 +10,7 @@ repository = "https://github.com/legra-ai/status-machina"
 documentation = "https://docs.rs/status-machina"
 readme = "README.md"
 build = "build.rs"
-include = ["Cargo.toml", "README.md", "build.rs", "LICENSE-APACHE", "LICENSE-MIT", "src/**/*.rs", "tests/**", "examples/**/*.rs", "docs/**/*.md", "docs/**/*.svg"]
+include = ["/Cargo.toml", "/README.md", "/build.rs", "/LICENSE-APACHE", "/LICENSE-MIT", "src/**/*.rs", "tests/**", "examples/**/*.rs", "docs/**/*.md", "docs/**/*.svg"]
 
 [dependencies]
 thiserror = "2"
@@ -27,6 +27,20 @@ broken_intra_doc_links = "deny"
 
 [lints.clippy]
 result_large_err = "allow"
+
+# Release preparation bumps this package and then runs the hook, so the version
+# commit carries one version for the crate, its binding crates, the Python
+# distribution and the npm package (scripts/sync_binding_versions.py).
+[package.metadata.version-info]
+pre_bump_hooks = ["python3 scripts/sync_binding_versions.py {{version}}"]
+additional_files = [
+    "bindings/core/Cargo.toml",
+    "python/status-machina-pyo3/Cargo.toml",
+    "npm/status-machina-napi/Cargo.toml",
+    "python/pyproject.toml",
+    "python/uv.lock",
+    "npm/package.json",
+]
 
 [build-dependencies]
 rhusky = "2.0.5"

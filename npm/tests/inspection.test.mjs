@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Definition, InspectionError } from '../index.mjs';
+import { Definition, InspectionError } from '@legra-ai/status-machina';
 const ready = Symbol('same'); const done = Symbol('same');
 const finish = Symbol('finish'); const duplicate = Symbol('duplicate');
 const edge = Symbol('edge'); const guard = Symbol('guard'); const rule = Symbol('rule');

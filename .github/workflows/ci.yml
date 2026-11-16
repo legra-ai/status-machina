@@ -20,8 +20,10 @@ jobs:
     # Release gate: either every build passes or nothing is published. Without
     # always(), this call, and with it every version commit and publication of
     # the shared pipeline, starts only after every binding job succeeded for this
-    # run's revision. A failed, cancelled or skipped binding job skips it.
-    needs: [prepare, python-bindings, node-bindings]
+    # run's revision, and every native artifact was built and passed its
+    # installed-package tests. A failed, cancelled or skipped job skips it.
+    needs: [prepare, python-bindings, node-bindings, python-wheels, python-sdist, node-addons,
+            npm-package, python-installed, node-installed]
     uses: legra-ai/github-actions/.github/workflows/cargo-maintenance.yml@4f513e763cf79e620f670ceb4430fd8adfd06c7e
     with:
       crate-name: status-machina
@@ -99,21 +101,473 @@ jobs:
         run: pnpm test
       - name: Check declarations and typing fixtures
         run: pnpm typecheck
+  python-wheels:
+    # One abi3-py310 wheel per declared target, built on that target's own runner.
+    # Linux wheels link against Zig's glibc 2.28 stubs (manylinux_2_28); macOS
+    # wheels declare macOS 26, the only macOS the installed tests run on.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+            tag: cp310-abi3-manylinux_2_28_x86_64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            tag: cp310-abi3-manylinux_2_28_aarch64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            tag: cp310-abi3-macosx_26_0_arm64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            tag: cp310-abi3-win_amd64
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+            tag: cp310-abi3-win_arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '26.0'
+      CARGO_ZIGBUILD_ZIG_PATH: ${{ github.workspace }}/scripts/zig_cc.py
+      CARGO_ZIGBUILD_ZIG_COMMAND: ${{ github.workspace }}/scripts/zig_cc.py
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
+        with:
+          target: ${{ matrix.target }}
+      - id: python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.8'
+          enable-cache: false
+      - if: runner.os == 'Linux'
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: 0.14.0
+          use-cache: false
+      - name: Test the Zig linker and glibc ceiling contracts
+        if: runner.os == 'Linux'
+        run: python -m unittest discover -s scripts -p test_artifacts.py -v
+      - name: Install the locked build tools
+        working-directory: python
+        env:
+          UV_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: uv sync --locked --no-install-project
+      - name: Build the wheel
+        working-directory: python
+        run: |
+          zig=()
+          if [ "$RUNNER_OS" = Linux ]; then
+            zig=(--zig --compatibility manylinux_2_28)
+          fi
+          uv run --no-sync maturin build --release --target ${{ matrix.target }} "${zig[@]}" --out dist
+      - name: Check the wheel contents and metadata
+        run: python scripts/package_contents.py wheel python/dist/status_machina-*-${{ matrix.tag }}.whl --tag ${{ matrix.tag }}
+      - name: Verify the glibc ceiling
+        if: runner.os == 'Linux'
+        run: python scripts/verify_glibc.py --maximum 2.28 python/dist/*.whl
+      - name: Verify the macOS minimum
+        if: runner.os == 'macOS'
+        run: python scripts/verify_macos_minimum.py --minimum 26.0 python/dist/*.whl
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-wheel-${{ matrix.target }}
+          path: python/dist/*.whl
+          if-no-files-found: error
+          retention-days: 7
+  python-sdist:
+    # The source distribution is the explicit developer path. Build it, check it,
+    # then build and test a wheel from it outside any Git repository, with CI
+    # unset so the root build script runs rhusky as on a user's machine, using
+    # the declared minimum Rust (the crates' rust-version).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
+      - id: python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+      - id: free-threaded
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14t'
+          update-environment: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.8'
+          enable-cache: false
+      - name: Install the locked build tools
+        working-directory: python
+        env:
+          UV_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: uv sync --locked --no-install-project
+      - name: Build the source distribution
+        working-directory: python
+        run: uv run --no-sync maturin sdist --out dist
+      - name: Check the source distribution contents and metadata
+        run: python scripts/package_contents.py sdist python/dist/status_machina-*.tar.gz
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-sdist
+          path: python/dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+      - name: Build a wheel from the extracted source distribution
+        env:
+          PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          minimum=$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' Cargo.toml)
+          if [ -z "$minimum" ]; then echo 'Cargo.toml declares no rust-version' >&2; exit 1; fi
+          rustup toolchain install "$minimum" --profile minimal || exit 1
+          mkdir -p "$RUNNER_TEMP/sdist" "$RUNNER_TEMP/sdist-wheel" || exit 1
+          tar -xzf python/dist/status_machina-*.tar.gz -C "$RUNNER_TEMP/sdist" || exit 1
+          source=$(echo "$RUNNER_TEMP"/sdist/status_machina-*)
+          if git -C "$source" rev-parse --git-dir >/dev/null 2>&1; then
+            echo 'The extracted source distribution must not be inside a Git repository' >&2
+            exit 1
+          fi
+          "$PYTHON" -m venv "$RUNNER_TEMP/sdist-venv" || exit 1
+          # A plain PEP 517 build: pip fetches the declared maturin into an isolated environment.
+          env -u CI -u GITHUB_ACTIONS RUSTUP_TOOLCHAIN="$minimum" \
+            "$RUNNER_TEMP/sdist-venv/bin/python" -m pip wheel --no-deps --wheel-dir "$RUNNER_TEMP/sdist-wheel" "$source" || exit 1
+          if [ -e "$source/.git" ] || [ -e "$source/.githooks" ]; then
+            echo 'Building the source distribution created repository hooks' >&2
+            exit 1
+          fi
+          echo "Built $(ls "$RUNNER_TEMP"/sdist-wheel) with Rust $minimum"
+      - name: Test the wheel built from the source distribution
+        run: |
+          venv="$RUNNER_TEMP/sdist-venv"
+          "$venv/bin/python" -m pip install --only-binary :all: "$RUNNER_TEMP"/sdist-wheel/status_machina-*.whl || exit 1
+          mkdir -p "$RUNNER_TEMP/sdist-suite" || exit 1
+          cp -R python/tests python/examples "$RUNNER_TEMP/sdist-suite/" || exit 1
+          cd "$RUNNER_TEMP/sdist-suite" || exit 1
+          "$venv/bin/python" -I -c 'import pathlib, sys, status_machina; path = pathlib.Path(status_machina.__file__).resolve(); assert pathlib.Path(sys.prefix).resolve() in path.parents, path; print(path)' || exit 1
+          "$venv/bin/python" -m unittest discover -s tests -v
+      - name: Refuse free-threaded CPython
+        env:
+          FREE_THREADED: ${{ steps.free-threaded.outputs.python-path }}
+        run: |
+          "$FREE_THREADED" -c 'import sysconfig, sys; sys.exit(0 if sysconfig.get_config_var("Py_GIL_DISABLED") else 1)' || {
+            echo 'The free-threaded interpreter is not free-threaded' >&2; exit 1; }
+          "$FREE_THREADED" -m venv "$RUNNER_TEMP/free-threaded" || exit 1
+          python="$RUNNER_TEMP/free-threaded/bin/python"
+          if "$python" -m pip install --no-deps "$RUNNER_TEMP"/sdist-wheel/status_machina-*.whl > "$RUNNER_TEMP/ft-install.log" 2>&1; then
+            echo 'A free-threaded interpreter installed the abi3 wheel' >&2; exit 1
+          fi
+          cat "$RUNNER_TEMP/ft-install.log"
+          grep -q 'is not a supported wheel on this platform' "$RUNNER_TEMP/ft-install.log" || exit 1
+          source=$(echo "$RUNNER_TEMP"/sdist/status_machina-*)
+          minimum=$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' Cargo.toml)
+          if RUSTUP_TOOLCHAIN="$minimum" "$python" -m pip wheel --no-deps --wheel-dir "$RUNNER_TEMP/ft-wheel" "$source" > "$RUNNER_TEMP/ft-build.log" 2>&1; then
+            echo 'A free-threaded interpreter built the extension from source' >&2; exit 1
+          fi
+          grep 'does not support free-threaded CPython' "$RUNNER_TEMP/ft-build.log" || {
+            cat "$RUNNER_TEMP/ft-build.log"; exit 1; }
+  node-addons:
+    # One napi addon per declared target, built on that target's own runner.
+    # Linux addons link against Zig's glibc 2.28 stubs; macOS addons declare macOS 26.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+            glibc: true
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            glibc: true
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '26.0'
+    defaults:
+      run:
+        shell: bash
+        working-directory: npm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
+        with:
+          target: ${{ matrix.target }}
+      - if: matrix.glibc
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: 0.14.0
+          use-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - run: pnpm install --frozen-lockfile
+      - name: Build the release addon
+        env:
+          TARGET: ${{ matrix.target }}
+          GLIBC: ${{ matrix.glibc }}
+        run: |
+          if [ "$GLIBC" = true ]; then
+            wrapper="$RUNNER_TEMP/zig-cc-$TARGET"
+            printf '#!/bin/sh\nexec "%s/scripts/zig_cc.py" cc -target %s.2.28 "$@"\n' \
+              "$GITHUB_WORKSPACE" "${TARGET/unknown-/}" > "$wrapper" || exit 1
+            chmod +x "$wrapper" || exit 1
+            linker=$(echo "CARGO_TARGET_${TARGET}_LINKER" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+            export "$linker=$wrapper"
+          fi
+          pnpm exec napi build --manifest-path status-machina-napi/Cargo.toml --platform --release \
+            --output-dir . --no-js --dts native.generated.d.ts --target "$TARGET"
+      - name: Verify the glibc ceiling
+        if: matrix.glibc
+        run: python3 ../scripts/verify_glibc.py --maximum 2.28 status_machina.*.node
+      - name: Verify the macOS minimum
+        if: runner.os == 'macOS'
+        run: python3 ../scripts/verify_macos_minimum.py --minimum 26.0 status_machina.*.node
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: npm-addon-${{ matrix.target }}
+          path: npm/status_machina.*.node
+          if-no-files-found: error
+          retention-days: 7
+  npm-package:
+    # One npm package carries every declared platform's addon; the loader picks one.
+    needs: node-addons
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: npm-addon-*
+          merge-multiple: true
+          path: npm
+      - name: Pack the npm package
+        working-directory: npm
+        run: pnpm pack --pack-destination "$RUNNER_TEMP/npm-package"
+      - name: Check the npm package contents and metadata
+        run: python3 scripts/package_contents.py npm "$RUNNER_TEMP"/npm-package/legra-ai-status-machina-*.tgz
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: npm-package
+          path: ${{ runner.temp }}/npm-package/*.tgz
+          if-no-files-found: error
+          retention-days: 7
+  python-installed:
+    # Install the built wheel where no Rust toolchain and no package source exist,
+    # then run the full contract suites, examples and mypy fixtures against it.
+    needs: python-wheels
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-latest, windows-latest, windows-11-arm]
+        python: ['3.10', '3.11', '3.12', '3.13', '3.14']
+        exclude:
+          # CPython publishes no Windows ARM64 build of 3.10.
+          - os: windows-11-arm
+            python: '3.10'
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out only the test suites and examples
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: suite
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /python/tests/
+            /python/examples/
+            /python/uv.lock
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: python-wheel-${{ matrix.target }}
+          path: wheel
+      - id: python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Remove every Rust toolchain from the runner
+        # Installed packages must work without Rust, Cargo, maturin or napi CLI.
+        run: |
+          if command -v rustup >/dev/null 2>&1; then
+            rustup self uninstall -y || { echo 'Failed to remove rustup' >&2; exit 1; }
+          fi
+          for tool in cargo rustc rustup maturin napi; do
+            if command -v "$tool" >/dev/null 2>&1; then
+              echo "$tool is still available at $(command -v "$tool")" >&2
+              exit 1
+            fi
+          done
+      - name: Install the wheel into a clean environment
+        env:
+          PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          if [ -e suite/python/status_machina ] || [ -e suite/python/status-machina-pyo3 ]; then
+            echo 'The installed-package job must not check out package sources' >&2; exit 1
+          fi
+          mypy=$(sed -n '/^name = "mypy"$/{n;s/^version = "\(.*\)"$/\1/p;}' suite/python/uv.lock)
+          if [ -z "$mypy" ]; then echo 'uv.lock pins no mypy' >&2; exit 1; fi
+          "$PYTHON" -m venv "$RUNNER_TEMP/venv" || exit 1
+          if [ "$RUNNER_OS" = Windows ]; then python="$RUNNER_TEMP/venv/Scripts/python.exe"; else python="$RUNNER_TEMP/venv/bin/python"; fi
+          "$python" -m pip install --only-binary :all: wheel/status_machina-*.whl "mypy==$mypy" || exit 1
+          mkdir -p "$RUNNER_TEMP/suite" || exit 1
+          cp -R suite/python/tests suite/python/examples "$RUNNER_TEMP/suite/" || exit 1
+          echo "INSTALLED_PYTHON=$python" >> "$GITHUB_ENV"
+      - name: Require the installed package
+        working-directory: ${{ runner.temp }}/suite
+        run: |
+          "$INSTALLED_PYTHON" -I -c 'import pathlib, sys, status_machina; path = pathlib.Path(status_machina.__file__).resolve(); assert pathlib.Path(sys.prefix).resolve() in path.parents, path; print(path)'
+      - name: Run the contract suites and examples against the installed wheel
+        working-directory: ${{ runner.temp }}/suite
+        run: '"$INSTALLED_PYTHON" -m unittest discover -s tests -v'
+      - name: Check the typing fixtures against the installed wheel
+        working-directory: ${{ runner.temp }}/suite
+        run: '"$INSTALLED_PYTHON" -m mypy --warn-unused-ignores tests/typing'
+  node-installed:
+    # Install the packed npm tarball where no Rust toolchain and no package source
+    # exist, then run the full suites (worker isolation included), examples and
+    # TypeScript fixtures against it.
+    needs: npm-package
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-latest, windows-latest, windows-11-arm]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out only the test suites and examples
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: suite
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /npm/tests/
+            /npm/examples/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: npm-package
+          path: package
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Remove every Rust toolchain from the runner
+        # Installed packages must work without Rust, Cargo, maturin or napi CLI.
+        run: |
+          if command -v rustup >/dev/null 2>&1; then
+            rustup self uninstall -y || { echo 'Failed to remove rustup' >&2; exit 1; }
+          fi
+          for tool in cargo rustc rustup maturin napi; do
+            if command -v "$tool" >/dev/null 2>&1; then
+              echo "$tool is still available at $(command -v "$tool")" >&2
+              exit 1
+            fi
+          done
+      - name: Install the npm tarball into a clean project
+        run: |
+          if [ -e suite/npm/lib ] || [ -e suite/npm/index.cjs ] || [ -e suite/npm/status-machina-napi ]; then
+            echo 'The installed-package job must not check out package sources' >&2; exit 1
+          fi
+          suite="$RUNNER_TEMP/suite"
+          mkdir -p "$suite" || exit 1
+          cp -R suite/npm/tests suite/npm/examples "$suite/" || exit 1
+          cp package/legra-ai-status-machina-*.tgz "$suite/" || exit 1
+          cd "$suite" || exit 1
+          # The package's own manifest names the TypeScript toolchain its fixtures use.
+          node --input-type=module -e "
+            import { execFileSync } from 'node:child_process';
+            import { readdirSync, writeFileSync } from 'node:fs';
+            const [tarball] = readdirSync('.').filter(name => name.endsWith('.tgz'));
+            const manifest = JSON.parse(execFileSync('tar', ['-xzOf', tarball, 'package/package.json']));
+            writeFileSync('package.json', JSON.stringify({ name: 'status-machina-installed-suite', private: true,
+              type: 'module', dependencies: { '@legra-ai/status-machina': 'file:./' + tarball,
+                typescript: manifest.devDependencies.typescript, '@types/node': manifest.devDependencies['@types/node'] } }, null, 2));
+          " || exit 1
+          cat package.json
+          pnpm install --no-frozen-lockfile || exit 1
+      - name: Require the installed package
+        working-directory: ${{ runner.temp }}/suite
+        run: |
+          node -e "
+            const path = require.resolve('@legra-ai/status-machina');
+            if (!path.includes('node_modules')) throw new Error('Not the installed package: ' + path);
+            console.log(path);
+          "
+      - name: Run the suites, worker isolation and examples against the installed package
+        working-directory: ${{ runner.temp }}/suite
+        run: node --test tests/*.test.mjs
+      - name: Check the TypeScript fixtures against the installed declarations
+        working-directory: ${{ runner.temp }}/suite
+        run: pnpm exec tsc -p tests/typing
   test:
     if: always()
-    needs: [prepare, ci, python-bindings, node-bindings]
+    needs: [prepare, ci, python-bindings, node-bindings, python-wheels, python-sdist, node-addons,
+            npm-package, python-installed, node-installed]
     runs-on: ubuntu-24.04
     steps:
-      - name: Require the complete shared pipeline and native bindings
+      - name: Require the complete shared pipeline, native bindings and artifacts
         env:
           PREPARE_RESULT: ${{ needs.prepare.result }}
           CI_RESULT: ${{ needs.ci.result }}
           PYTHON_BINDINGS_RESULT: ${{ needs.python-bindings.result }}
           NODE_BINDINGS_RESULT: ${{ needs.node-bindings.result }}
+          PYTHON_WHEELS_RESULT: ${{ needs.python-wheels.result }}
+          PYTHON_SDIST_RESULT: ${{ needs.python-sdist.result }}
+          NODE_ADDONS_RESULT: ${{ needs.node-addons.result }}
+          NPM_PACKAGE_RESULT: ${{ needs.npm-package.result }}
+          PYTHON_INSTALLED_RESULT: ${{ needs.python-installed.result }}
+          NODE_INSTALLED_RESULT: ${{ needs.node-installed.result }}
         run: |
           python3 - <<'PYTHON'
           import os
-          results = ['PREPARE_RESULT', 'CI_RESULT', 'PYTHON_BINDINGS_RESULT', 'NODE_BINDINGS_RESULT']
+          results = ['PREPARE_RESULT', 'CI_RESULT', 'PYTHON_BINDINGS_RESULT', 'NODE_BINDINGS_RESULT',
+                     'PYTHON_WHEELS_RESULT', 'PYTHON_SDIST_RESULT', 'NODE_ADDONS_RESULT',
+                     'NPM_PACKAGE_RESULT', 'PYTHON_INSTALLED_RESULT', 'NODE_INSTALLED_RESULT']
           if any(os.environ[name] != 'success' for name in results):
               raise RuntimeError('Every required maintenance job must succeed')
           PYTHON

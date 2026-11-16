@@ -5,7 +5,7 @@ import {
   ConditionRecordError, DefinitionError, DefinitionRecord, DispositionRecord, DispositionRecordError, LimitError,
   NotRecord, PredicateRecord, RecordError, RoleMismatchError, StateRecord, TransitionDefinitionRecord,
   TransitionRecordError, UnknownBehaviorError, UnknownImplementationError,
-} from '../index.mjs';
+} from '@legra-ai/status-machina';
 
 const Phase = Object.freeze({ Draft: Symbol('draft'), Sent: Symbol('sent'), Paid: Symbol('paid') });
 const Input = Object.freeze({ Send: Symbol('send'), Pay: Symbol('pay'), Nudge: Symbol('nudge'), SentNotice: Symbol('sent notice') });

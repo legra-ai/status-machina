@@ -5,7 +5,7 @@ import {
   BehaviorRef, BehaviorRegistry, BehaviorRole, BehaviorUse, DefinitionRecord, DuplicateIdentityError,
   DuplicateRepresentationError, IdentityMap, IdentityMapError, IdentityMapLimitError, IdentityRole, IdentityRoleError,
   MachineIdentityMaps, StateRecord, TransitionDefinitionRecord, UnknownIdentityError, UnknownRepresentationError,
-} from '../index.mjs';
+} from '@legra-ai/status-machina';
 
 const Phase = Object.freeze({ Open: Symbol('open'), Closed: Symbol('closed') });
 const Close = Symbol('close');

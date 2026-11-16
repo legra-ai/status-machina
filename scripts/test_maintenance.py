@@ -1,5 +1,6 @@
 """The complete maintenance path must be wired, pinned and credential-free on PRs."""
 from pathlib import Path
+import json
 import os
 import subprocess
 import sys
@@ -9,6 +10,14 @@ import tomllib
 import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
+# Every native build, packaging and installed-artifact job; each gates publication.
+NATIVE_JOBS = ('python-bindings', 'node-bindings', 'python-wheels', 'python-sdist', 'node-addons',
+               'npm-package', 'python-installed', 'node-installed')
+RUNNERS = '[ubuntu-24.04, ubuntu-24.04-arm, macos-latest, windows-latest, windows-11-arm]'
+
+
+def job_body(workflow, job):
+    return re.split(r'^  [a-z-]+:\n', workflow.split(f'\n  {job}:\n', 1)[1], maxsplit=1, flags=re.MULTILINE)[0]
 
 
 class MaintenancePolicyTests(unittest.TestCase):
@@ -35,9 +44,9 @@ class MaintenancePolicyTests(unittest.TestCase):
         self.assertIn('  test:\n', workflow)
         gate = workflow.split('  test:\n', 1)[1]
         self.assertIn('if: always()', gate)
-        self.assertIn('needs: [prepare, ci, python-bindings, node-bindings]', gate)
-        jobs = {'PREPARE_RESULT': 'prepare', 'CI_RESULT': 'ci',
-                'PYTHON_BINDINGS_RESULT': 'python-bindings', 'NODE_BINDINGS_RESULT': 'node-bindings'}
+        jobs = {f'{job.upper().replace("-", "_")}_RESULT': job for job in ('prepare', 'ci', *NATIVE_JOBS)}
+        needs = re.search(r'^    needs: \[([^\]]*)\]\n', gate, flags=re.MULTILINE)
+        self.assertEqual({name.strip() for name in needs.group(1).split(',')}, set(jobs.values()))
         for variable, job in jobs.items():
             self.assertIn(f'{variable}: ${{{{ needs.{job}.result }}}}', gate)
         script = textwrap.dedent(gate.split("python3 - <<'PYTHON'\n", 1)[1].split('          PYTHON', 1)[0])
@@ -68,14 +77,14 @@ class MaintenancePolicyTests(unittest.TestCase):
         required = {name.strip() for name in needs.group(1).split(',')}
         builds = {name for name, body in bodies.items()
                   if name not in ('ci', 'test') and re.search(r'^    steps:\n', body, flags=re.MULTILINE)}
-        self.assertEqual(builds, {'prepare', 'python-bindings', 'node-bindings'})
+        self.assertEqual(builds, {'prepare', *NATIVE_JOBS})
         self.assertEqual(required, builds)
         # always() or a result filter would let a failed, cancelled or skipped build through.
         condition = re.search(r'^    if: (.*)\n', shared, flags=re.MULTILINE).group(1)
         self.assertNotIn('always()', condition)
         self.assertNotIn('needs.', condition)
         self.assertNotIn('continue-on-error', workflow)
-        for job in ('python-bindings', 'node-bindings'):
+        for job in NATIVE_JOBS:
             self.assertNotRegex(bodies[job], r'^    if:', f'{job} must run on every event')
 
     def test_native_bindings_are_built_and_tested_on_every_runner(self):
@@ -161,11 +170,82 @@ class MaintenancePolicyTests(unittest.TestCase):
     def test_package_contains_integration_tests_and_licenses(self):
         package = tomllib.loads((ROOT / 'Cargo.toml').read_text())['package']
         if (ROOT / 'build.rs').exists():
-            self.assertIn('build.rs', package['include'])
+            self.assertIn('/build.rs', package['include'])
         self.assertIn('tests/**', package['include'])
-        self.assertIn('LICENSE-MIT', package['include'])
-        self.assertIn('LICENSE-APACHE', package['include'])
+        # Anchored, so the binding packages' license copies stay out of the crate.
+        self.assertIn('/LICENSE-MIT', package['include'])
+        self.assertIn('/LICENSE-APACHE', package['include'])
         self.assertTrue(any((ROOT / 'tests').glob('*.rs')))
+
+
+class NativeArtifactTests(unittest.TestCase):
+    def setUp(self):
+        self.workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+
+    def test_every_declared_target_is_built_on_its_own_runner(self):
+        targets = json.loads((ROOT / 'npm/package.json').read_text())['napi']['targets']
+        runners = {'x86_64-unknown-linux-gnu': 'ubuntu-24.04', 'aarch64-unknown-linux-gnu': 'ubuntu-24.04-arm',
+                   'aarch64-apple-darwin': 'macos-latest', 'x86_64-pc-windows-msvc': 'windows-latest',
+                   'aarch64-pc-windows-msvc': 'windows-11-arm'}
+        self.assertEqual(set(targets), set(runners))
+        for job in ('python-wheels', 'node-addons'):
+            body = job_body(self.workflow, job)
+            built = dict(re.findall(r'- target: (\S+)\n\s+os: (\S+)\n', body))
+            self.assertEqual(built, runners, job)
+            self.assertIn("MACOSX_DEPLOYMENT_TARGET: '26.0'", body)
+            self.assertIn('verify_glibc.py --maximum 2.28', body)
+            self.assertIn('verify_macos_minimum.py --minimum 26.0', body)
+            self.assertIn('if-no-files-found: error', body)
+        self.assertIn('--zig --compatibility manylinux_2_28', job_body(self.workflow, 'python-wheels'))
+        self.assertIn('scripts/zig_cc.py" cc -target %s.2.28', job_body(self.workflow, 'node-addons'))
+
+    def test_artifact_contents_are_checked_before_upload(self):
+        for job, command in [('python-wheels', 'package_contents.py wheel'), ('python-sdist', 'package_contents.py sdist'),
+                             ('npm-package', 'package_contents.py npm')]:
+            body = job_body(self.workflow, job)
+            self.assertLess(body.index(command), body.index('actions/upload-artifact@'), job)
+
+    def test_installed_suites_run_without_rust_or_package_sources(self):
+        for job, suite, commands in [
+            ('python-installed', '/python/tests/', ['-m unittest discover -s tests -v',
+                                                    '-m mypy --warn-unused-ignores tests/typing']),
+            ('node-installed', '/npm/tests/', ['node --test tests/*.test.mjs', 'pnpm exec tsc -p tests/typing']),
+        ]:
+            with self.subTest(job=job):
+                body = job_body(self.workflow, job)
+                self.assertIn(f'os: {RUNNERS}', body)
+                self.assertIn('sparse-checkout-cone-mode: false', body)
+                self.assertIn(suite, body)
+                self.assertNotRegex(body, r'sparse-checkout: \|\n(?:\s+/\S+\n)*\s+/(?:python|npm)/(?:status_machina|lib|index)')
+                self.assertIn('rustup self uninstall -y', body)
+                self.assertLess(body.index('rustup self uninstall -y'), body.index(commands[0]))
+                self.assertIn('Require the installed package', body)
+                for command in commands:
+                    self.assertIn(command, body)
+        python = job_body(self.workflow, 'python-installed')
+        self.assertIn("python: ['3.10', '3.11', '3.12', '3.13', '3.14']", python)
+        self.assertIn("--only-binary :all:", python)
+        self.assertIn("node: ['22', '24']", job_body(self.workflow, 'node-installed'))
+
+    def test_sdist_builds_outside_git_with_hooks_enabled_and_refuses_free_threading(self):
+        body = job_body(self.workflow, 'python-sdist')
+        self.assertIn('env -u CI -u GITHUB_ACTIONS RUSTUP_TOOLCHAIN="$minimum"', body)
+        self.assertIn('must not be inside a Git repository', body)
+        self.assertIn("python-version: '3.14t'", body)
+        self.assertIn('is not a supported wheel on this platform', body)
+        self.assertIn('does not support free-threaded CPython', body)
+        self.assertIn('#[cfg(Py_GIL_DISABLED)]\ncompile_error!(',
+                      (ROOT / 'python/status-machina-pyo3/src/lib.rs').read_text())
+
+    def test_package_license_copies_match_the_repository(self):
+        project = tomllib.loads((ROOT / 'python/pyproject.toml').read_text())['project']
+        self.assertEqual(project['license'], 'MIT OR Apache-2.0')
+        self.assertEqual(project['license-files'], ['licenses/LICENSE-MIT', 'licenses/LICENSE-APACHE'])
+        files = json.loads((ROOT / 'npm/package.json').read_text())['files']
+        for name in ('LICENSE-MIT', 'LICENSE-APACHE'):
+            self.assertIn(name, files)
+            for copy in (ROOT / 'python/licenses' / name, ROOT / 'npm' / name):
+                self.assertEqual(copy.read_bytes(), (ROOT / name).read_bytes(), copy)
 
 
 class CommitMessageTests(unittest.TestCase):

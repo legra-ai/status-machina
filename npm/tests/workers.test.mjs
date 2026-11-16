@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import test from 'node:test';
 import { MessageChannel, Worker, threadId } from 'node:worker_threads';
-import { Definition } from '../index.mjs';
+import { Definition } from '@legra-ai/status-machina';
 
 const fixture = new URL('./workers/machine-worker.mjs', import.meta.url);
 const Phase = Object.freeze({ Open: Symbol('open'), Closed: Symbol('closed') });

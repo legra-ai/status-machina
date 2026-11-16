@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Definition, CapabilityStatus, BehaviorRef, BehaviorRegistry, BehaviorRole, CallbackError, DefinitionError } from '../index.mjs';
+import { Definition, CapabilityStatus, BehaviorRef, BehaviorRegistry, BehaviorRole, CallbackError, DefinitionError } from '@legra-ai/status-machina';
 const open = Symbol('open'); const edit = Symbol('edit');
 function definition(evaluate, behaviors) {
   return new Definition({ id: Symbol(), initial: open, states: [{ id: open }], transitions: [],

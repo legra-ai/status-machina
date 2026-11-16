@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRequire } from 'node:module';
 import { BusyError, CallbackError, Definition, DefinitionError, DisposedError,
-  SnapshotError, StaleDecisionError } from '../index.mjs';
+  SnapshotError, StaleDecisionError } from '@legra-ai/status-machina';
+import { requireInternal } from './support/package.mjs';
 const require = createRequire(import.meta.url);
 const State = Object.freeze({ Ready: Symbol('ready'), Done: Symbol('done') });
 const Input = Object.freeze({ Go: Symbol('go') });
@@ -78,7 +79,7 @@ test('unknown specification fields fail fast rather than silently changing polic
 });
 
 test('reclaimed arena slots can be reused without a lifetime dispatch counter limit', () => {
-  const { Context } = require('../lib/context.cjs');
+  const { Context } = requireInternal('lib/context.cjs');
   const definition = { _internal: () => ({ compiler: { ids: {} }, snapshot: value => value,
     inputSnapshot: value => value, limits: { maxValues: 2 } }) };
   const context = new Context(definition, Symbol());
@@ -89,7 +90,7 @@ test('reclaimed arena slots can be reused without a lifetime dispatch counter li
 });
 
 test('CommonJS and ES module entry points expose the same native API classes', () => {
-  const common = require('../index.cjs');
+  const common = require('@legra-ai/status-machina');
   assert.equal(common.Definition, Definition);
   assert.equal(common.CallbackError, CallbackError);
 });

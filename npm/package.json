@@ -1,6 +1,6 @@
 {
   "name": "@legra-ai/status-machina",
-  "version": "0.1.0",
+  "version": "0.1.13",
   "description": "Native typed, caller-driven state machines with checked composition",
   "type": "module",
   "main": "./index.mjs",
@@ -18,6 +18,8 @@
     "index.d.ts",
     "lib/",
     "*.node",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
     "README.md"
   ],
   "license": "MIT OR Apache-2.0",
@@ -42,7 +44,7 @@
   "scripts": {
     "build": "napi build --manifest-path status-machina-napi/Cargo.toml --platform --output-dir . --no-js --dts native.generated.d.ts",
     "test": "node --test tests/*.test.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p tests/typing"
   },
   "devDependencies": {
     "@napi-rs/cli": "^3.6.1",
