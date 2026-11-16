@@ -322,3 +322,36 @@ fn output_budget_counts_effects_and_events_without_retaining_payloads() {
         }
     ));
 }
+
+#[test]
+fn scenario_limits_report_their_defaults_and_configured_bounds() {
+    let defaults = ScenarioLimits::builder().build().unwrap();
+    assert_eq!(
+        (
+            defaults.max_scenarios(),
+            defaults.max_steps_per_scenario(),
+            defaults.max_nodes(),
+            defaults.max_outputs(),
+            defaults.max_trace_entries(),
+        ),
+        (64, 256, 4096, 4096, 4096)
+    );
+    let limits = ScenarioLimits::builder()
+        .max_scenarios(2)
+        .max_steps_per_scenario(3)
+        .max_nodes(4)
+        .max_outputs(5)
+        .max_trace_entries(6)
+        .build()
+        .unwrap();
+    assert_eq!(
+        (
+            limits.max_scenarios(),
+            limits.max_steps_per_scenario(),
+            limits.max_nodes(),
+            limits.max_outputs(),
+            limits.max_trace_entries(),
+        ),
+        (2, 3, 4, 5, 6)
+    );
+}

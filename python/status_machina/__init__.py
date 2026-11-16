@@ -16,7 +16,9 @@ from .errors import (
     CapabilitySnapshotLimitError, ReportInstanceMismatchError, DuplicateObservationError,
     ForeignSnapshotError, RetryError, RetryPolicyError, ZeroDelayError, TooFewAttemptsError,
     CapBelowInitialError, RetryWaitError, InvalidWaitCapacityError, WaitCapacityReachedError,
-    WaitGenerationExhaustedError, RetryRangeError,
+    WaitGenerationExhaustedError, RetryRangeError, ScenarioError, ScenarioLimitsError, ScenarioSetError,
+    EmptyScenarioSetError, ScenarioCountLimitError, ScenarioStepLimitError, ScenarioNodeLimitError,
+    ScenarioAssertionError, MissingAssertionPredicateError, ScenarioReplayError, AssertionLimitError,
 )
 from .composition import BoundComposition, CapabilitySnapshot, Composition
 from .routing import (
@@ -27,6 +29,12 @@ from .routing import (
 from .retry import (
     ExponentialBackoff, FixedDelay, RetryAt, RetryExhausted, RetryPolicy, RetrySchedule, RetryWaits,
     WaitCorrelation, WakeIntent,
+)
+from .scenario import (
+    BoundedScenarioReport, CompleteWithinScenarios, Counterexample, CounterexampleTrace, DispatchFailedStep,
+    ExecutionFailed, IgnoredStep, LimitReached, RefusedStep, Scenario, ScenarioAssertion, ScenarioFailure,
+    ScenarioLimit, ScenarioLimits, ScenarioObservation, ScenarioReplay, ScenarioResult, ScenarioSet,
+    ScenarioStep, ScenarioStepKind, TransitionedStep,
 )
 from .identity import IdentityMap, IdentityRole, MachineIdentityMaps
 from .inspection import DiagramLabels, InspectionLimits, StateCoverage, StructuralCoverage
@@ -72,4 +80,11 @@ __all__ = [
     "RetryWaits", "WaitCorrelation", "WakeIntent", "RetryError", "RetryPolicyError", "ZeroDelayError",
     "TooFewAttemptsError", "CapBelowInitialError", "RetryWaitError", "InvalidWaitCapacityError",
     "WaitCapacityReachedError", "WaitGenerationExhaustedError", "RetryRangeError",
+    "BoundedScenarioReport", "CompleteWithinScenarios", "Counterexample", "CounterexampleTrace",
+    "DispatchFailedStep", "ExecutionFailed", "IgnoredStep", "LimitReached", "RefusedStep", "Scenario",
+    "ScenarioAssertion", "ScenarioFailure", "ScenarioLimit", "ScenarioLimits", "ScenarioObservation",
+    "ScenarioReplay", "ScenarioResult", "ScenarioSet", "ScenarioStep", "ScenarioStepKind", "TransitionedStep",
+    "ScenarioError", "ScenarioLimitsError", "ScenarioSetError", "EmptyScenarioSetError",
+    "ScenarioCountLimitError", "ScenarioStepLimitError", "ScenarioNodeLimitError", "ScenarioAssertionError",
+    "MissingAssertionPredicateError", "ScenarioReplayError", "AssertionLimitError",
 ]

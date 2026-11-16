@@ -223,6 +223,77 @@ a value outside its kernel type: a negative duration, an attempt count outside
 0..2**32-1, a generation outside 0..2**64-1 or an instant the platform's
 `SystemTime` cannot hold. Its `context` names the `field` and holds the `value`.
 
+## Replay scenarios against safety assertions
+
+`ScenarioReplay.run` replays explicit, finite scenarios on fresh instances of one
+definition and checks independent safety assertions after every step. The Rust
+kernel's `ScenarioLimits`, `ScenarioSet`, `ScenarioAssertion` and
+`ScenarioReplay` decide every limit, set bound, assertion order, dispatch,
+budget and trace rule; Python only interns identities and resolves the report.
+The [runnable scenario example](examples/scenarios.py) finds the transition that
+ships an unpaid order:
+
+```python
+def never_ships_unpaid(step: ScenarioObservation[str, Phase, Input]) -> bool:
+    return not (step.before is Phase.CART and step.after is Phase.SHIPPED)
+
+def run(*scenarios: Scenario[str, Input]) -> None:
+    report = ScenarioReplay.run(definition, id="replay", data=Order(),
+        scenarios=ScenarioSet(scenarios=scenarios, limits=ScenarioLimits(max_steps_per_scenario=8)),
+        assertions=(ScenarioAssertion("never-ships-unpaid", never_ships_unpaid),))
+```
+
+It prints:
+
+```text
+complete within 1 scenarios, 2 steps
+counterexample to never-ships-unpaid in rush:
+  0: RUSH CART -> SHIPPED
+```
+
+- `ScenarioLimits(max_scenarios=, max_steps_per_scenario=, max_nodes=,
+  max_outputs=, max_trace_entries=)` defaults to the kernel's 64, 256, 4096,
+  4096 and 4096; the ceilings are 1024, 4096, 65536, 65536 and 65536.
+- `ScenarioSet(scenarios=..., limits=...)` holds `Scenario(id, steps)` values,
+  each step a `ScenarioStep(event, facts)`. It reads iterables lazily, at most
+  one entry past a bound, so an endless generator fails with its bound.
+  Scenario identities are any hashable values; two scenarios may share one.
+- `ScenarioAssertion(id, evaluate)` takes a synchronous predicate that returns
+  `True` while the property holds, or an exact `BehaviorRef` to an `ASSERTION`
+  implementation in the definition's `BehaviorRegistry`. Assertions run in
+  order; at most 128 are accepted. Like every callback they must be pure, total
+  and bounded, which the binding cannot prove.
+- Each scenario starts from a snapshot of `data`; the caller's object is never
+  mutated. Each step performs exactly one dispatch. Output events are counted
+  and discarded, never dispatched, and effects are never executed.
+- A `ScenarioObservation` holds the scenario identity, the zero-based step,
+  the input event kind, the states before and after, the `outcome`
+  (`TransitionedStep(transition)`, `IgnoredStep(disposition)`, `RefusedStep()`
+  or `DispatchFailedStep()`, discriminated by `kind`) and the produced output
+  event and effect identities. It never holds payloads or machine data.
+- `BoundedScenarioReport.result` is one of `CompleteWithinScenarios(scenarios,
+  nodes)`, the coverage of exactly the supplied scenarios and steps and not a
+  proof over other inputs; `Counterexample(trace)`, whose `CounterexampleTrace`
+  names the scenario, the failing assertion and the step prefix through the
+  failing step; `LimitReached(scenario, step, limit)` with a `ScenarioLimit`
+  (`OUTPUTS` or `TRACE_ENTRIES`); or `ExecutionFailed(scenario, step, failure,
+  steps)` with a `ScenarioFailure` category. Step 0 with no steps means the
+  initial data failed, or raised in, the initial state's invariant.
+- Every distinct input object occupies one value slot of the definition's
+  `Limits.max_values` for the whole replay; repeated objects share their slot.
+
+A raised guard, action, constructor, snapshot or assertion stops replay with
+`CallbackError` (`SnapshotError` for snapshots) whose `phase` names the stage
+and whose `__cause__` is the original exception. Rejections are
+`ScenarioError` subclasses carrying the kernel `reason`: `ScenarioLimitsError`;
+`ScenarioSetError` (`EmptyScenarioSetError`, `ScenarioCountLimitError`,
+`ScenarioStepLimitError`, `ScenarioNodeLimitError`), whose `context` names the
+refused scenario and its `entry` position; `ScenarioAssertionError`
+(`MissingAssertionPredicateError`); and `ScenarioReplayError`
+(`AssertionLimitError`). An assertion reference that does not resolve raises
+`UnknownBehaviorError`, `UnknownImplementationError` or `RoleMismatchError`
+naming the `assertion` and its `entry`. Limit errors are also `LimitError`s.
+
 ## Inspect and draw a definition
 
 The [runnable Python order example](examples/order.py) checks an approval transition

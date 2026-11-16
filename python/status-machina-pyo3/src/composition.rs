@@ -51,11 +51,11 @@ fn exclusive<'a>(
         .map(|machine| lock(py, &machine.get().machine))
         .collect()
 }
-/// A call-local value arena for caller inputs and facts; no callback runs in
-/// it.
+/// A call-local value arena: composition inputs and facts, where no callback
+/// runs, or every value of one scenario replay, whose callbacks run in it.
 #[pyclass(name = "_Arena", frozen, module = "status_machina._native")]
 pub(crate) struct NativeArena {
-    host: Arc<PyHost>,
+    pub(crate) host: Arc<PyHost>,
 }
 #[pymethods]
 impl NativeArena {
@@ -69,6 +69,9 @@ impl NativeArena {
     }
     fn arena_id(&self) -> String {
         self.host.arena().id()
+    }
+    fn live_keys(&self) -> Vec<u32> {
+        self.host.arena().live()
     }
 }
 /// The kernel report behind one `Machine.evaluate_capability` observation.

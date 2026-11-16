@@ -10,5 +10,6 @@ pub mod inspection;
 pub mod record;
 pub mod retry;
 pub mod runtime;
+pub mod scenario;
 pub mod spec;
 pub mod value;

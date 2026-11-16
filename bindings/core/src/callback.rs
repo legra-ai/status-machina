@@ -7,6 +7,7 @@ use serde::{
 use status_machina::{
     CapabilityStatus,
     EvaluationError,
+    ScenarioStepKind,
 };
 
 use crate::value::{
@@ -170,29 +171,38 @@ pub(crate) fn capability<H: Host>(
     }
 }
 
+impl Observation {
+    /// Compact native metadata of one kernel step observation.
+    pub(crate) fn new<H: Host>(
+        observation: &status_machina::ScenarioObservation<crate::ids::Ids<H>>,
+    ) -> Self {
+        let (kind, transition, disposition) = match observation.kind() {
+            ScenarioStepKind::Transitioned(id) => ("transitioned", Some(*id), None),
+            ScenarioStepKind::Ignored(id) => ("ignored", None, Some(*id)),
+            ScenarioStepKind::Refused => ("refused", None, None),
+            ScenarioStepKind::DispatchFailed => ("dispatch_failed", None, None),
+        };
+        Self {
+            scenario: observation.scenario().index,
+            step: observation.step(),
+            event: *observation.input_event(),
+            before: *observation.before(),
+            after: *observation.after(),
+            kind: kind.into(),
+            transition,
+            disposition,
+            // bounded: the kernel checked these intents against its output budget.
+            outputs: observation.output_events().to_vec(),
+            effects: observation.effects().to_vec(),
+        }
+    }
+}
+
 pub(crate) fn assertion<H: Host>(
     callback: u32,
     observation: &status_machina::ScenarioObservation<crate::ids::Ids<H>>,
 ) -> Result<bool, EvaluationError> {
-    use status_machina::ScenarioStepKind;
-    let (kind, transition, disposition) = match observation.kind() {
-        ScenarioStepKind::Transitioned(id) => ("transitioned", Some(*id), None),
-        ScenarioStepKind::Ignored(id) => ("ignored", None, Some(*id)),
-        ScenarioStepKind::Refused => ("refused", None, None),
-        ScenarioStepKind::DispatchFailed => ("dispatch_failed", None, None),
-    };
     let mut request = Request::new(CallbackKind::Assertion, Some(callback), Vec::new());
-    request.observation = Some(Observation {
-        scenario: observation.scenario().index,
-        step: observation.step(),
-        event: *observation.input_event(),
-        before: *observation.before(),
-        after: *observation.after(),
-        kind: kind.into(),
-        transition,
-        disposition,
-        outputs: observation.output_events().to_vec(),
-        effects: observation.effects().to_vec(),
-    });
+    request.observation = Some(Observation::new(observation));
     boolean(observation.scenario().host.execute(request)?)
 }
