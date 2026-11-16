@@ -24,8 +24,15 @@ _ERROR_TYPES = {
     "unknown_behavior": errors.UnknownBehaviorError,
     "unknown_implementation": errors.UnknownImplementationError,
     "role_mismatch": errors.RoleMismatchError,
+    "duplicate_implementation": errors.DuplicateImplementationError,
+    "unknown_state": errors.UnknownStateError, "duplicate_identifier": errors.DuplicateIdentifierError,
+    "unreachable_state": errors.UnreachableStateError, "terminal_transition": errors.TerminalTransitionError,
+    "internal_transition": errors.InternalTransitionError, "invalid_condition": errors.InvalidConditionError,
+    "invalid_disposition": errors.InvalidDispositionError, "definition_limit": errors.DefinitionLimitError,
+    "initial_invariant": errors.InitialInvariantError, "unknown_capability": errors.UnknownCapabilityError,
 }
-_CONTEXT_ROLES = ("state", "condition", "transition", "disposition", "story", "implementation")
+_CONTEXT_ROLES = ("state", "condition", "transition", "disposition", "action", "effect", "event", "capability",
+    "story", "implementation")
 
 def translate(error, ids=None) -> NoReturn:
     raise exception(error, ids) from error.__cause__

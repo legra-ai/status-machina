@@ -11,10 +11,12 @@ export const { StatusMachinaError, DefinitionError, DispatchError, CallbackError
   InvalidWaitCapacityError, WaitCapacityReachedError, WaitGenerationExhaustedError, RetryRangeError,
   ScenarioError, ScenarioLimitsError, ScenarioSetError, EmptyScenarioSetError, ScenarioCountLimitError,
   ScenarioStepLimitError, ScenarioNodeLimitError, ScenarioAssertionError, MissingAssertionPredicateError,
-  ScenarioReplayError, AssertionLimitError,
+  ScenarioReplayError, AssertionLimitError, DuplicateImplementationError, UnknownStateError, DuplicateIdentifierError,
+  UnreachableStateError, TerminalTransitionError, InternalTransitionError, InvalidConditionError,
+  InvalidDispositionError, DefinitionLimitError, InitialInvariantError, UnknownCapabilityError,
   CapabilityStatus, Definition, Machine, Decision, BehaviorRef, BehaviorRegistry, BehaviorRole,
   BehaviorUse, PredicateRecord, AllRecord, AnyRecord, NotRecord, StateRecord, TransitionDefinitionRecord,
   DispositionRecord, DefinitionRecord, IdentityRole, IdentityMap, MachineIdentityMaps,
   InstanceAddress, Route, InstanceRegistry, Delivery, PropagationLimits, PropagationStatus, Composition,
   BoundComposition, CapabilitySnapshot, Duration, FixedDelay, ExponentialBackoff, RetryAt, RetryExhausted, RetryPolicy, WaitCorrelation, RetryWaits,
-  ScenarioLimits, ScenarioSet, ScenarioAssertion, ScenarioReplay, ScenarioFailure, ScenarioLimit } = api;
+  ScenarioLimits, ScenarioSet, ScenarioAssertion, ScenarioReplay, ScenarioFailure, ScenarioLimit, EventOnDrop } = api;

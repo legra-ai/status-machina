@@ -1,6 +1,6 @@
 'use strict';
-const { DefinitionError } = require('./errors.cjs');
-const { bounded } = require('./compile.cjs');
+const { DefinitionError, DefinitionLimitError } = require('./errors.cjs');
+const { readahead } = require('./compile.cjs');
 function fields(value, allowed, label, required = []) {
   if (value === null || typeof value !== 'object') throw new DefinitionError(`${label} must be a specification object`);
   for (const key of Reflect.ownKeys(value)) {
@@ -17,10 +17,11 @@ function intent(value, output = false) {
   return Object.freeze({ ...value });
 }
 function list(values, label, convert) {
-  return Object.freeze(bounded(values === undefined ? [] : values, 16, label).map(convert));
+  return Object.freeze(readahead(values === undefined ? [] : values, 16).map(convert));
 }
 function condition(value, depth = 1) {
-  if (depth > 32) throw new DefinitionError('Condition nesting exceeds 32');
+  // Stop reading; the kernel rejects the 33rd level itself.
+  if (depth > 33) throw new DefinitionLimitError('condition nesting exceeds 32 levels', { reason: 'depth_limit_exceeded', condition: value.id });
   fields(value, ['id', 'predicate', 'allOf', 'anyOf', 'not'], 'condition', ['id']);
   const copy = { ...value };
   for (const name of ['allOf', 'anyOf']) {

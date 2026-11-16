@@ -19,6 +19,9 @@ from .errors import (
     WaitGenerationExhaustedError, RetryRangeError, ScenarioError, ScenarioLimitsError, ScenarioSetError,
     EmptyScenarioSetError, ScenarioCountLimitError, ScenarioStepLimitError, ScenarioNodeLimitError,
     ScenarioAssertionError, MissingAssertionPredicateError, ScenarioReplayError, AssertionLimitError,
+    UnknownStateError, DuplicateIdentifierError, UnreachableStateError, TerminalTransitionError,
+    InternalTransitionError, InvalidConditionError, InvalidDispositionError, DefinitionLimitError,
+    InitialInvariantError, UnknownCapabilityError, DuplicateImplementationError,
 )
 from .composition import BoundComposition, CapabilitySnapshot, Composition
 from .routing import (
@@ -36,6 +39,7 @@ from .scenario import (
     ScenarioLimit, ScenarioLimits, ScenarioObservation, ScenarioReplay, ScenarioResult, ScenarioSet,
     ScenarioStep, ScenarioStepKind, TransitionedStep,
 )
+from .scope import EventOnDrop
 from .identity import IdentityMap, IdentityRole, MachineIdentityMaps
 from .inspection import DiagramLabels, InspectionLimits, StateCoverage, StructuralCoverage
 from .machine import Decision, Definition, Machine
@@ -87,4 +91,7 @@ __all__ = [
     "ScenarioError", "ScenarioLimitsError", "ScenarioSetError", "EmptyScenarioSetError",
     "ScenarioCountLimitError", "ScenarioStepLimitError", "ScenarioNodeLimitError", "ScenarioAssertionError",
     "MissingAssertionPredicateError", "ScenarioReplayError", "AssertionLimitError",
+    "UnknownStateError", "DuplicateIdentifierError", "UnreachableStateError", "TerminalTransitionError",
+    "InternalTransitionError", "InvalidConditionError", "InvalidDispositionError", "DefinitionLimitError",
+    "InitialInvariantError", "UnknownCapabilityError", "DuplicateImplementationError", "EventOnDrop",
 ]

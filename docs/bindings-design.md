@@ -15,9 +15,9 @@ npm name is occupied. Availability checks do not reserve either unpublished name
 | --- | --- | --- | --- |
 | BND-01 | Native API, identity, payload, callback and ownership contracts, with a complete public-model inventory and release acceptance matrix | — | Done |
 | BND-02 | Fallible kernel evaluation and snapshots; callback failure stops evaluation before acceptance, without panic transport or sentinel results | BND-01 | Done |
-| BND-03 | Python checked construction, native values, execution and inspection through PyO3, with typed Python source and exceptions | BND-02 | Partial |
+| BND-03 | Python checked construction, native values, execution and inspection through PyO3, with typed Python source and exceptions | BND-02 | Done |
 | BND-04 | Node.js checked construction, native values, execution and inspection through napi-rs, with JavaScript and TypeScript APIs | BND-02 | Partial |
-| BND-05 | Native Story bindings, capabilities, bounded composition, retries and scenario coverage, with model-by-model parity evidence in both languages | BND-03, BND-04 | Partial |
+| BND-05 | Native Story bindings, capabilities, bounded composition, retries and scenario coverage, with model-by-model parity evidence in both languages | BND-03, BND-04 | Done |
 | BND-06 | Installable wheels, source distribution and npm artifacts; complete examples and installed-artifact tests without a Rust toolchain | BND-05 | Not started |
 | BND-07 | Extend the shared tested-revision pipeline to gate and publish all three ecosystems, with synchronized versions and interrupted-publication recovery | BND-06 | Partial |
 | BND-08 | Initial native packages published and verified from the approved tested revision on every declared platform | BND-07 | Not started |
@@ -190,26 +190,26 @@ Effects are values returned after acceptance, executed by the application.
 Every row needs native documentation, type declarations and positive/negative
 tests in each language before BND-05 is complete. Builders are construction
 helpers, not additional domain objects that must mechanically be exported.
-A row is Covered once both languages have that evidence. Rows not yet certified
-may already be partly implemented, as the implementation evidence describes.
+A row is Covered once both languages have that evidence. Every row is Covered.
 
 | Rust model family | Native counterpart and required evidence | Parity |
 | --- | --- | --- |
 | `MachineIds`, `Identity`, `IdentityMap`, all identifier roles | Native role-aware identity inventories/codecs; enum/newtype/token round trips, no label-based equality | Covered: [identity codecs](#portable-records-and-identity-codecs) |
-| `MachineDefinition`, `DefinitionBuilder`, state/transition builders and kinds | Checked immutable specifications; initial state, terminal/internal/external rules, reachability and limits | Not yet certified |
-| `Condition`, expression kinds and builders | Native predicate and all/any/not expressions; bounded depth/operands, short-circuit and exception tests | Not yet certified |
-| `LocalAction`, `Effect`, `OutputEvent` | Typed native callbacks and returned intent values, phase order, owned payloads and exception rollback | Not yet certified |
-| `BehaviorRef`, registry, roles and `BoundInvariant` | Exact native Story plus implementation references; wrong role/missing implementation rejection | Not yet certified |
+| `MachineDefinition`, `DefinitionBuilder`, state/transition builders and kinds | Checked immutable specifications; initial state, terminal/internal/external rules, reachability and limits | Covered: [model certification](#model-certification) |
+| `Condition`, expression kinds and builders | Native predicate and all/any/not expressions; bounded depth/operands, short-circuit and exception tests | Covered: [model certification](#model-certification) |
+| `LocalAction`, `Effect`, `OutputEvent` | Typed native callbacks and returned intent values, phase order, owned payloads and exception rollback | Covered: [model certification](#model-certification) |
+| `BehaviorRef`, registry, roles and `BoundInvariant` | Exact native Story plus implementation references; wrong role/missing implementation rejection | Covered: [model certification](#model-certification) |
 | `DefinitionRecord`, state/transition/condition/disposition records, `BehaviorUse` | Native portable specification records and checked binding; no implicit code loading or string IDs | Covered: [portable records](#portable-records-and-identity-codecs) |
-| `MachineInstance`, `Event`, `MachineDecision`, `ValidatedDecision` | Native instance/event/single-use decision APIs; owned snapshots, explicit revision checks and disposal | Not yet certified |
-| `DispatchOutcome`, `TransitionRecord`, effect/output intents | Native discriminated outcomes and records retaining exact native identifiers and payload types | Not yet certified |
-| `EventDisposition` | Explicit harmless-event dispositions, conditions and reasons distinct from refusal | Not yet certified |
-| `Capability`, status/report/snapshot | Advisory native capability values and bounded checked snapshots; no hidden authorization authority | Not yet certified |
+| `MachineInstance`, `Event`, `MachineDecision`, `ValidatedDecision` | Native instance/event/single-use decision APIs; owned snapshots, explicit revision checks and disposal | Covered: [model certification](#model-certification) |
+| `DispatchOutcome`, `TransitionRecord`, effect/output intents | Native discriminated outcomes and records retaining exact native identifiers and payload types | Covered: [model certification](#model-certification) |
+| `EventDisposition` | Explicit harmless-event dispositions, conditions and reasons distinct from refusal | Covered: [model certification](#model-certification) |
+| `Capability`, status/report/snapshot | Advisory native capability values and bounded checked snapshots; no hidden authorization authority | Covered: [model certification](#model-certification) |
 | `Composition`, routes, registry/addresses, bound dispatch, batches/reports/limits | Explicit typed routing under caller control, multi-machine examples, ordered partial progress on failure, bounded propagation and namespace isolation | Covered: [native composition](#native-composition) |
 | `RetryPolicy`, schedule, waits, correlation and wake intent | Native durations/correlations and caller-owned wake values; stale/foreign/cancelled wake tests; no scheduling | Covered: [native retry](#native-retry-and-waits) |
 | Scenario sets/replay/assertions/reports/traces/limits | Native replay and independent safety assertions; bounded counterexamples and coverage evidence | Covered: [native scenario replay](#native-scenario-replay) |
-| Inspection limits/coverage and diagram labels | Native inspection and Mermaid generation with application labels separate from identity; deterministic escaping and limit errors | Not yet certified |
-| All construction, binding, routing, dispatch, retry and inspection errors | Native exception taxonomy with typed context and original callback causes; no raw Rust `Result` or generic string-only errors | Not yet certified |
+| Inspection limits/coverage and diagram labels | Native inspection and Mermaid generation with application labels separate from identity; deterministic escaping and limit errors | Covered: [model certification](#model-certification) |
+| All construction, binding, routing, dispatch, retry, scenario and inspection errors | Native exception taxonomy with typed context and original callback causes; no raw Rust `Result` or generic string-only errors | Covered: [model certification](#model-certification) |
+| `EventOnDrop` (0.1.1) | Caller-owned scope-exit event: one synchronous delivery while armed, explicit `disarm`, correlation update, no rearming, no delivery by garbage collection | Covered: [model certification](#model-certification) |
 
 Composition is not a distributed transaction: earlier accepted steps remain
 accepted if a later delivery fails or hits a propagation bound. Reports must
@@ -306,8 +306,9 @@ formatter/Clippy hook validation. The private adapter also tests bounded value
 leases, checked graph construction, unaccepted decisions, disposal and host-specific
 thread capability. Its dependencies do not enter the core runtime graph.
 
-BND-03 and BND-04 are Partial. The compiled Python extension passes 60 native
-application and lifecycle tests; the Node addon passes 61. These cover enum/symbol
+BND-03 is Done and BND-04 is Partial; see [model certification](#model-certification)
+for the final evidence. The first lifecycle slice had the compiled Python extension pass 60 native
+application and lifecycle tests and the Node addon 61. These cover enum/symbol
 identities, domain data, detached snapshots, callback exceptions, checked decision
 acceptance, disposal, bounded value-slot reuse and reentrancy. Python also tests
 cross-thread rejection during evaluation and garbage collection of callback
@@ -628,6 +629,62 @@ events as steps, plain objects as limits, non-integer limits, non-boolean
 assertions, raw steps as a set, wrong data, a missing replay identity and, in
 TypeScript, an assertion over another state type.
 
-The remaining capability-model evidence and installed-artifact/platform
-evidence remain outstanding. These passing tests do
-not establish publication readiness or complete native-model parity.
+### Model certification
+
+Each row was checked against the definition of done: native documentation,
+type declarations, positive and negative tests in both languages and typed
+errors. Suites now total 112 Python and 111 Node.js tests, plus 36 bridge tests.
+
+Construction errors are typed by the kernel. `status_machina_bridge::rejection`
+gives every kernel build error (`DefinitionBuildError`, `ConditionBuildError`,
+`TransitionBuildError`, `DispositionBuildError`, `BindingError` and the
+action, effect, output and capability builders) a native category and its
+variant as `reason`, and the bridge attaches the rejected element (state,
+transition, condition, disposition, action, effect, output event or
+capability), resolved back to its native identity. The categories are
+`UnknownStateError`, `DuplicateIdentifierError`, `UnreachableStateError`,
+`TerminalTransitionError`, `InternalTransitionError`, `InvalidConditionError`,
+`InvalidDispositionError`, `DefinitionLimitError`, `InitialInvariantError` and
+`UnknownCapabilityError`, all `DefinitionError`s. `BindingError` is now a
+`DefinitionError`, not a `RecordError`, because specifications, records and
+scenario assertions all resolve Story references; it gains
+`DuplicateImplementationError`. Before this, a specification's unresolved Story
+reference or malformed condition surfaced as a bare `DefinitionError` message.
+Definitions also read states, transitions, dispositions, condition operands,
+phase lists and registry entries one entry past each bound and leave the bound
+to the kernel, so `DefinitionLimitError` carries the kernel `reason` and limit.
+Native nesting stops at 33 levels, where the kernel rejects the 33rd. Portable
+records keep their own construction bounds.
+
+| Row | Evidence |
+| --- | --- |
+| `MachineDefinition` and builders | Docs: "Define and run a machine" in both READMEs. Types: `Definition`, `State`, `Transition`, `Limits` (Python generics, `index.d.ts`), fixtures `typing/native_api`, `typing/contracts`. Tests: `test_definition_contract.py` / `definition-contract.test.mjs` (`DefinitionContractTests`: immutability, internal versus external self-transitions, every graph rule with its native identities, kernel-decided limits on endless inputs, the initial invariant), plus `test_native_api` and `lifecycle`. Errors: the construction categories above. |
+| `Condition` | Docs: READMEs. Types: `Condition` unions. Tests: `ConditionContractTests` / condition tests in `definition-contract` (all/any/not short-circuit order, 32 levels accepted, 33 and 200 rejected, endless operands, empty groups, mixed expressions, raised and non-boolean predicates). Errors: `InvalidConditionError`, `DefinitionLimitError`, `CallbackError`. |
+| `LocalAction`, `Effect`, `OutputEvent` | Docs: READMEs. Types: `Action` apply/update unions, `Effect`, `OutputEvent`, `EffectIntent`, `OutputIntent`. Tests: `IntentContractTests` / intent tests in `execution-contract` (exit, transition and entry phase order, payload classes retained, functional update, rollback of state, revision and data on a raised action, a returned value, a raised effect or output constructor, a postcondition or an invariant, phase limits), plus `test_lifecycle` effect short-circuiting. Errors: `CallbackError`, `PostconditionError`, `InvariantError`, `DefinitionLimitError`. |
+| `BehaviorRef`, registry, roles, `BoundInvariant` | Docs: READMEs. Types: `BehaviorRef`, `BehaviorRegistry`, `BehaviorRole`. Tests: `StoryBindingContractTests` / binding tests in `execution-contract` (action, condition, effect and invariant roles resolved exactly; a bound invariant rejecting a candidate; unknown Story, unknown implementation, wrong role for a condition and an invariant, duplicate implementation, update mode on a reference), plus `test_records`, `test_capabilities` and `test_scenarios`. Errors: `BindingError` family. |
+| `MachineInstance`, `Event`, decisions | Docs: READMEs. Types: `Machine`, `Decision`, `Event`, fixtures `typing/native_api`, `typing/contracts` (BigInt revisions, decisions not outcomes). Tests: `InstanceContractTests` / instance tests in `execution-contract` (stale `expected_revision` with both revisions, evaluate without effect until acceptance, single use, idempotent decision and machine disposal, disposed operations), plus `test_lifecycle`/`lifecycle` (foreign decisions, reentrancy, threads) and `workers`. Errors: `StaleDecisionError`, `ForeignDecisionError`, `DisposedError`, `BusyError`. |
+| `DispatchOutcome`, `TransitionRecord`, intents | Docs: READMEs. Types: `Refused`/`Ignored`/`Transitioned` and the TypeScript `Outcome` union narrowed in `typing/contracts`. Tests: exact refused and transitioned outcomes with native instance identities, records and revisions in `execution-contract`; intent payload classes in the intent tests. |
+| `EventDisposition` | Docs: READMEs. Types: `Disposition`, `Ignored`. Tests: `DispositionContractTests` / disposition tests in `definition-contract` (ignored versus refused with unchanged state, revision and data; a false condition refuses; invalid reasons; an overlapping transition is ambiguous; duplicate and unknown-state dispositions). Errors: `InvalidDispositionError`, `AmbiguousTransitionError`, `DuplicateIdentifierError`, `UnknownStateError`. |
+| `Capability`, status, report, snapshot | Docs: READMEs, [native composition](#native-composition). Types: `Capability`, `CapabilityStatus`, `CapabilityReport`, `CapabilitySnapshot`. Tests: `test_capabilities`/`capabilities` (detached data, exact Story binding, raised policy is not denial, non-status results), `CapabilityContractTests` / capability tests in `execution-contract` (unknown identity names the native capability, duplicates), and the composition snapshot tests (stale, unavailable and available observations, fabricated and foreign reports). Errors: `UnknownCapabilityError`, `DuplicateIdentifierError`, `CapabilitySnapshotError` family. |
+| Inspection and diagrams | Evidence listed under implementation evidence: `test_inspection`/`inspection` and `bindings/core/tests/inspection.rs` (coverage with native identities, equal labels kept distinct, escaping, entry, output and UTF-8 limits, invalid and missing labels, declaration order, no behavior evaluated), the order examples, `DiagramLabels`/`InspectionLimits` types. Errors: `InspectionError` with the violated budget. |
+| Error taxonomy | Docs: "Errors" in both READMEs. Types: every class declared in `errors.py` and `index.d.ts`. Tests: `ErrorTaxonomyTests` / taxonomy test (every exported error is a `StatusMachinaError`; `BindingError` is a `DefinitionError`), `bindings/core/tests/rejection.rs` (3: graph rules, builder rules and Story references cross with category, variant and element), and the context assertions across every contract test. No construction error a native caller can cause crosses as text alone; the remaining message-only bridge errors are private transport invariants. |
+| `EventOnDrop` | Implemented natively; the Rust type is a pure scope guard with no kernel state, so no bridge call is involved. Python `EventOnDrop` is a context manager; JavaScript `EventOnDrop` implements `dispose()` and `Symbol.dispose` for `using` (Node.js 24) or `finally` (Node.js 22). Docs: "Report abandoned operations on scope exit" in both READMEs. Types: `EventOnDrop[E]` / `EventOnDrop<E>` (fixtures `typing/contracts`). Tests: `EventOnDropContractTests` / EventOnDrop tests in `execution-contract` (delivery once on an exception after a correlation update, disarm is idempotent and cannot be rearmed, no delivery without scope exit, synchronous handlers returning nothing, a raised handler replacing the scope's exception). Errors: `TypeError` for asynchronous or value-returning handlers, `DisposedError` for rearming. |
+
+BND-03 is Done: Python checked construction, native values, execution and
+inspection through PyO3, typed source (`py.typed`, mypy fixtures) and the
+exception taxonomy are evidenced on every CI runner and interpreter. Running
+the same suites against installed wheels is BND-06 work.
+
+BND-04 stays Partial. Every napi-rs construction, value, execution, inspection,
+JavaScript and TypeScript clause above is evidenced, but each worker thread
+loads the native addon from the package, and the worker isolation suite
+(`npm/tests/workers.test.mjs`) runs against the checkout, not the installed npm
+artifact. Those installed-artifact worker tests are a BND-06 deliverable; BND-04
+closes when they pass.
+
+BND-05 is Done: every parity row above is Covered with evidence in both
+languages. Its dependency on BND-04 is met for every model clause; the only
+open BND-04 clause is the installed-artifact worker evidence owned by BND-06.
+
+Installed-artifact and platform evidence remain outstanding (BND-06 to BND-08).
+These passing tests do not establish publication readiness.

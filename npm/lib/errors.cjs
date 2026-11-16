@@ -26,10 +26,24 @@ class RecordError extends DefinitionError {}
 class ConditionRecordError extends RecordError {}
 class TransitionRecordError extends RecordError {}
 class DispositionRecordError extends RecordError {}
-class BindingError extends RecordError {}
+/** Exact Story resolution failed, for a specification, a record or an assertion. */
+class BindingError extends DefinitionError {}
 class UnknownBehaviorError extends BindingError {}
 class UnknownImplementationError extends BindingError {}
 class RoleMismatchError extends BindingError {}
+class DuplicateImplementationError extends BindingError {}
+// Checked construction: `context.reason` is the kernel variant and the context
+// names the rejected element natively.
+class UnknownStateError extends DefinitionError {}
+class DuplicateIdentifierError extends DefinitionError {}
+class UnreachableStateError extends DefinitionError {}
+class TerminalTransitionError extends DefinitionError {}
+class InternalTransitionError extends DefinitionError {}
+class InvalidConditionError extends DefinitionError {}
+class InvalidDispositionError extends DefinitionError {}
+class DefinitionLimitError extends DefinitionError {}
+class InitialInvariantError extends DefinitionError {}
+class UnknownCapabilityError extends DefinitionError {}
 class IdentityMapError extends StatusMachinaError {}
 class IdentityRoleError extends IdentityMapError {}
 class IdentityMapLimitError extends IdentityMapError {}
@@ -98,8 +112,15 @@ const types = Object.freeze({ inspection: InspectionError, definition: Definitio
   foreign_instance: ForeignDecisionError, revision_exhausted: RevisionError, disposed: DisposedError, busy: BusyError,
   record: RecordError, record_condition: ConditionRecordError, record_transition: TransitionRecordError,
   record_disposition: DispositionRecordError, unknown_behavior: UnknownBehaviorError,
-  unknown_implementation: UnknownImplementationError, role_mismatch: RoleMismatchError });
-const contextRoles = Object.freeze(['state', 'condition', 'transition', 'disposition', 'story', 'implementation']);
+  unknown_implementation: UnknownImplementationError, role_mismatch: RoleMismatchError,
+  duplicate_implementation: DuplicateImplementationError, unknown_state: UnknownStateError,
+  duplicate_identifier: DuplicateIdentifierError, unreachable_state: UnreachableStateError,
+  terminal_transition: TerminalTransitionError, internal_transition: InternalTransitionError,
+  invalid_condition: InvalidConditionError, invalid_disposition: InvalidDispositionError,
+  definition_limit: DefinitionLimitError, initial_invariant: InitialInvariantError,
+  unknown_capability: UnknownCapabilityError });
+const contextRoles = Object.freeze(['state', 'condition', 'transition', 'disposition', 'action', 'effect', 'event', 'capability',
+  'story', 'implementation']);
 /** True for a typed failure thrown by the native addon. */
 function isNative(error) {
   return error !== null && typeof error === 'object' && error.code === 'GenericFailure'
@@ -141,5 +162,7 @@ module.exports = { StatusMachinaError, DefinitionError, DispatchError, CallbackE
   RetryWaitError, InvalidWaitCapacityError, WaitCapacityReachedError, WaitGenerationExhaustedError, RetryRangeError,
   ScenarioError, ScenarioLimitsError, ScenarioSetError, EmptyScenarioSetError, ScenarioCountLimitError,
   ScenarioStepLimitError, ScenarioNodeLimitError, ScenarioAssertionError, MissingAssertionPredicateError,
-  ScenarioReplayError, AssertionLimitError,
+  ScenarioReplayError, AssertionLimitError, DuplicateImplementationError, UnknownStateError, DuplicateIdentifierError,
+  UnreachableStateError, TerminalTransitionError, InternalTransitionError, InvalidConditionError,
+  InvalidDispositionError, DefinitionLimitError, InitialInvariantError, UnknownCapabilityError,
   translate, exception, isNative };

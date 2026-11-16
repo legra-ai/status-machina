@@ -39,6 +39,29 @@ class LimitError(StatusMachinaError):
 class InspectionError(StatusMachinaError):
     """The requested inspection exceeds its bounds or has invalid labels."""
 
+# Checked construction: ``context['reason']`` is the kernel variant and the context
+# names the rejected element (``state``, ``transition``, ``condition``, ...) natively.
+class UnknownStateError(DefinitionError):
+    """The initial state, a transition endpoint or a disposition source is not declared."""
+class DuplicateIdentifierError(DefinitionError):
+    """Two states, transitions, dispositions or capabilities share one identity."""
+class UnreachableStateError(DefinitionError):
+    """``context['state']`` cannot be reached from the initial state."""
+class TerminalTransitionError(DefinitionError):
+    """The terminal ``context['state']`` declares an outgoing transition."""
+class InternalTransitionError(DefinitionError):
+    """An internal transition must leave and re-enter no state: its target is its source."""
+class InvalidConditionError(DefinitionError):
+    """A condition expression is malformed: an empty group, a missing operand or too deep."""
+class InvalidDispositionError(DefinitionError):
+    """A disposition reason must hold 1 to 256 non-whitespace bytes."""
+class DefinitionLimitError(DefinitionError, LimitError):
+    """A definition, state, transition or Story registry bound was exceeded or is invalid."""
+class InitialInvariantError(DefinitionError):
+    """Initial data violates the initial state's invariant; no instance was admitted."""
+class UnknownCapabilityError(DefinitionError, LookupError):
+    """The definition declares no ``context['capability']``."""
+
 class RecordError(DefinitionError):
     """A portable definition record failed checked binding; ``context`` names native IDs."""
 class ConditionRecordError(RecordError):
@@ -47,14 +70,17 @@ class TransitionRecordError(RecordError):
     """A transition record is structurally invalid; ``context['transition']`` is its ID."""
 class DispositionRecordError(RecordError):
     """A disposition record is structurally invalid; ``context['disposition']`` is its ID."""
-class BindingError(RecordError):
-    """Exact Story resolution failed; no implementation was substituted or loaded."""
+class BindingError(DefinitionError):
+    """Exact Story resolution failed, for a specification, a record or an assertion; no
+    implementation was substituted or loaded. ``context['reason']`` is the kernel variant."""
 class UnknownBehaviorError(BindingError):
     """No implementation of ``context['story']`` is registered."""
 class UnknownImplementationError(BindingError):
     """The Story is registered, but not ``context['implementation']``."""
 class RoleMismatchError(BindingError):
     """The selected implementation has the ``context['actual']`` BehaviorRole, not ``expected``."""
+class DuplicateImplementationError(BindingError):
+    """A registry declares one Story and implementation pair twice."""
 class IdentityMapError(StatusMachinaError):
     """An identity codec is invalid or was asked for an unregistered value."""
 class IdentityRoleError(IdentityMapError):
