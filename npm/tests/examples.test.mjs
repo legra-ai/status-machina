@@ -16,3 +16,9 @@ test('documented composition example propagates across three scopes in a separat
   assert.deepEqual(stdout.split(/\r?\n/).filter(Boolean), ['sales: OPEN -> PAID', 'warehouse: WAITING -> PACKED',
     'finance: DRAFT -> ISSUED', 'warehouse effect: label for order-7', 'quiescent {"total":120}']);
 });
+test('documented retry example consumes each wake once in a separate Node process', async () => {
+  const example = fileURLToPath(new URL('../examples/retry.mjs', import.meta.url));
+  const { stdout } = await execute(process.execPath, [example], { timeout: 10000, maxBuffer: 8192 });
+  assert.deepEqual(stdout.split(/\r?\n/).filter(Boolean), ['wait timer-1 until 10:00', 'wake: transitioned', 'duplicate: ignored',
+    'wait timer-2 until 12:00', 'wake: transitioned', 'duplicate: ignored', 'attempts: 3']);
+});
