@@ -428,9 +428,14 @@ jobs:
       - name: Remove every Rust toolchain from the runner
         # Installed packages must work without Rust, Cargo, maturin or napi CLI.
         run: |
-          if command -v rustup >/dev/null 2>&1; then
-            rustup self uninstall -y || { echo 'Failed to remove rustup' >&2; exit 1; }
+          if command -v rustup >/dev/null 2>&1 && ! rustup self uninstall -y; then
+            # macOS images install rustup through Homebrew, which disables self-uninstall.
+            brew uninstall --force --ignore-dependencies rustup || { echo 'Failed to remove rustup' >&2; exit 1; }
           fi
+          if command -v brew >/dev/null 2>&1 && brew list --formula rust >/dev/null 2>&1; then
+            brew uninstall --force --ignore-dependencies rust || { echo 'Failed to remove Homebrew Rust' >&2; exit 1; }
+          fi
+          rm -rf "$HOME/.cargo" "$HOME/.rustup" || exit 1
           hash -r
           for tool in cargo rustc rustup maturin napi; do
             if command -v "$tool" >/dev/null 2>&1; then
@@ -500,9 +505,14 @@ jobs:
       - name: Remove every Rust toolchain from the runner
         # Installed packages must work without Rust, Cargo, maturin or napi CLI.
         run: |
-          if command -v rustup >/dev/null 2>&1; then
-            rustup self uninstall -y || { echo 'Failed to remove rustup' >&2; exit 1; }
+          if command -v rustup >/dev/null 2>&1 && ! rustup self uninstall -y; then
+            # macOS images install rustup through Homebrew, which disables self-uninstall.
+            brew uninstall --force --ignore-dependencies rustup || { echo 'Failed to remove rustup' >&2; exit 1; }
           fi
+          if command -v brew >/dev/null 2>&1 && brew list --formula rust >/dev/null 2>&1; then
+            brew uninstall --force --ignore-dependencies rust || { echo 'Failed to remove Homebrew Rust' >&2; exit 1; }
+          fi
+          rm -rf "$HOME/.cargo" "$HOME/.rustup" || exit 1
           hash -r
           for tool in cargo rustc rustup maturin napi; do
             if command -v "$tool" >/dev/null 2>&1; then

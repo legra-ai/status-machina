@@ -218,6 +218,8 @@ class NativeArtifactTests(unittest.TestCase):
                 self.assertIn(suite, body)
                 self.assertNotRegex(body, r'sparse-checkout: \|\n(?:\s+/\S+\n)*\s+/(?:python|npm)/(?:status_machina|lib|index)')
                 self.assertIn('rustup self uninstall -y', body)
+                self.assertIn('brew uninstall --force --ignore-dependencies rustup', body)
+                self.assertIn('hash -r', body)
                 self.assertLess(body.index('rustup self uninstall -y'), body.index(commands[0]))
                 self.assertIn('Require the installed package', body)
                 for command in commands:
