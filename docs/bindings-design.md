@@ -207,7 +207,7 @@ may already be partly implemented, as the implementation evidence describes.
 | `Capability`, status/report/snapshot | Advisory native capability values and bounded checked snapshots; no hidden authorization authority | Not yet certified |
 | `Composition`, routes, registry/addresses, bound dispatch, batches/reports/limits | Explicit typed routing under caller control, multi-machine examples, ordered partial progress on failure, bounded propagation and namespace isolation | Covered: [native composition](#native-composition) |
 | `RetryPolicy`, schedule, waits, correlation and wake intent | Native durations/correlations and caller-owned wake values; stale/foreign/cancelled wake tests; no scheduling | Covered: [native retry](#native-retry-and-waits) |
-| Scenario sets/replay/assertions/reports/traces/limits | Native replay and independent safety assertions; bounded counterexamples and coverage evidence | Not yet certified |
+| Scenario sets/replay/assertions/reports/traces/limits | Native replay and independent safety assertions; bounded counterexamples and coverage evidence | Covered: [native scenario replay](#native-scenario-replay) |
 | Inspection limits/coverage and diagram labels | Native inspection and Mermaid generation with application labels separate from identity; deterministic escaping and limit errors | Not yet certified |
 | All construction, binding, routing, dispatch, retry and inspection errors | Native exception taxonomy with typed context and original callback causes; no raw Rust `Result` or generic string-only errors | Not yet certified |
 
@@ -548,6 +548,86 @@ window, numbers as durations or deadlines, bare durations as delay rules, wrong
 payload types, tuples as correlations, numeric generations and a missing
 capacity.
 
-Scenario APIs, the remaining capability-model evidence and
-installed-artifact/platform evidence remain outstanding. These passing tests do
+### Native scenario replay
+
+Both languages expose `ScenarioLimits`, `ScenarioSet`, `ScenarioAssertion`,
+`ScenarioReplay.run`, `ScenarioFailure`, `ScenarioLimit`, the step outcomes
+(transitioned, ignored, refused, dispatch failed) and the four results
+(`complete_within_scenarios`, `counterexample`, `limit_reached`,
+`execution_failed`), all discriminated by `kind`, plus the observation, the
+`CounterexampleTrace` and the `BoundedScenarioReport`. Python uses frozen
+dataclasses, `Scenario`/`ScenarioStep` values and `Enum`s; JavaScript uses
+frozen classes for limits, sets and assertions, checked plain objects for
+scenarios and steps, frozen results and TypeScript unions over `kind`. Rust's
+`ScenarioObservation::kind()` is `outcome` natively, because `kind` is the
+discriminator of the result and outcome values.
+
+The kernel decides every rule through `status_machina_bridge::scenario`:
+`ScenarioLimits::builder`, `ScenarioSet::builder`, `ScenarioAssertion::builder`,
+`BehaviorRegistry::resolve_assertion` and `ScenarioReplay::run`. Neither
+language checks a bound, orders assertions, dispatches or trims a trace.
+Construction checks run at native construction: limits through the builder,
+an assertion predicate through the assertion builder, and set bounds by the set
+builder over the step counts, in the kernel's own precedence. Native readers
+consume at most one entry beyond each bound, and at most the kernel ceilings of
+1024 scenarios, 4096 steps and 128 assertions, so endless iterables fail.
+
+API decisions:
+
+- `ScenarioLimits` gains public getters in the Rust crate
+  (`max_scenarios()`, ..., `max_trace_entries()`). Native limits are values
+  whose defaults the kernel resolves; the getters only expose the builder's
+  result.
+- A scenario crosses as its position, so two scenarios with equal native
+  identities stay two traces. Assertions cross as positions too. States,
+  events, transitions, dispositions, effects, Stories and implementations are
+  indexes of the definition's own inventories; an undeclared event or an
+  unknown Story crosses as an absent index, so the kernel refuses or rejects it.
+  An observation's input event is the caller's own native event kind.
+- One replay owns one value arena of the definition's `max_values`. Every
+  input is leased before the first callback; equal input objects (Python
+  identity, JavaScript `Map` semantics) share one lease, since callbacks only
+  ever receive snapshots. Candidates are swept when the arena fills. Every
+  lease is released when replay returns.
+- A registered assertion keeps its definition callback; an inline assertion's
+  callback follows the definition's callback table. A raised assertion,
+  guard, action, constructor or snapshot stops replay (the kernel's
+  `ScenarioReplayBuildError::EvaluationFailed`) as `CallbackError`/`SnapshotError`
+  with its `phase` and original cause, never as a false assertion.
+- An unresolved assertion reference raises the Story binding errors
+  (`UnknownBehaviorError`, `UnknownImplementationError`, `RoleMismatchError`)
+  naming the `assertion`, its `entry` and the native Story and implementation.
+
+Errors are `ScenarioLimitsError`, `ScenarioSetError` (`EmptyScenarioSetError`,
+`ScenarioCountLimitError`, `ScenarioStepLimitError`, `ScenarioNodeLimitError`),
+`ScenarioAssertionError` (`MissingAssertionPredicateError`) and
+`ScenarioReplayError` (`AssertionLimitError`), all under `ScenarioError`, with
+the kernel `reason`, the `limit`, the refused scenario's `entry` and native
+identity, and the limit values in their context. In Python the limit errors are
+also `LimitError`s.
+
+Evidence: `tests/scenario_replay.rs` (+1, limit getters) and
+`bindings/core/tests/scenario.rs` (5); `python/tests/test_scenarios.py` (11) and
+`npm/tests/scenarios.test.mjs` (11), plus one example test in each language.
+Positive tests replay with native enum/symbol states and events, transitions,
+dispositions, refused undeclared events and produced output and effect
+identities, and count complete coverage (`scenarios`, `nodes`). They cover a
+counterexample prefix through the failing step with ordered short-circuiting
+assertions, fresh isolated snapshots per scenario, registered assertions,
+output and trace budgets, a dispatch rejection traced as `dispatch_failed`,
+invalid initial data at step 0, duplicate and type-distinct scenario
+identities, and 200 shared-input steps in a 16-slot arena. Negative tests cover
+every limit, set, assertion and replay rejection with its context, lazy bounds
+on endless scenario, step and assertion iterables, wrong value types and unknown
+fields, asynchronous and non-boolean assertions, and the original causes of
+raised assertions, guards and snapshots. The runnable `examples/scenarios.py`
+and `examples/scenarios.mjs` find an unpaid rush shipment and are shown in the
+package READMEs. The typing fixtures `python/tests/typing/scenarios.py` and
+`npm/tests/typing/scenarios.mts` narrow results by `kind` and reject bare
+events as steps, plain objects as limits, non-integer limits, non-boolean
+assertions, raw steps as a set, wrong data, a missing replay identity and, in
+TypeScript, an assertion over another state type.
+
+The remaining capability-model evidence and installed-artifact/platform
+evidence remain outstanding. These passing tests do
 not establish publication readiness or complete native-model parity.
