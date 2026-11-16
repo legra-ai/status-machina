@@ -31,3 +31,9 @@ class ExampleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(output.splitlines(), [
             'sales: OPEN -> PAID', 'warehouse: WAITING -> PACKED', 'finance: DRAFT -> ISSUED',
             'warehouse effect: label for order-7', 'QUIESCENT Ledger(total=120)'])
+
+    async def test_retry_example_consumes_each_wake_once(self):
+        output = await self.run_example('retry.py')
+        self.assertEqual(output.splitlines(), [
+            'wait timer-1 until 10:00', 'wake: transitioned', 'duplicate: ignored',
+            'wait timer-2 until 12:00', 'wake: transitioned', 'duplicate: ignored', 'attempts: 3'])

@@ -206,7 +206,7 @@ may already be partly implemented, as the implementation evidence describes.
 | `EventDisposition` | Explicit harmless-event dispositions, conditions and reasons distinct from refusal | Not yet certified |
 | `Capability`, status/report/snapshot | Advisory native capability values and bounded checked snapshots; no hidden authorization authority | Not yet certified |
 | `Composition`, routes, registry/addresses, bound dispatch, batches/reports/limits | Explicit typed routing under caller control, multi-machine examples, ordered partial progress on failure, bounded propagation and namespace isolation | Covered: [native composition](#native-composition) |
-| `RetryPolicy`, schedule, waits, correlation and wake intent | Native durations/correlations and caller-owned wake values; stale/foreign/cancelled wake tests; no scheduling | Not yet certified |
+| `RetryPolicy`, schedule, waits, correlation and wake intent | Native durations/correlations and caller-owned wake values; stale/foreign/cancelled wake tests; no scheduling | Covered: [native retry](#native-retry-and-waits) |
 | Scenario sets/replay/assertions/reports/traces/limits | Native replay and independent safety assertions; bounded counterexamples and coverage evidence | Not yet certified |
 | Inspection limits/coverage and diagram labels | Native inspection and Mermaid generation with application labels separate from identity; deterministic escaping and limit errors | Not yet certified |
 | All construction, binding, routing, dispatch, retry and inspection errors | Native exception taxonomy with typed context and original callback causes; no raw Rust `Result` or generic string-only errors | Not yet certified |
@@ -474,6 +474,79 @@ and `npm/tests/typing/composition.mts` reject raw identities as route endpoints,
 missing budgets, non-integer budgets, bare payloads as deliveries and
 definitions as registry entries.
 
-Retry/scenario APIs, the remaining capability-model evidence and
+### Native retry and waits
+
+Both languages expose `RetryPolicy`, `FixedDelay`, `ExponentialBackoff`,
+`RetryAt`/`RetryExhausted` (discriminated by `kind`), `WaitCorrelation`,
+`WakeIntent` and `RetryWaits`. Python uses frozen dataclasses with
+`datetime.timedelta` durations and timezone-aware `datetime` instants, returned
+in UTC. JavaScript uses frozen classes, `Date` instants and a package `Duration`:
+Node.js 22/24 ship no Temporal, and `number` milliseconds can neither carry Rust's
+nanoseconds nor reach its range. `Duration` holds exact BigInt nanoseconds over
+`0..=Duration::MAX`, which is its type invariant, as for Rust's `Duration`.
+TypeScript narrows schedules by `kind` and keeps the instance, operation and
+payload types of a wait set.
+
+The kernel decides every rule through `status_machina_bridge::retry`:
+`RetryPolicy::builder` and `schedule`, and `RetryWaits::builder`, `schedule`,
+`pending`, `get`, `mark_registered`, `is_due`, `consume` and `cancel`. Neither
+language computes delays, checks windows, assigns generations or matches wakes.
+Durations and instants cross as decimal seconds plus nanoseconds, so the bridge
+decides representability: negative or oversized durations, attempt counts
+outside `u32`, generations outside `u64` and instants outside the platform's
+`SystemTime` become `RetryRangeError`, never a clamp or a wrap.
+
+API decisions:
+
+- `WaitCorrelation::new` is public in the Rust crate. A reminder returned by an
+  external scheduler must be rebuilt, and native correlations are values.
+  Construction grants nothing: a wait set matches only the exact current
+  instance, operation and generation, as for a clone.
+- The elapsed window is required: `max_elapsed`/`maxElapsed` is a duration, or
+  `None`/`null` for an explicitly indefinite window. The attempt bound is always
+  finite. Omission is a type error in both languages.
+- Each wait set interns its operations (type-qualified in Python, `Map`
+  semantics in JavaScript) and lowers a correlation's instance to "this owner"
+  or "another". An operation it never interned crosses as absent, so the kernel
+  finds no match. Payloads stay in the language, keyed by the kernel-assigned
+  generation, and leave with the consumed, cancelled or replaced wait. Both
+  tables stay within the capacity.
+- A wait set is machine data. `copy.deepcopy` and the Node default snapshot copy
+  the kernel value and payloads, keeping identities; a custom Node snapshot uses
+  `clone(copyPayload)`. Immutable retry values are shared by the Node snapshot.
+  A Python wait set refuses pickling; a Node one is uncloneable.
+- `Duration.after(date)` rounds up to the millisecond, so a JavaScript deadline
+  is never early. Python adds a `timedelta` to a `datetime` natively.
+- `GenerationExhausted` needs 2**64 schedules. It maps to
+  `WaitGenerationExhaustedError`; only the kernel unit test reaches it.
+
+Errors are `RetryPolicyError` (`ZeroDelayError`, `TooFewAttemptsError`,
+`CapBelowInitialError`), `RetryWaitError` (`InvalidWaitCapacityError`,
+`WaitCapacityReachedError`, `WaitGenerationExhaustedError`) and
+`RetryRangeError`, all under `RetryError`, with the kernel `reason`, the `field`,
+the native `value` and the capacity `limit` in their context. In Python the
+capacity errors are also `LimitError`s and `RetryRangeError` is a `ValueError`.
+
+Evidence: `tests/retry_waits.rs` (+1, rebuilt correlations) and
+`bindings/core/tests/retry.rs` (5); `python/tests/test_retry.py` (16) and
+`npm/tests/retry.test.mjs` (14), plus one example test in each language.
+Positive tests cover fixed multi-hour delays, capped backoff, window exhaustion,
+an indefinite window, saturating doubling, registration distinct from
+consumption, replacement, rebuilt correlations, pre-epoch instants and
+independent snapshots. Negative tests cover every reachable policy and wait
+rejection, range errors with their field, elapsed-sum overflow (JavaScript,
+where `Duration.MAX` is representable), early, stale, replaced, cancelled and
+foreign wakes, including type-qualified and object-token instances. Machine
+tests schedule and consume waits from candidate actions: duplicate deliveries
+are ignored and never increase attempts, a capacity refusal rolls back the whole
+transition with its typed cause, and window exhaustion takes the give-up
+transition. The runnable `examples/retry.py` and `examples/retry.mjs` deliver
+each wake twice and are shown in the package READMEs. The typing fixtures
+`python/tests/typing/retry.py` and `npm/tests/typing/retry.mts` reject an omitted
+window, numbers as durations or deadlines, bare durations as delay rules, wrong
+payload types, tuples as correlations, numeric generations and a missing
+capacity.
+
+Scenario APIs, the remaining capability-model evidence and
 installed-artifact/platform evidence remain outstanding. These passing tests do
 not establish publication readiness or complete native-model parity.

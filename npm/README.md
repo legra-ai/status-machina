@@ -158,6 +158,79 @@ Rejections are `CompositionError` subclasses carrying the kernel `reason` in
 `CapabilitySnapshotLimitError`, `ForeignSnapshotError`). Compositions,
 snapshots and bindings are uncloneable, like machines.
 
+## Retry and correlated waits
+
+`RetryPolicy` decides when to retry and `RetryWaits` records which wake a
+machine accepts. The Rust kernel's `RetryPolicy` and `RetryWaits` decide every
+rule; JavaScript only lowers native values. Durations are `Duration` values
+(exact BigInt nanoseconds over the range of Rust's `Duration`) and instants are
+`Date` values. The caller supplies every count, elapsed duration, deadline and
+current time, and owns the scheduler: nothing here reads a clock, starts a timer
+or schedules a wake. The [runnable retry example](examples/retry.mjs) backs off
+exponentially and delivers every wake twice:
+
+```js
+const policy = new RetryPolicy({ delay: new ExponentialBackoff({ initial: Duration.ofHours(1), maximum: Duration.ofHours(4) }),
+  maxAttempts: 5, maxElapsed: Duration.ofDays(1) });
+// In the 'retry' transition's action:
+data.failures += 1;
+const { delay } = policy.schedule(data.failures, clock.elapsed);
+data.waits.schedule('fetch', delay.after(clock.now), `timer-${data.failures}`);
+// In the 'wake' transition, guarded by data.waits.isDue(correlation, clock.now):
+data.waits.consume(correlation, clock.now);
+data.attempts += 1;
+```
+
+It prints:
+
+```text
+wait timer-1 until 10:00
+wake: transitioned
+duplicate: ignored
+wait timer-2 until 12:00
+wake: transitioned
+duplicate: ignored
+attempts: 3
+```
+
+- `Duration.from({ hours: 6, minutes: 30 })`, `Duration.ofSeconds(10)` and the
+  other factories take safe integers or BigInts; `Duration.ZERO` and
+  `Duration.MAX` bound the range. `duration.after(date)` adds it to a `Date`,
+  rounded up to the millisecond so a deadline is never early.
+- `new RetryPolicy({ delay, maxAttempts, maxElapsed })` takes a `FixedDelay` or
+  an `ExponentialBackoff({ initial, maximum })`. `maxAttempts` counts every
+  attempt, the first included. `maxElapsed` is required: a `Duration` bounds the
+  time since the first attempt, and `null` explicitly states an indefinite
+  window; the attempt bound still holds. `schedule(failedAttempts, elapsed)`
+  returns a `RetryAt` (`delay`) or a `RetryExhausted`, discriminated by `kind`.
+  Doubling saturates at the cap, and an elapsed sum beyond `Duration.MAX`
+  exhausts.
+- `new RetryWaits({ instance, capacity })` (1..4096) is ordinary machine data.
+  Schedule and consume from candidate actions, so a refused transition keeps the
+  accepted waits; a `WaitCapacityReachedError` thrown by `schedule` refuses the
+  whole transition. The default snapshot copies the kernel waits and payloads
+  and keeps the identities; a custom snapshot function calls
+  `waits.clone(copyPayload)`. Retry values are uncloneable or immutable.
+- `schedule(operation, deadline, payload)` returns a `WaitCorrelation`
+  (`instance`, `operation`, BigInt `generation`); scheduling the same operation
+  again replaces its wait with a new generation. `pending()` lists waits whose
+  registration is not yet acknowledged by `markRegistered(correlation)`.
+  `isDue` and `consume(correlation, now)` match only the exact current wait,
+  with `Map` semantics: an early, stale, replaced, cancelled, foreign or
+  duplicate wake returns `false`/`undefined`, so it never counts as an attempt.
+  Generations are never reused. A correlation is a value: rebuild it with
+  `new WaitCorrelation({ instance, operation, generation })` after a round trip
+  through a scheduler.
+
+Errors are `RetryError` subclasses carrying the kernel `reason` in `context`:
+`RetryPolicyError` (`ZeroDelayError`, `TooFewAttemptsError`,
+`CapBelowInitialError`), `RetryWaitError` (`InvalidWaitCapacityError`,
+`WaitCapacityReachedError`, `WaitGenerationExhaustedError`) and
+`RetryRangeError` for a value outside its kernel type: a negative or oversized
+duration, an attempt count outside 0..2**32-1, a generation outside
+0..2**64-1, a `Date` sum beyond its range or an instant the platform's
+`SystemTime` cannot hold. Its `context` names the `field` and holds the `value`.
+
 ## Inspect and draw a definition
 
 The [runnable Node.js order example](examples/order.mjs) checks an approval transition

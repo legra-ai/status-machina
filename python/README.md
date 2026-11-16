@@ -154,6 +154,75 @@ Rejections are `CompositionError` subclasses carrying the kernel `reason`:
 `CapabilitySnapshotLimitError`, `ForeignSnapshotError`). Limit errors are also
 `LimitError`s.
 
+## Retry and correlated waits
+
+`RetryPolicy` decides when to retry and `RetryWaits` records which wake a
+machine accepts. The Rust kernel's `RetryPolicy` and `RetryWaits` decide every
+rule; Python only lowers native values. Durations are `datetime.timedelta` and
+instants are timezone-aware `datetime` values. The caller supplies every count,
+elapsed duration, deadline and current time, and owns the scheduler: nothing
+here reads a clock, starts a timer or schedules a wake. The
+[runnable retry example](examples/retry.py) backs off exponentially and delivers
+every wake twice:
+
+```python
+POLICY = RetryPolicy(delay=ExponentialBackoff(timedelta(hours=1), timedelta(hours=4)), max_attempts=5,
+    max_elapsed=timedelta(days=1))
+
+def schedule(data: Fetch, payload: None, facts: Clock) -> None:
+    data.failures += 1
+    decision = POLICY.schedule(data.failures, facts.elapsed)
+    assert isinstance(decision, RetryAt)
+    data.waits.schedule("fetch", facts.now + decision.delay, f"timer-{data.failures}")
+
+def consume(data: Fetch, payload: WaitCorrelation[str, str], facts: Clock) -> None:
+    data.waits.consume(payload, facts.now)
+    data.attempts += 1
+```
+
+It prints:
+
+```text
+wait timer-1 until 10:00
+wake: transitioned
+duplicate: ignored
+wait timer-2 until 12:00
+wake: transitioned
+duplicate: ignored
+attempts: 3
+```
+
+- `RetryPolicy(delay=..., max_attempts=..., max_elapsed=...)` takes a
+  `FixedDelay(delay)` or an `ExponentialBackoff(initial, maximum)`.
+  `max_attempts` counts every attempt, the first included. `max_elapsed` is
+  required: a `timedelta` bounds the time since the first attempt, and `None`
+  explicitly states an indefinite window; the attempt bound still holds.
+  `schedule(failed_attempts, elapsed)` returns `RetryAt(delay)` or
+  `RetryExhausted()` (discriminated by `kind`). Doubling saturates at the cap.
+- `RetryWaits(instance=..., capacity=...)` (1..4096) is ordinary machine data.
+  Schedule and consume from candidate actions, so a refused transition keeps
+  the accepted waits; a `WaitCapacityReachedError` raised by `schedule` refuses
+  the whole transition. `copy.deepcopy`, the default snapshot, copies the kernel
+  waits and the payloads and keeps the identities.
+- `schedule(operation, deadline, payload)` returns a `WaitCorrelation(instance,
+  operation, generation)`; scheduling the same operation again replaces its wait
+  with a new generation. `pending()` lists waits whose registration is not yet
+  acknowledged by `mark_registered(correlation)`. `is_due` and
+  `consume(correlation, now)` match only the exact current wait: an early,
+  stale, replaced, cancelled, foreign or duplicate wake returns `False`/`None`,
+  so it never counts as an attempt. Generations are never reused. A correlation
+  is a value: rebuild it after a round trip through a scheduler.
+  `WakeIntent.payload` is the caller-owned value given to `schedule`.
+
+Errors are `RetryError` subclasses carrying the kernel `reason`:
+`RetryPolicyError` (`ZeroDelayError`, `TooFewAttemptsError`,
+`CapBelowInitialError`), `RetryWaitError` (`InvalidWaitCapacityError`,
+`WaitCapacityReachedError`, both also `LimitError`s,
+`WaitGenerationExhaustedError`) and `RetryRangeError`, also a `ValueError`, for
+a value outside its kernel type: a negative duration, an attempt count outside
+0..2**32-1, a generation outside 0..2**64-1 or an instant the platform's
+`SystemTime` cannot hold. Its `context` names the `field` and holds the `value`.
+
 ## Inspect and draw a definition
 
 The [runnable Python order example](examples/order.py) checks an approval transition

@@ -10,6 +10,7 @@ use status_machina::{
     OperationId,
     RetryWaitError,
     RetryWaits,
+    WaitCorrelation,
 };
 use uuid::Uuid;
 
@@ -115,4 +116,22 @@ fn wait_capacity_must_be_explicit_positive_and_bounded() {
         RetryWaits::<()>::builder(instance(1)).build(),
         Err(RetryWaitError::InvalidCapacity)
     ));
+}
+
+#[test]
+fn a_rebuilt_correlation_matches_only_the_exact_current_wait() {
+    let mut waits = waits(1);
+    let now = SystemTime::UNIX_EPOCH;
+    let current = waits.schedule(operation("fetch"), now, 1).unwrap();
+    let rebuilt = WaitCorrelation::new(instance(1), operation("fetch"), current.generation());
+    assert_eq!(rebuilt, current);
+    for other in [
+        WaitCorrelation::new(instance(2), operation("fetch"), current.generation()),
+        WaitCorrelation::new(instance(1), operation("publish"), current.generation()),
+        WaitCorrelation::new(instance(1), operation("fetch"), current.generation() + 1),
+    ] {
+        assert!(!waits.is_due(&other, now));
+        assert!(waits.consume(&other, now).is_none());
+    }
+    assert_eq!(*waits.consume(&rebuilt, now).unwrap().payload(), 1);
 }

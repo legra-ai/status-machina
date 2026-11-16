@@ -493,3 +493,108 @@ export class CapabilitySnapshotLimitError extends CapabilitySnapshotError {}
 export class ReportInstanceMismatchError extends CapabilitySnapshotError {}
 export class DuplicateObservationError extends CapabilitySnapshotError {}
 export class ForeignSnapshotError extends CapabilitySnapshotError {}
+
+/** A non-negative span of time with exact BigInt nanoseconds, over the range of Rust's `Duration`. */
+export class Duration {
+  constructor(nanoseconds: bigint);
+  static readonly ZERO: Duration;
+  static readonly MAX: Duration;
+  static from(parts: { readonly days?: number | bigint; readonly hours?: number | bigint; readonly minutes?: number | bigint;
+    readonly seconds?: number | bigint; readonly milliseconds?: number | bigint; readonly microseconds?: number | bigint;
+    readonly nanoseconds?: number | bigint }): Duration;
+  static ofDays(value: number | bigint): Duration;
+  static ofHours(value: number | bigint): Duration;
+  static ofMinutes(value: number | bigint): Duration;
+  static ofSeconds(value: number | bigint): Duration;
+  static ofMilliseconds(value: number | bigint): Duration;
+  static ofNanoseconds(value: number | bigint): Duration;
+  readonly nanoseconds: bigint;
+  /** Whole seconds. */
+  readonly seconds: bigint;
+  readonly subsecondNanoseconds: number;
+  equals(other: unknown): boolean;
+  compare(other: Duration): -1 | 0 | 1;
+  plus(other: Duration): Duration;
+  /** `instant + this`, rounded up to Date's millisecond so a deadline is never early. */
+  after(instant: Date): Date;
+  /** ISO 8601, e.g. `PT21600S`. */
+  toString(): string;
+  toJSON(): string;
+  private readonly brand: 'Duration';
+}
+export class FixedDelay {
+  constructor(delay: Duration);
+  readonly kind: 'fixed';
+  readonly delay: Duration;
+}
+export class ExponentialBackoff {
+  constructor(options: { readonly initial: Duration; readonly maximum: Duration });
+  readonly kind: 'exponential';
+  readonly initial: Duration;
+  readonly maximum: Duration;
+}
+export class RetryAt {
+  private constructor();
+  readonly kind: 'at';
+  readonly delay: Duration;
+}
+export class RetryExhausted {
+  private constructor();
+  readonly kind: 'exhausted';
+}
+export type RetrySchedule = RetryAt | RetryExhausted;
+export interface RetryPolicyOptions {
+  readonly delay: FixedDelay | ExponentialBackoff;
+  /** Every attempt, the first included (2..2**32-1). */
+  readonly maxAttempts: number;
+  /** A bound on time since the first attempt, or `null` for an explicitly indefinite window. */
+  readonly maxElapsed: Duration | null;
+}
+/** A bounded fixed or capped exponential policy, validated by the kernel. Reads no clock. */
+export class RetryPolicy {
+  constructor(options: RetryPolicyOptions);
+  readonly delay: FixedDelay | ExponentialBackoff;
+  readonly maxAttempts: number;
+  readonly maxElapsed: Duration | null;
+  schedule(failedAttempts: number, elapsed: Duration): RetrySchedule;
+}
+/** The identity a reminder carries back; matching is the kernel's exact instance, operation and generation. */
+export class WaitCorrelation<I extends Identity = Identity, O extends Identity = Identity> {
+  constructor(value: { readonly instance: I; readonly operation: O; readonly generation: bigint });
+  readonly instance: I;
+  readonly operation: O;
+  readonly generation: bigint;
+  equals(other: unknown): boolean;
+}
+export interface WakeIntent<I extends Identity = Identity, O extends Identity = Identity, P = unknown> {
+  readonly correlation: WaitCorrelation<I, O>;
+  readonly deadline: Date;
+  readonly payload: P;
+}
+/** Bounded active waits of one instance incarnation, held in its machine data; schedules nothing. */
+export class RetryWaits<I extends Identity = Identity, O extends Identity = Identity, P = unknown> {
+  constructor(options: { readonly instance: I; readonly capacity: number });
+  readonly instance: I;
+  readonly capacity: number;
+  schedule(operation: O, deadline: Date, payload: P): WaitCorrelation<I, O>;
+  pending(): readonly WakeIntent<I, O, P>[];
+  get(operation: O): WakeIntent<I, O, P> | undefined;
+  markRegistered(correlation: WaitCorrelation<Identity, Identity>): boolean;
+  isDue(correlation: WaitCorrelation<Identity, Identity>, now: Date): boolean;
+  consume(correlation: WaitCorrelation<Identity, Identity>, now: Date): WakeIntent<I, O, P> | undefined;
+  cancel(operation: O): WakeIntent<I, O, P> | undefined;
+  /** An independent copy for a custom snapshot function. */
+  clone(copyPayload: (payload: P) => P): RetryWaits<I, O, P>;
+}
+
+export class RetryError extends StatusMachinaError {}
+export class RetryPolicyError extends RetryError {}
+export class ZeroDelayError extends RetryPolicyError {}
+export class TooFewAttemptsError extends RetryPolicyError {}
+export class CapBelowInitialError extends RetryPolicyError {}
+export class RetryWaitError extends RetryError {}
+export class InvalidWaitCapacityError extends RetryWaitError {}
+export class WaitCapacityReachedError extends RetryWaitError {}
+export class WaitGenerationExhaustedError extends RetryWaitError {}
+/** A value lies outside its kernel type; `context.field` names it and `context.value` holds it. */
+export class RetryRangeError extends RetryError {}

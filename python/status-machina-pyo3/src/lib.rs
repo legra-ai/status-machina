@@ -3,6 +3,7 @@
 mod composition;
 mod error;
 mod host;
+mod retry;
 
 use std::sync::{
     Arc,
@@ -27,6 +28,10 @@ use error::{
 use host::PyHost;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
+use retry::{
+    NativeRetryPolicy,
+    NativeRetryWaits,
+};
 use status_machina_bridge::build::Template;
 use status_machina_bridge::codec::{
     Codec,
@@ -38,7 +43,7 @@ use status_machina_bridge::runtime::{
 };
 use status_machina_bridge::value::Host;
 
-fn lock<'a, T>(py: Python<'_>, mutex: &'a Mutex<T>) -> PyResult<MutexGuard<'a, T>> {
+pub(crate) fn lock<'a, T>(py: Python<'_>, mutex: &'a Mutex<T>) -> PyResult<MutexGuard<'a, T>> {
     match mutex.try_lock() {
         Ok(guard) => Ok(guard),
         Err(TryLockError::WouldBlock) => Err(translate(py, CoreError::Busy)),
@@ -264,6 +269,8 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<NativeCapabilityReport>()?;
     module.add_class::<NativeSnapshot>()?;
     module.add_class::<NativeComposition>()?;
+    module.add_class::<NativeRetryPolicy>()?;
+    module.add_class::<NativeRetryWaits>()?;
     module.add_function(wrap_pyfunction!(propagation_limits, module)?)?;
     module.add("NativeFailure", module.py().get_type::<NativeFailure>())?;
     Ok(())

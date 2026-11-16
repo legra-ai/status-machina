@@ -66,6 +66,19 @@ class CapabilitySnapshotLimitError extends CapabilitySnapshotError {}
 class ReportInstanceMismatchError extends CapabilitySnapshotError {}
 class DuplicateObservationError extends CapabilitySnapshotError {}
 class ForeignSnapshotError extends CapabilitySnapshotError {}
+/** A retry policy or wait set was rejected; `context.reason` is the kernel variant. */
+class RetryError extends StatusMachinaError {}
+class RetryPolicyError extends RetryError {}
+class ZeroDelayError extends RetryPolicyError {}
+class TooFewAttemptsError extends RetryPolicyError {}
+class CapBelowInitialError extends RetryPolicyError {}
+/** The kernel refused a wait; the wait set is unchanged. */
+class RetryWaitError extends RetryError {}
+class InvalidWaitCapacityError extends RetryWaitError {}
+class WaitCapacityReachedError extends RetryWaitError {}
+class WaitGenerationExhaustedError extends RetryWaitError {}
+/** A value lies outside its kernel type; `context.field` names it and `context.value` holds it. */
+class RetryRangeError extends RetryError {}
 const types = Object.freeze({ inspection: InspectionError, definition: DefinitionError, callback: CallbackError,
   invariant: InvariantError, postcondition: PostconditionError, ambiguous: AmbiguousTransitionError,
   action: ActionError, stale_revision: StaleDecisionError, foreign_definition: ForeignDecisionError,
@@ -111,4 +124,6 @@ module.exports = { StatusMachinaError, DefinitionError, DispatchError, CallbackE
   RecordError, ConditionRecordError, TransitionRecordError, DispositionRecordError, BindingError,
   UnknownBehaviorError, UnknownImplementationError, RoleMismatchError, IdentityMapError, IdentityRoleError,
   IdentityMapLimitError, DuplicateIdentityError, DuplicateRepresentationError, UnknownIdentityError,
-  UnknownRepresentationError, CompositionError, InstanceRegistryError, InstanceRegistryLimitError, AddressMismatchError, DuplicateInstanceError, CompositionDefinitionError, CompositionLimitError, DuplicateRouteError, UnregisteredRouteAddressError, UndeclaredRouteEventError, UndeclaredCapabilityError, RouteBatchError, UnregisteredSourceError, BatchLimitError, CompositionBindingError, DuplicateBindingError, UnregisteredBindingError, BindingMismatchError, MissingBindingError, AliasedBindingError, PropagationLimitsError, CapabilitySnapshotError, CapabilitySnapshotLimitError, ReportInstanceMismatchError, DuplicateObservationError, ForeignSnapshotError, translate, exception, isNative };
+  UnknownRepresentationError, CompositionError, InstanceRegistryError, InstanceRegistryLimitError, AddressMismatchError, DuplicateInstanceError, CompositionDefinitionError, CompositionLimitError, DuplicateRouteError, UnregisteredRouteAddressError, UndeclaredRouteEventError, UndeclaredCapabilityError, RouteBatchError, UnregisteredSourceError, BatchLimitError, CompositionBindingError, DuplicateBindingError, UnregisteredBindingError, BindingMismatchError, MissingBindingError, AliasedBindingError, PropagationLimitsError, CapabilitySnapshotError, CapabilitySnapshotLimitError, ReportInstanceMismatchError, DuplicateObservationError, ForeignSnapshotError, RetryError, RetryPolicyError, ZeroDelayError, TooFewAttemptsError, CapBelowInitialError,
+  RetryWaitError, InvalidWaitCapacityError, WaitCapacityReachedError, WaitGenerationExhaustedError, RetryRangeError,
+  translate, exception, isNative };
