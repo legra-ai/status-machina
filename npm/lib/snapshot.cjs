@@ -1,4 +1,5 @@
 'use strict';
+const retry = require('./retry.cjs');
 // Objects are allocated before their properties are copied. This preserves
 // cycles through typed views and backing buffers without retaining caller aliases.
 function snapshot(value) {
@@ -8,6 +9,13 @@ function snapshot(value) {
     if (original === null || (typeof original !== 'object' && typeof original !== 'function')) return original;
     if (typeof original === 'function') throw new TypeError('Function-valued data needs an explicit snapshot function');
     if (memo.has(original)) return memo.get(original);
+    // Immutable retry values are shared; a wait set copies its kernel value and payloads.
+    if (retry.immutable(original)) return original;
+    if (original instanceof retry.RetryWaits) {
+      const clone = original[retry.COPY](allocate);
+      memo.set(original, clone);
+      return clone;
+    }
     const prototype = Object.getPrototypeOf(original);
     const descriptors = Object.getOwnPropertyDescriptors(original);
     for (const descriptor of Object.values(descriptors)) {

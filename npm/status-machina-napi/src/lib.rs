@@ -2,6 +2,7 @@
 pub mod composition;
 mod error;
 mod host;
+pub mod retry;
 
 use std::cell::{
     Ref,

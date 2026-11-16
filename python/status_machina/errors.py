@@ -125,3 +125,26 @@ class DuplicateObservationError(CapabilitySnapshotError):
     """An address has two revisions, or two reports of one capability."""
 class ForeignSnapshotError(CapabilitySnapshotError):
     """The snapshot was built by another composition and its address table."""
+
+class RetryError(StatusMachinaError):
+    """A retry policy or wait set was rejected; ``context['reason']`` is the kernel variant."""
+class RetryPolicyError(RetryError):
+    """The kernel refused the retry policy (``RetryPolicyBuildError``)."""
+class ZeroDelayError(RetryPolicyError):
+    """A fixed delay or initial backoff delay must be greater than zero."""
+class TooFewAttemptsError(RetryPolicyError):
+    """``max_attempts`` must include the first attempt and at least one retry (>= 2)."""
+class CapBelowInitialError(RetryPolicyError):
+    """The exponential ``maximum`` is shorter than its ``initial`` delay."""
+class RetryWaitError(RetryError):
+    """The kernel refused a wait; the wait set is unchanged (``RetryWaitError``)."""
+class InvalidWaitCapacityError(RetryWaitError, LimitError):
+    """The wait capacity must be an explicit integer within 1..4096."""
+class WaitCapacityReachedError(RetryWaitError, LimitError):
+    """Every active-wait slot is occupied; ``context['limit']`` is the capacity."""
+class WaitGenerationExhaustedError(RetryWaitError):
+    """The wait set cannot assign another never-reused generation."""
+class RetryRangeError(RetryError, ValueError):
+    """A value lies outside its kernel type: a negative duration, an attempt count outside
+    0..2**32-1, a generation outside 0..2**64-1 or an instant outside the platform's
+    ``SystemTime``. ``context['field']`` names it and ``context['value']`` holds it."""
