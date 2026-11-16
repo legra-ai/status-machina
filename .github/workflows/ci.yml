@@ -22,7 +22,7 @@ jobs:
     # the shared pipeline, starts only after every binding job succeeded for this
     # run's revision. A failed, cancelled or skipped binding job skips it.
     needs: [prepare, python-bindings, node-bindings]
-    uses: legra-ai/github-actions/.github/workflows/cargo-maintenance.yml@b1647cd8e896738fa2aed2b2b9d0d5f60a7e1cb4
+    uses: legra-ai/github-actions/.github/workflows/cargo-maintenance.yml@4f513e763cf79e620f670ceb4430fd8adfd06c7e
     with:
       crate-name: status-machina
       kind: library
