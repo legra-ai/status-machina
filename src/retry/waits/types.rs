@@ -10,6 +10,18 @@ pub struct WaitCorrelation<I: crate::MachineIds = crate::DefaultIds> {
 }
 
 impl<I: crate::MachineIds> WaitCorrelation<I> {
+    /// Rebuild a correlation that a reminder carried back, for example through
+    /// an external scheduler. Construction grants nothing: a wait set matches
+    /// it only when instance, operation and generation all equal a current
+    /// wait, exactly as for a cloned correlation.
+    pub const fn new(instance: I::Instance, operation: I::Operation, generation: u64) -> Self {
+        Self {
+            instance,
+            operation,
+            generation,
+        }
+    }
+
     /// Instance incarnation that owns this wait.
     pub fn instance_id(&self) -> I::Instance {
         self.instance.clone()

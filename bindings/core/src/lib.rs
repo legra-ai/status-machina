@@ -8,6 +8,7 @@ pub mod error;
 pub mod ids;
 pub mod inspection;
 pub mod record;
+pub mod retry;
 pub mod runtime;
 pub mod spec;
 pub mod value;

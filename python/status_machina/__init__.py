@@ -14,13 +14,19 @@ from .errors import (
     CompositionBindingError, DuplicateBindingError, UnregisteredBindingError, BindingMismatchError,
     MissingBindingError, AliasedBindingError, PropagationLimitsError, CapabilitySnapshotError,
     CapabilitySnapshotLimitError, ReportInstanceMismatchError, DuplicateObservationError,
-    ForeignSnapshotError,
+    ForeignSnapshotError, RetryError, RetryPolicyError, ZeroDelayError, TooFewAttemptsError,
+    CapBelowInitialError, RetryWaitError, InvalidWaitCapacityError, WaitCapacityReachedError,
+    WaitGenerationExhaustedError, RetryRangeError,
 )
 from .composition import BoundComposition, CapabilitySnapshot, Composition
 from .routing import (
     AddressedEffect, Deferred, Delivery, InstanceAddress, InstanceRegistry, PropagationLimits,
     PropagationReport, PropagationStatus, PropagationStep, Route, Routed, RoutedBatch, RoutedItem,
     Unmatched,
+)
+from .retry import (
+    ExponentialBackoff, FixedDelay, RetryAt, RetryExhausted, RetryPolicy, RetrySchedule, RetryWaits,
+    WaitCorrelation, WakeIntent,
 )
 from .identity import IdentityMap, IdentityRole, MachineIdentityMaps
 from .inspection import DiagramLabels, InspectionLimits, StateCoverage, StructuralCoverage
@@ -62,4 +68,8 @@ __all__ = [
     "AliasedBindingError", "PropagationLimitsError", "CapabilitySnapshotError",
     "CapabilitySnapshotLimitError", "ReportInstanceMismatchError", "DuplicateObservationError",
     "ForeignSnapshotError",
+    "ExponentialBackoff", "FixedDelay", "RetryAt", "RetryExhausted", "RetryPolicy", "RetrySchedule",
+    "RetryWaits", "WaitCorrelation", "WakeIntent", "RetryError", "RetryPolicyError", "ZeroDelayError",
+    "TooFewAttemptsError", "CapBelowInitialError", "RetryWaitError", "InvalidWaitCapacityError",
+    "WaitCapacityReachedError", "WaitGenerationExhaustedError", "RetryRangeError",
 ]
