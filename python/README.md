@@ -32,6 +32,45 @@ A capability may also use an exact `BehaviorRef` to a registered EKGF Story
 implementation. Its identifier, Story and implementation may all be native enums
 or other hashable domain identities, independently of display labels.
 
+## When to use Status Machina
+
+Status Machina fits backend code where a lifecycle, such as an order, invoice,
+subscription, provisioning request, license or installation, must only ever
+change state through a checked transition. What it does well:
+
+- **You drive it.** It starts no loop, thread, timer or clock.
+  `dispatch` is an ordinary synchronous call, so it runs inside your own
+  request handler, database transaction or job.
+- **All-or-nothing transitions.** Guards, actions, postconditions and
+  invariants run on an isolated copy of the data; the transition is accepted
+  whole or not at all. `expected_revision` and single-use `Decision`s reject
+  stale writes. An event with no enabled transition is a typed `Refused`
+  outcome, and every failure is a typed exception.
+- **Explicit limits.** Definitions, conditions, effects, composition, scenario
+  replay and diagram output each have a checked upper bound.
+- **Retries and waits without a scheduler.** `RetryPolicy` computes the next
+  delay and `RetryWaits` records the one wake the machine accepts. You deliver
+  wakes from your own queue or cron; early, stale or duplicate wakes never
+  count as an attempt.
+- **Verification.** `ScenarioReplay` checks safety assertions after every step
+  and returns a counterexample trace; `structural_coverage()` and `diagram()`
+  (Mermaid) describe the validated definition.
+- **Same behavior as Rust and Node.js.** All three packages run one Rust
+  kernel, so services in different languages share identical transition rules.
+
+Consider something else when:
+
+- You want a pure-Python dependency, or hierarchical and parallel states or
+  SCXML: python-statemachine, transitions and sismic cover these. Status
+  Machina is a flat state machine shipped as a native extension.
+- You need long-running durable workflows with built-in persistence and
+  timers: a workflow engine such as Temporal fits that. Status Machina has no
+  runtime and stores nothing; you persist `state`, `revision` and `data`.
+- Your platform is not one of the [supported platforms](#supported-platforms):
+  Linux with glibc 2.28 or newer (x86_64, aarch64), macOS 26 or newer on Apple
+  silicon, Windows x86_64 and ARM64; CPython 3.10–3.14 (3.11–3.14 on Windows
+  ARM64), not free-threaded builds.
+
 ## Define and run a machine
 
 `Definition(id=, initial=, states=, transitions=, dispositions=, capabilities=,

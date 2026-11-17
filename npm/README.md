@@ -35,6 +35,43 @@ results. A policy may use an exact `BehaviorRef` to an EKGF Story implementation
 Enum members, symbols and object identities remain independent of their labels.
 Reports describe an observation and never grant authorization.
 
+## When to use Status Machina
+
+Status Machina fits Node.js backend code where a lifecycle, such as an order,
+invoice, subscription, provisioning request, license or installation, must only
+ever change state through a checked transition. What it does well:
+
+- **You drive it.** It starts no loop, thread, timer or clock.
+  `dispatch` is an ordinary synchronous call, so it runs inside your own
+  request handler, database transaction or job.
+- **All-or-nothing transitions.** Guards, actions, postconditions and
+  invariants run on an isolated copy of the data; the transition is accepted
+  whole or not at all. `expectedRevision` and single-use `Decision`s reject
+  stale writes. An event with no enabled transition is a typed `refused`
+  outcome, and every failure is a typed exception.
+- **Explicit limits.** Definitions, conditions, effects, composition, scenario
+  replay and diagram output each have a checked upper bound.
+- **Retries and waits without a scheduler.** `RetryPolicy` computes the next
+  delay and `RetryWaits` records the one wake the machine accepts. You deliver
+  wakes from your own queue or cron; early, stale or duplicate wakes never
+  count as an attempt.
+- **Verification.** `ScenarioReplay.run` checks safety assertions after every
+  step and returns a counterexample trace; `structuralCoverage()` and
+  `diagram()` (Mermaid) describe the validated definition.
+- **Same behavior as Rust and Python.** All three packages run one Rust kernel,
+  so services in different languages share identical transition rules.
+
+Consider something else when:
+
+- You need it in a browser or an edge runtime: this package is a Node.js
+  native addon with no WebAssembly build.
+- You want hierarchical and parallel states, actors or visual tooling: XState
+  is the established choice for statecharts in JavaScript. Status Machina is a
+  flat state machine.
+- Your platform is not one of the [supported platforms](#supported-platforms):
+  Node.js 22.10 or newer on Linux with glibc 2.28 or newer (x64, arm64),
+  macOS 26 or newer on Apple silicon, or Windows x64 and arm64.
+
 ## Define and run a machine
 
 `new Definition({ id, initial, states, transitions, dispositions,
