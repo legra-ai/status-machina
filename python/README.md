@@ -3,7 +3,11 @@
 Native enums, dataclasses and exceptions for caller-driven state machines.
 The transition kernel is shared with Status Machina's Rust and Node.js packages.
 
-Development is in progress. This package has not been published yet.
+Install the published wheel (CPython 3.10 or newer; Linux, macOS, Windows):
+
+```sh
+pip install status-machina
+```
 
 Capabilities are advisory policies, evaluated synchronously against detached
 current data and caller facts. They return `CapabilityStatus.AVAILABLE`,
