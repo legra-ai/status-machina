@@ -1,8 +1,11 @@
 """Lower native specifications to private, role-separated engine indexes."""
 from __future__ import annotations
+
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass
-import inspect
-from typing import Callable, Hashable, cast
+from typing import cast
+
+from ._context import is_asynchronous
 from .errors import DefinitionError, DefinitionLimitError, LimitError
 from .model import Action, BehaviorRef, BehaviorRegistry, Condition, Limits
 
@@ -62,7 +65,7 @@ class Compiler:
             return {"callback": None, "reference": self.reference(value)}
         if not callable(value):
             raise DefinitionError("A behavior must be a callable or exact BehaviorRef")
-        if inspect.iscoroutinefunction(value) or inspect.iscoroutinefunction(getattr(value, "__call__", None)):
+        if is_asynchronous(value):
             raise DefinitionError("Machine callbacks must be synchronous")
         if len(self.callbacks) == self.limits.max_callbacks:
             raise LimitError("Callback inventory exceeds max_callbacks")

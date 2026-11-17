@@ -1,15 +1,39 @@
 """Kernel-decided retry policies and correlated waits with native durations, instants and payloads."""
 import copy
+import pickle
+import unittest
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum, IntEnum, auto
-import pickle
-import unittest
+
 from status_machina import (
-    Action, CallbackError, CapBelowInitialError, Condition, Definition, Disposition, Event,
-    ExponentialBackoff, FixedDelay, Ignored, InvalidWaitCapacityError, LimitError, RetryAt, RetryError,
-    RetryExhausted, RetryPolicy, RetryPolicyError, RetryRangeError, RetryWaitError, RetryWaits, State,
-    TooFewAttemptsError, Transition, Transitioned, WaitCapacityReachedError, WaitCorrelation, ZeroDelayError,
+    Action,
+    CallbackError,
+    CapBelowInitialError,
+    Condition,
+    Definition,
+    Disposition,
+    Event,
+    ExponentialBackoff,
+    FixedDelay,
+    Ignored,
+    InvalidWaitCapacityError,
+    LimitError,
+    RetryAt,
+    RetryError,
+    RetryExhausted,
+    RetryPolicy,
+    RetryPolicyError,
+    RetryRangeError,
+    RetryWaitError,
+    RetryWaits,
+    State,
+    TooFewAttemptsError,
+    Transition,
+    Transitioned,
+    WaitCapacityReachedError,
+    WaitCorrelation,
+    ZeroDelayError,
 )
 
 NOW = datetime(2026, 11, 15, 9, 30, tzinfo=timezone.utc)

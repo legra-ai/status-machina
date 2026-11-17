@@ -1,10 +1,14 @@
 """Python specifications and values; enum members and application classes stay native."""
 from __future__ import annotations
+
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Generic, Hashable, Literal
+from typing import Any, Generic, Literal
+
 from typing_extensions import TypeVar
-from ._bounded import bounded, readahead
+
+from ._bounded import readahead
 from .errors import LimitError
 
 StateT = TypeVar("StateT", bound=Hashable)
@@ -12,7 +16,7 @@ KindT = TypeVar("KindT", bound=Hashable)
 DataT = TypeVar("DataT", default=Any)
 PayloadT = TypeVar("PayloadT", default=Any)
 FactsT = TypeVar("FactsT", default=Any)
-EventPayloadT = TypeVar("EventPayloadT", covariant=True, default=Any)
+EventPayloadT_co = TypeVar("EventPayloadT_co", covariant=True, default=Any)
 IdT = TypeVar("IdT", bound=Hashable)
 
 class CapabilityStatus(Enum):
@@ -144,9 +148,9 @@ class Limits:
                 raise LimitError(f"{name} must be an integer between 1 and 65536")
 
 @dataclass(frozen=True)
-class Event(Generic[KindT, EventPayloadT]):
+class Event(Generic[KindT, EventPayloadT_co]):
     kind: KindT
-    payload: EventPayloadT
+    payload: EventPayloadT_co
 
 @dataclass(frozen=True)
 class EffectIntent(Generic[IdT, PayloadT]):

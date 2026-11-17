@@ -9,14 +9,17 @@ candidate actions, so a refused transition leaves the accepted waits unchanged;
 instance and operation identities themselves.
 """
 from __future__ import annotations
+
 import copy
+import json
+from collections.abc import Hashable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-import json
-from typing import Any, Generic, Hashable, Literal, NoReturn, TypeAlias
+from typing import Any, Generic, Literal, NoReturn, TypeAlias
+
 from typing_extensions import Self, TypeVar
-from . import _native
-from . import errors
+
+from . import _native, errors
 
 InstanceT = TypeVar("InstanceT", bound=Hashable, default=Hashable)
 OperationT = TypeVar("OperationT", bound=Hashable, default=Hashable)
@@ -195,7 +198,7 @@ class RetryWaits(Generic[InstanceT, OperationT, PayloadT]):
     another instance never matches. Registration (``mark_registered``) is
     distinct from consumption, and a due wake is consumed exactly once.
     """
-    __slots__ = ("_instance", "_capacity", "_kernel", "_operations", "_values", "_free", "_payloads")
+    __slots__ = ("_capacity", "_free", "_instance", "_kernel", "_operations", "_payloads", "_values")
 
     def __init__(self, *, instance: InstanceT, capacity: int) -> None:
         _key(instance, "instance")

@@ -1,15 +1,44 @@
 """Actions, intents, Story bindings, instances, decisions, outcomes, capabilities and EventOnDrop, row by row."""
+import unittest
 from dataclasses import dataclass, field
 from enum import Enum, auto
-import unittest
+
 from status_machina import (
-    Action, Behavior, BehaviorRef, BehaviorRegistry, BehaviorRole, CallbackError, Capability,
-    CapabilityStatus, Condition, Definition, DefinitionError, DefinitionLimitError, DisposedError,
-    DuplicateIdentifierError, DuplicateImplementationError, Effect, EffectIntent, Event, EventOnDrop,
-    InvariantError, OutputEvent, OutputIntent, PostconditionError, Refused, RoleMismatchError, StaleDecisionError,
-    State, Transition, Transitioned, TransitionRecord, UnknownBehaviorError, UnknownCapabilityError,
+    Action,
+    Behavior,
+    BehaviorRef,
+    BehaviorRegistry,
+    BehaviorRole,
+    CallbackError,
+    Capability,
+    CapabilityStatus,
+    Condition,
+    Definition,
+    DefinitionError,
+    DefinitionLimitError,
+    DisposedError,
+    DuplicateIdentifierError,
+    DuplicateImplementationError,
+    Effect,
+    EffectIntent,
+    Event,
+    EventOnDrop,
+    InvariantError,
+    OutputEvent,
+    OutputIntent,
+    PostconditionError,
+    Refused,
+    RoleMismatchError,
+    StaleDecisionError,
+    State,
+    Transition,
+    Transitioned,
+    TransitionRecord,
+    UnknownBehaviorError,
+    UnknownCapabilityError,
     UnknownImplementationError,
 )
+
 
 class Phase(Enum):
     DRAFT = auto()
@@ -75,22 +104,22 @@ class IntentContractTests(unittest.TestCase):
         def raising(*_):
             raise failure
         cases = [
-            (dict(actions=(Action(id="stamp", apply=stamp), Action(id="boom", apply=raising))), CallbackError),
-            (dict(actions=(Action(id="returns", apply=lambda *_: 1),)), CallbackError),
-            (dict(actions=(Action(id="stamp", apply=stamp),), effects=(Effect(id="e", describe=raising),)), CallbackError),
-            (dict(actions=(Action(id="stamp", apply=stamp),), outputs=(OutputEvent(kind="o", describe=raising),)), CallbackError),
-            (dict(actions=(Action(id="stamp", apply=stamp),), postconditions=(Condition("p", lambda *_: False),)),
+            ({"actions": (Action(id="stamp", apply=stamp), Action(id="boom", apply=raising))}, CallbackError),
+            ({"actions": (Action(id="returns", apply=lambda *_: 1),)}, CallbackError),
+            ({"actions": (Action(id="stamp", apply=stamp),), "effects": (Effect(id="e", describe=raising),)}, CallbackError),
+            ({"actions": (Action(id="stamp", apply=stamp),), "outputs": (OutputEvent(kind="o", describe=raising),)}, CallbackError),
+            ({"actions": (Action(id="stamp", apply=stamp),), "postconditions": (Condition("p", lambda *_: False),)},
                 PostconditionError),
-            (dict(actions=(Action(id="stamp", apply=stamp),), invariant=lambda data: False), InvariantError),
+            ({"actions": (Action(id="stamp", apply=stamp),), "invariant": lambda data: False}, InvariantError),
         ]
         for spec, kind in cases:
-            with self.subTest(kind=kind.__name__, spec=sorted(spec)):
-                with definition(**spec).instantiate(id=1, data=Invoice(1)) as running:
-                    with self.assertRaises(kind):
-                        running.dispatch(Event(Input.SEND, None))
-                    self.assertEqual((running.state, running.revision, running.data.log), (Phase.DRAFT, 0, []))
+            with self.subTest(kind=kind.__name__, spec=sorted(spec)), \
+                    definition(**spec).instantiate(id=1, data=Invoice(1)) as running:
+                with self.assertRaises(kind):
+                    running.dispatch(Event(Input.SEND, None))
+                self.assertEqual((running.state, running.revision, running.data.log), (Phase.DRAFT, 0, []))
         with self.assertRaises(DefinitionLimitError):
-            definition(effects=tuple(Effect(id=n, describe=lambda *_: n) for n in range(17)))
+            definition(effects=tuple(Effect(id=n, describe=raising) for n in range(17)))
 
 class StoryBindingContractTests(unittest.TestCase):
     """BehaviorRef, the registry, roles and BoundInvariant."""
@@ -199,10 +228,9 @@ class EventOnDropContractTests(unittest.TestCase):
             delivered = []
             def abandon(event):
                 delivered.append(running.dispatch(event).kind)
-            with self.assertRaises(KeyError):
-                with EventOnDrop(Event(Input.OTHER, None), abandon) as guard:
-                    guard.event = Event(Input.SEND, "updated")
-                    raise KeyError("operation failed")
+            with self.assertRaises(KeyError), EventOnDrop(Event(Input.OTHER, None), abandon) as guard:
+                guard.event = Event(Input.SEND, "updated")
+                raise KeyError("operation failed")
             self.assertEqual((delivered, running.state, guard.armed), (["transitioned"], Phase.SENT, False))
 
     def test_completed_scope_disarms_and_cannot_rearm(self):
@@ -214,9 +242,8 @@ class EventOnDropContractTests(unittest.TestCase):
         self.assertEqual((delivered, guard.event), ([], None))
         with self.assertRaises(DisposedError):
             guard.event = "again"
-        with self.assertRaises(DisposedError):
-            with guard:
-                pass
+        with self.assertRaises(DisposedError), guard:
+            pass
         EventOnDrop("never entered", delivered.append)
         self.assertEqual(delivered, [])
 
@@ -227,15 +254,13 @@ class EventOnDropContractTests(unittest.TestCase):
             EventOnDrop("x", asynchronous)
         with self.assertRaises(TypeError):
             EventOnDrop("x", "not callable")  # type: ignore[arg-type]
-        with self.assertRaises(TypeError):
-            with EventOnDrop("x", lambda event: "unhandled"):  # type: ignore[arg-type, return-value]
-                pass
+        with self.assertRaises(TypeError), EventOnDrop("x", lambda event: "unhandled"):  # type: ignore[arg-type, return-value]
+            pass
         failure = ValueError("handler raised")
         def raising(event):
             raise failure
-        with self.assertRaises(ValueError) as caught:
-            with EventOnDrop("x", raising):
-                raise KeyError("original")
+        with self.assertRaises(ValueError) as caught, EventOnDrop("x", raising):
+            raise KeyError("original")
         self.assertIs(caught.exception, failure)
         self.assertIsInstance(caught.exception.__context__, KeyError)
 

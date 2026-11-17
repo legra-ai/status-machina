@@ -1,14 +1,36 @@
 """Portable records bind exact Story implementations through the kernel record API."""
+import unittest
 from dataclasses import dataclass
 from enum import Enum, auto
-import unittest
+
 from status_machina import (
-    AllRecord, AnyRecord, Behavior, BehaviorRef, BehaviorRegistry, BehaviorRole, BehaviorUse,
-    BindingError, CallbackError, ConditionRecordError, DefinitionError, DefinitionRecord,
-    DispositionRecord, DispositionRecordError, Event, LimitError, NotRecord, PredicateRecord,
-    RecordError, RoleMismatchError, StateRecord, TransitionDefinitionRecord, TransitionRecordError,
-    UnknownBehaviorError, UnknownImplementationError,
+    AllRecord,
+    AnyRecord,
+    Behavior,
+    BehaviorRef,
+    BehaviorRegistry,
+    BehaviorRole,
+    BehaviorUse,
+    BindingError,
+    CallbackError,
+    ConditionRecordError,
+    DefinitionError,
+    DefinitionRecord,
+    DispositionRecord,
+    DispositionRecordError,
+    Event,
+    LimitError,
+    NotRecord,
+    PredicateRecord,
+    RecordError,
+    RoleMismatchError,
+    StateRecord,
+    TransitionDefinitionRecord,
+    TransitionRecordError,
+    UnknownBehaviorError,
+    UnknownImplementationError,
 )
+
 
 class Phase(Enum):
     DRAFT = auto()

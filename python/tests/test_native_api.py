@@ -1,11 +1,21 @@
 """Applications use native enums, dataclasses, exceptions and owned snapshots."""
+import unittest
 from dataclasses import dataclass
 from enum import Enum, IntEnum, auto
-import unittest
+
 from status_machina import (
-    Action, CallbackError, Condition, Definition, DefinitionError, DisposedError,
-    Effect, Event, InvariantError, State, Transition,
+    Action,
+    CallbackError,
+    Condition,
+    Definition,
+    DefinitionError,
+    DisposedError,
+    Event,
+    InvariantError,
+    State,
+    Transition,
 )
+
 
 class Phase(Enum):
     OPEN = auto()

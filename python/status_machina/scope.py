@@ -5,10 +5,15 @@ is the ``with`` block, so the guard delivers on ``__exit__``. Garbage collection
 never delivers: finalization is not a correctness mechanism.
 """
 from __future__ import annotations
+
 import inspect
+from collections.abc import Callable
 from types import TracebackType
-from typing import Callable, Generic
+from typing import Generic
+
 from typing_extensions import Self, TypeVar
+
+from ._context import is_asynchronous
 from .errors import DisposedError
 
 EventT = TypeVar("EventT")
@@ -24,12 +29,12 @@ class EventOnDrop(Generic[EventT]):
     effect itself, and must not start asynchronous cleanup. Construction performs
     no dispatch; the guard holds no machine, lock or background work.
     """
-    __slots__ = ("_event", "_handler", "_armed", "_entered")
+    __slots__ = ("_armed", "_entered", "_event", "_handler")
 
     def __init__(self, event: EventT, handler: Callable[[EventT], None]) -> None:
         if not callable(handler):
             raise TypeError("handler must be callable")
-        if inspect.iscoroutinefunction(handler) or inspect.iscoroutinefunction(getattr(handler, "__call__", None)):
+        if is_asynchronous(handler):
             raise TypeError("EventOnDrop handlers must be synchronous")
         self._event = event
         self._handler = handler

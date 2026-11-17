@@ -1,12 +1,30 @@
 """Lifecycle, callback ownership and resource bounds use native Python behavior."""
-from enum import Enum, auto
 import gc
-import threading
 import unittest
 import weakref
-from status_machina import (Action, BusyError, CallbackError, Definition, DefinitionError,
-    DisposedError, Effect, Event, ForeignDecisionError, LimitError, Limits, SnapshotError,
-    StaleDecisionError, State, Transition)
+from concurrent.futures import ThreadPoolExecutor
+from enum import Enum, auto
+
+from status_machina import (
+    Action,
+    BusyError,
+    CallbackError,
+    Definition,
+    DefinitionError,
+    DisposedError,
+    Effect,
+    Event,
+    EventOnDrop,
+    ForeignDecisionError,
+    LimitError,
+    Limits,
+    SnapshotError,
+    StaleDecisionError,
+    State,
+    Transition,
+    Transitioned,
+)
+
 
 class Phase(Enum):
     READY = auto()
@@ -63,17 +81,10 @@ class LifecycleTests(unittest.TestCase):
 
     def test_serialized_calls_can_run_on_another_python_thread(self):
         with definition().instantiate(id=object(), data=7) as machine:
-            errors = []
-            def drive():
-                try:
-                    machine.dispatch(Event(Input.GO, None))
-                except BaseException as error:
-                    errors.append(error)
-            thread = threading.Thread(target=drive)
-            thread.start()
-            thread.join(timeout=5)
-            self.assertFalse(thread.is_alive())
-            self.assertEqual(errors, [])
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                # result() re-raises the worker thread's failure here.
+                outcome = pool.submit(machine.dispatch, Event(Input.GO, None)).result(timeout=5)
+            self.assertIsInstance(outcome, Transitioned)
             self.assertEqual(machine.revision, 1)
 
     def test_failed_effect_keeps_native_exception_and_stops_later_constructors(self):
@@ -133,6 +144,19 @@ class LifecycleTests(unittest.TestCase):
             pass
         with self.assertRaises(DefinitionError):
             definition(actions=(Action(id=object(), apply=action),))
+
+    def test_async_callable_objects_are_rejected_but_their_classes_are_not(self):
+        class Later:
+            async def __call__(self, *_):
+                pass
+        with self.assertRaises(DefinitionError):
+            definition(actions=(Action(id=object(), apply=Later()),))
+        with self.assertRaises(DefinitionError):
+            definition(snapshot=Later())
+        with self.assertRaises(TypeError):
+            EventOnDrop("x", Later())
+        # Calling the class constructs an instance; nothing is awaited.
+        definition(snapshot=Later)
 
     def test_callback_machine_cycle_is_visible_to_python_gc(self):
         class Handler:

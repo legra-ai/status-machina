@@ -1,11 +1,25 @@
 """Static contracts for addresses, routes, registries, batches and propagation reports."""
 from enum import Enum, auto
+
 from typing_extensions import assert_type
+
 from status_machina import (
-    CapabilityStatus, Composition, Delivery, Event, InstanceAddress, InstanceRegistry, Machine,
-    OutputIntent, PropagationLimits, PropagationReport, PropagationStatus, Route, RoutedBatch,
+    CapabilityStatus,
+    Composition,
+    Delivery,
+    Event,
+    InstanceAddress,
+    InstanceRegistry,
+    Machine,
+    OutputIntent,
+    PropagationLimits,
+    PropagationReport,
+    PropagationStatus,
+    Route,
+    RoutedBatch,
     StatusMachinaError,
 )
+
 
 class Phase(Enum):
     OPEN = auto()

@@ -1,6 +1,8 @@
 """Consume only the declared finite number of native specification items."""
 from itertools import islice
+
 from .errors import LimitError
+
 
 def bounded(values, limit, label):
     if type(limit) is not int or not 1 <= limit <= 65536:

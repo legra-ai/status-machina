@@ -42,6 +42,25 @@ exclude = ["status_machina/**/__pycache__/**"]
 [dependency-groups]
 dev = ["maturin>=1.16,<2", "ruff>=0.9", "mypy>=1.15", "uv>=0.6.7"]
 
+[tool.ruff]
+# The locked ruff's default rule set, checked in CI. Imports wrap at the Rust
+# crates' rustfmt width, one name per line like rustfmt's vertical layout.
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint.flake8-bugbear]
+# Frozen dataclasses with validated defaults: safe as shared argument defaults.
+extend-immutable-calls = [
+    "status_machina.BehaviorRegistry",
+    "status_machina.InspectionLimits",
+    "status_machina.Limits",
+    "status_machina.ScenarioLimits",
+    "status_machina.inspection.InspectionLimits",
+    "status_machina.model.BehaviorRegistry",
+    "status_machina.model.Limits",
+    "status_machina.scenario.ScenarioLimits",
+]
+
 [tool.mypy]
 files = ["status_machina", "tests/typing"]
 warn_unused_ignores = true

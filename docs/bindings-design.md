@@ -362,7 +362,11 @@ CI builds both modules from source and runs these suites on every pull request.
 The `python-bindings` and `node-bindings` jobs cover Ubuntu 24.04, `macos-latest`
 and Windows, with Python 3.10/3.14 and Node.js 22/24. They run the bridge, PyO3
 and napi crate tests, `maturin develop`, mypy, `tsc --noEmit` and the typing
-fixtures. The required `test` gate fails unless every one of them passes. They
+fixtures. The `bindings-lint` job runs Clippy with `-D warnings` on the bridge,
+PyO3 and napi crates, which the shared pipeline's core-only Clippy never builds,
+and `ruff check` on the Python package, tests and examples with the locked
+ruff's rule set (`python/pyproject.toml`). The required `test` gate fails
+unless every one of them passes, and the release call needs each of them. They
 test the checkout; the [installable artifacts](#installable-artifacts) jobs
 test what users install.
 

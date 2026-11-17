@@ -1,17 +1,41 @@
 """Checked definitions, owned instances and single-use decisions."""
 from __future__ import annotations
+
 import json
-import inspect
-from typing import TYPE_CHECKING, Any, Callable, Generic, Hashable, Iterable, NoReturn, TypeAlias, cast
+from collections.abc import Callable, Hashable, Iterable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    TypeAlias,
+    cast,
+)
+
 from typing_extensions import TypeVar
+
 from . import _native
-from ._compile import UNKNOWN_EVENT, Compiler
 from ._bounded import bounded, readahead
-from ._context import Context, DEFAULT_SNAPSHOT, translate
+from ._compile import UNKNOWN_EVENT, Compiler
+from ._context import DEFAULT_SNAPSHOT, Context, is_asynchronous, translate
 from .errors import DefinitionError, DisposedError, UnknownCapabilityError
 from .inspection import DiagramLabels, InspectionLimits, StateCoverage, StructuralCoverage
-from .model import (BehaviorRegistry, Disposition, EffectIntent, Event, Ignored, Limits,
-    Capability, CapabilityReport, CapabilityStatus, OutputIntent, Refused, State, Transition, Transitioned, TransitionRecord)
+from .model import (
+    BehaviorRegistry,
+    Capability,
+    CapabilityReport,
+    CapabilityStatus,
+    Disposition,
+    EffectIntent,
+    Event,
+    Ignored,
+    Limits,
+    OutputIntent,
+    Refused,
+    State,
+    Transition,
+    Transitioned,
+    TransitionRecord,
+)
 
 StateT = TypeVar("StateT", bound=Hashable)
 KindT = TypeVar("KindT", bound=Hashable)
@@ -68,7 +92,7 @@ class Definition(Generic[StateT, KindT, DataT]):
     def _build(self, id, initial, states, transitions, capabilities, dispositions, behaviors,
             snapshot, input_snapshot, limits, native) -> None:
         for function in (snapshot, input_snapshot):
-            if not callable(function) or inspect.iscoroutinefunction(function) or inspect.iscoroutinefunction(getattr(function, "__call__", None)):
+            if not callable(function) or is_asynchronous(function):
                 raise DefinitionError("Snapshot functions must be synchronous callables")
         self._id = id
         self._initial = initial

@@ -1,11 +1,29 @@
 """Static contracts for outcomes, decisions, Story references, errors and EventOnDrop."""
 from enum import Enum, auto
+
 from typing_extensions import assert_type
+
 from status_machina import (
-    BehaviorRef, BindingError, Condition, Decision, Definition, DefinitionError, DefinitionLimitError, Disposition,
-    Event, EventOnDrop, Ignored, LimitError, Refused, State, Transition, Transitioned, TransitionRecord,
+    BehaviorRef,
+    BindingError,
+    Condition,
+    Decision,
+    Definition,
+    DefinitionError,
+    DefinitionLimitError,
+    Disposition,
+    Event,
+    EventOnDrop,
+    Ignored,
+    LimitError,
+    Refused,
+    State,
+    Transition,
+    Transitioned,
+    TransitionRecord,
     UnknownBehaviorError,
 )
+
 
 class Phase(Enum):
     OPEN = auto()

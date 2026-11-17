@@ -1,11 +1,26 @@
 """Static contracts for scenario sets, assertions, replay and bounded reports."""
 from enum import Enum, auto
+
 from typing_extensions import assert_type
+
 from status_machina import (
-    BoundedScenarioReport, CounterexampleTrace, Definition, Event, Scenario, ScenarioAssertion, ScenarioLimit,
-    ScenarioLimits, ScenarioObservation, ScenarioReplay, ScenarioSet, ScenarioStep, ScenarioStepKind, State,
+    BoundedScenarioReport,
+    CounterexampleTrace,
+    Definition,
+    Event,
+    Scenario,
+    ScenarioAssertion,
+    ScenarioLimit,
+    ScenarioLimits,
+    ScenarioObservation,
+    ScenarioReplay,
+    ScenarioSet,
+    ScenarioStep,
+    ScenarioStepKind,
+    State,
     Transition,
 )
+
 
 class Phase(Enum):
     OPEN = auto()

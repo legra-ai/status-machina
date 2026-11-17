@@ -1,10 +1,24 @@
 """Run with: python examples/composition.py (after installing status-machina)."""
 from dataclasses import dataclass
 from enum import Enum, auto
+
 from status_machina import (
-    Action, Composition, Definition, Delivery, Effect, Event, InstanceAddress, InstanceRegistry,
-    OutputEvent, PropagationLimits, Route, State, Transition, Transitioned,
+    Action,
+    Composition,
+    Definition,
+    Delivery,
+    Effect,
+    Event,
+    InstanceAddress,
+    InstanceRegistry,
+    OutputEvent,
+    PropagationLimits,
+    Route,
+    State,
+    Transition,
+    Transitioned,
 )
+
 
 class Order(Enum):
     OPEN = auto()

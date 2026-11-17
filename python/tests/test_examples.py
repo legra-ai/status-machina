@@ -1,9 +1,10 @@
 """Execute the documented native example through an independent interpreter."""
 import asyncio
 import io
-from pathlib import PurePath
 import sys
 import unittest
+from pathlib import PurePath
+
 
 class ExampleTests(unittest.IsolatedAsyncioTestCase):
     async def run_example(self, name):

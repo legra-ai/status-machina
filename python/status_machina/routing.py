@@ -1,18 +1,30 @@
 """Composition values: addresses, routes, registries, deliveries, items and reports."""
 from __future__ import annotations
+
+import json
+from collections.abc import Hashable, Iterable, Iterator
 from dataclasses import dataclass, field
 from enum import Enum
 from itertools import islice
-import json
-from typing import Any, Generic, Hashable, Iterable, Iterator, Literal, TypeAlias, overload
+from typing import Any, Generic, Literal, TypeAlias, overload
+
 from typing_extensions import TypeVar
+
 from . import _native
 from .errors import PropagationLimitsError, StatusMachinaError
 from .machine import Machine
-from .model import CapabilityStatus, EffectIntent, Event, Ignored, OutputIntent, Refused, Transitioned
+from .model import (
+    CapabilityStatus,
+    EffectIntent,
+    Event,
+    Ignored,
+    OutputIntent,
+    Refused,
+    Transitioned,
+)
 
-ScopeT = TypeVar("ScopeT", bound=Hashable, default=Hashable, covariant=True)
-InstanceT = TypeVar("InstanceT", bound=Hashable, default=Hashable, covariant=True)
+ScopeT_co = TypeVar("ScopeT_co", bound=Hashable, default=Hashable, covariant=True)
+InstanceT_co = TypeVar("InstanceT_co", bound=Hashable, default=Hashable, covariant=True)
 KindT = TypeVar("KindT", bound=Hashable, default=Hashable)
 PayloadT = TypeVar("PayloadT", default=Any)
 
@@ -34,14 +46,14 @@ def read(values: Iterable[object], limit: object, ceiling: int) -> tuple:
     return tuple(islice(values, bound + 1))
 
 @dataclass(frozen=True, eq=False)
-class InstanceAddress(Generic[ScopeT, InstanceT]):
+class InstanceAddress(Generic[ScopeT_co, InstanceT_co]):
     """A caller-owned address: one machine instance identity within one routing scope.
 
     Equality and hashing are type-qualified, so scopes and instances of different
     types never alias. The same instance identity in two scopes is two addresses.
     """
-    scope: ScopeT
-    instance: InstanceT
+    scope: ScopeT_co
+    instance: InstanceT_co
 
     def __post_init__(self) -> None:
         try:

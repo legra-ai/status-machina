@@ -9,13 +9,16 @@ matching never consults a codec: it is for adapters that read or write names,
 IRIs or other caller-owned representations around the native API.
 """
 from __future__ import annotations
+
+import json
+from collections.abc import Hashable, Iterable, Iterator
 from dataclasses import dataclass, fields
 from enum import Enum
-import json
-from typing import Generic, Hashable, Iterable, Iterator, NoReturn
+from typing import Generic, NoReturn
+
 from typing_extensions import TypeVar
-from . import _native
-from . import errors
+
+from . import _native, errors
 
 IdT = TypeVar("IdT", bound=Hashable, default=Hashable)
 ReprT = TypeVar("ReprT", bound=Hashable, default=Hashable)
@@ -63,7 +66,7 @@ def _key(value: object, role: IdentityRole, label: str) -> tuple[type, object]:
 
 class IdentityMap(Generic[IdT, ReprT]):
     """Bounded one-to-one codec for a single identity role, validated by the kernel."""
-    __slots__ = ("_role", "_max_entries", "_entries", "_identities", "_representations", "_native")
+    __slots__ = ("_entries", "_identities", "_max_entries", "_native", "_representations", "_role")
 
     def __init__(self, role: IdentityRole, entries: Iterable[tuple[IdT, ReprT]], *,
             max_entries: int = _MAX_ENTRIES) -> None:
