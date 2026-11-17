@@ -336,7 +336,7 @@ wheels = [
 
 [[package]]
 name = "status-machina"
-version = "0.1.14"
+version = "0.1.15"
 source = { editable = "." }
 dependencies = [
     { name = "typing-extensions" },

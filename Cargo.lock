@@ -458,7 +458,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "status-machina"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "rhusky",
  "thiserror",
@@ -467,7 +467,7 @@ dependencies = [
 
 [[package]]
 name = "status-machina-bridge"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "serde",
  "serde_json",
@@ -479,7 +479,7 @@ dependencies = [
 
 [[package]]
 name = "status-machina-napi"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "napi",
  "napi-build",
@@ -492,7 +492,7 @@ dependencies = [
 
 [[package]]
 name = "status-machina-pyo3"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
