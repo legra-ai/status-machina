@@ -1,17 +1,56 @@
 """Native scenario replay: kernel-decided bounds, traces, assertions and typed rejections."""
+import unittest
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum, auto
 from itertools import count
-import unittest
+
 from status_machina import (
-    Action, AssertionLimitError, Behavior, BehaviorRef, BehaviorRegistry, BehaviorRole, CallbackError, Condition,
-    CompleteWithinScenarios, Counterexample, Definition, Disposition, DispatchFailedStep, Effect,
-    EmptyScenarioSetError, Event, ExecutionFailed, IgnoredStep, LimitError, LimitReached, Limits,
-    MissingAssertionPredicateError, OutputEvent, RefusedStep, RoleMismatchError, Scenario, ScenarioAssertion,
-    ScenarioCountLimitError, ScenarioError, ScenarioFailure, ScenarioLimit, ScenarioLimits, ScenarioLimitsError,
-    ScenarioNodeLimitError, ScenarioObservation, ScenarioReplay, ScenarioSet, ScenarioStep, ScenarioStepLimitError,
-    SnapshotError, State, Transition, TransitionedStep, UnknownBehaviorError,
+    Action,
+    AssertionLimitError,
+    Behavior,
+    BehaviorRef,
+    BehaviorRegistry,
+    BehaviorRole,
+    CallbackError,
+    CompleteWithinScenarios,
+    Condition,
+    Counterexample,
+    Definition,
+    DispatchFailedStep,
+    Disposition,
+    Effect,
+    EmptyScenarioSetError,
+    Event,
+    ExecutionFailed,
+    IgnoredStep,
+    LimitError,
+    LimitReached,
+    Limits,
+    MissingAssertionPredicateError,
+    OutputEvent,
+    RefusedStep,
+    RoleMismatchError,
+    Scenario,
+    ScenarioAssertion,
+    ScenarioCountLimitError,
+    ScenarioError,
+    ScenarioFailure,
+    ScenarioLimit,
+    ScenarioLimits,
+    ScenarioLimitsError,
+    ScenarioNodeLimitError,
+    ScenarioObservation,
+    ScenarioReplay,
+    ScenarioSet,
+    ScenarioStep,
+    ScenarioStepLimitError,
+    SnapshotError,
+    State,
+    Transition,
+    TransitionedStep,
+    UnknownBehaviorError,
 )
+
 
 class Phase(Enum):
     CART = auto()

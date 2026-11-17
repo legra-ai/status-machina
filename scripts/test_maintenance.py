@@ -11,7 +11,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
 # Every native build, packaging and installed-artifact job; each gates publication.
-NATIVE_JOBS = ('python-bindings', 'node-bindings', 'python-wheels', 'python-sdist', 'node-addons',
+NATIVE_JOBS = ('bindings-lint', 'python-bindings', 'node-bindings', 'python-wheels', 'python-sdist', 'node-addons',
                'npm-package', 'python-installed', 'node-installed', 'release-packages')
 # Publishes PyPI and npm after the shared pipeline; it never gates the shared call.
 PUBLISH_JOB = 'publish-packages'
@@ -115,6 +115,25 @@ class MaintenancePolicyTests(unittest.TestCase):
                 self.assertIn('os: [ubuntu-24.04, macos-latest, windows-latest]', body)
                 for command in commands:
                     self.assertIn(f'run: {command}\n', body)
+
+    def test_binding_crates_and_python_sources_are_linted(self):
+        # The shared pipeline's Clippy covers only the published core crate.
+        body = job_body((ROOT / '.github/workflows/ci.yml').read_text(), 'bindings-lint')
+        self.assertIn('run: cargo clippy --locked -p status-machina-bridge -p status-machina-pyo3 '
+                      '-p status-machina-napi --lib --tests -- -D warnings\n', body)
+        self.assertNotIn('--all-targets', body)
+        self.assertIn('run: uv sync --locked --no-install-project\n', body)
+        self.assertIn('run: uv run --no-sync ruff check\n', body)
+        workspace = tomllib.loads((ROOT / 'Cargo.toml').read_text())['workspace']
+        self.assertEqual(set(workspace['members']),
+                         {'bindings/core', 'python/status-machina-pyo3', 'npm/status-machina-napi'})
+        project = tomllib.loads((ROOT / 'python/pyproject.toml').read_text())
+        self.assertTrue(any(requirement.startswith('ruff') for requirement in project['dependency-groups']['dev']))
+        ruff = project['tool']['ruff']
+        # No blanket suppression: the locked ruff's rule set applies unchanged.
+        for key in ('ignore', 'extend-ignore', 'per-file-ignores', 'exclude', 'extend-exclude'):
+            self.assertNotIn(key, ruff)
+            self.assertNotIn(key, ruff.get('lint', {}))
 
     def test_maturin_develop_uses_the_locked_uv_installer(self):
         project = tomllib.loads((ROOT / 'python/pyproject.toml').read_text())

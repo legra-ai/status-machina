@@ -25,8 +25,8 @@ jobs:
     # The shared pipeline publishes crates.io and preserves release-packages.zip
     # on the draft release; publish-packages publishes PyPI and npm from that
     # asset and alone completes the release once all three registries verify.
-    needs: [prepare, python-bindings, node-bindings, python-wheels, python-sdist, node-addons,
-            npm-package, python-installed, node-installed, release-packages]
+    needs: [prepare, bindings-lint, python-bindings, node-bindings, python-wheels, python-sdist,
+            node-addons, npm-package, python-installed, node-installed, release-packages]
     permissions:
       actions: read
       contents: read
@@ -38,6 +38,37 @@ jobs:
       release-packages: release-packages
       complete-release: false
     secrets: inherit
+  bindings-lint:
+    # The shared pipeline lints only the published core (Cargo's default member);
+    # lint the bridge, PyO3 and napi crates and the Python sources here.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
+      - id: python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.8'
+          enable-cache: false
+      - name: Lint the bridge, PyO3 and napi crates
+        env:
+          PYO3_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: cargo clippy --locked -p status-machina-bridge -p status-machina-pyo3 -p status-machina-napi --lib --tests -- -D warnings
+      - name: Install the locked Python tools
+        working-directory: python
+        env:
+          UV_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: uv sync --locked --no-install-project
+      - name: Lint the Python package, tests and examples
+        working-directory: python
+        run: uv run --no-sync ruff check
   python-bindings:
     # Cargo's default member is the published core, so the shared pipeline never
     # builds the PyO3 module; compile and test it from this checkout instead.
@@ -697,8 +728,8 @@ jobs:
         run: gh release edit "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false
   test:
     if: always()
-    needs: [prepare, ci, python-bindings, node-bindings, python-wheels, python-sdist, node-addons,
-            npm-package, python-installed, node-installed, release-packages, publish-packages]
+    needs: [prepare, ci, bindings-lint, python-bindings, node-bindings, python-wheels, python-sdist,
+            node-addons, npm-package, python-installed, node-installed, release-packages, publish-packages]
     runs-on: ubuntu-24.04
     steps:
       - name: Require the complete shared pipeline, native bindings, artifacts and publication
@@ -706,6 +737,7 @@ jobs:
           CI_PUBLISH: ${{ needs.ci.outputs.publish }}
           PREPARE_RESULT: ${{ needs.prepare.result }}
           CI_RESULT: ${{ needs.ci.result }}
+          BINDINGS_LINT_RESULT: ${{ needs.bindings-lint.result }}
           PYTHON_BINDINGS_RESULT: ${{ needs.python-bindings.result }}
           NODE_BINDINGS_RESULT: ${{ needs.node-bindings.result }}
           PYTHON_WHEELS_RESULT: ${{ needs.python-wheels.result }}
@@ -719,7 +751,7 @@ jobs:
         run: |
           python3 - <<'PYTHON'
           import os
-          results = ['PREPARE_RESULT', 'CI_RESULT', 'PYTHON_BINDINGS_RESULT', 'NODE_BINDINGS_RESULT',
+          results = ['PREPARE_RESULT', 'CI_RESULT', 'BINDINGS_LINT_RESULT', 'PYTHON_BINDINGS_RESULT', 'NODE_BINDINGS_RESULT',
                      'PYTHON_WHEELS_RESULT', 'PYTHON_SDIST_RESULT', 'NODE_ADDONS_RESULT',
                      'NPM_PACKAGE_RESULT', 'PYTHON_INSTALLED_RESULT', 'NODE_INSTALLED_RESULT',
                      'RELEASE_PACKAGES_RESULT']

@@ -11,17 +11,20 @@ trace rule; this module interns native identities and resolves the report back
 to them. Replay schedules nothing and never dispatches output events.
 """
 from __future__ import annotations
+
 import builtins
+import inspect
+import json
+from collections.abc import Callable, Hashable, Iterable
 from dataclasses import dataclass, field
 from enum import Enum
-import inspect
 from itertools import islice
-import json
-from typing import Any, Callable, Generic, Hashable, Iterable, Literal, NoReturn, TypeAlias
+from typing import Any, Generic, Literal, NoReturn, TypeAlias
+
 from typing_extensions import TypeVar
-from . import _native
-from . import errors
-from ._context import Context, translate
+
+from . import _native, errors
+from ._context import Context, is_asynchronous, translate
 from .machine import Definition
 from .model import BehaviorRef, BehaviorRole, Event
 
@@ -192,7 +195,7 @@ class ScenarioAssertion(Generic[AssertionT]):
         if predicate is not None and not isinstance(predicate, BehaviorRef):
             if not callable(predicate):
                 raise TypeError("evaluate must be a callable or an exact BehaviorRef")
-            if inspect.iscoroutinefunction(predicate) or inspect.iscoroutinefunction(getattr(predicate, "__call__", None)):
+            if is_asynchronous(predicate):
                 raise TypeError("Scenario assertions must be synchronous")
         try:
             _native.scenario_assertion(predicate is not None)

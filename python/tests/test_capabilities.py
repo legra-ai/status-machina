@@ -1,10 +1,20 @@
 """Capabilities observe native values without authorizing or mutating machines."""
-from enum import Enum, auto
 import unittest
+from enum import Enum, auto
+
 from status_machina import (
-    Behavior, BehaviorRef, BehaviorRegistry, BehaviorRole, CallbackError, Capability,
-    CapabilityStatus, Definition, DefinitionError, State,
+    Behavior,
+    BehaviorRef,
+    BehaviorRegistry,
+    BehaviorRole,
+    CallbackError,
+    Capability,
+    CapabilityStatus,
+    Definition,
+    DefinitionError,
+    State,
 )
+
 
 class Phase(Enum):
     OPEN = auto()

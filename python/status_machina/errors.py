@@ -1,6 +1,7 @@
 """Native exceptions with structured domain context and original callback causes."""
 from types import MappingProxyType
 
+
 class StatusMachinaError(Exception):
     """Base error; ``context`` retains native identifiers instead of wire labels."""
     def __init__(self, message: str, **context: object) -> None:

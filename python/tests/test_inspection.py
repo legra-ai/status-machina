@@ -1,10 +1,18 @@
 """Native graph inspection uses explicit labels and never evaluates behaviors."""
-from enum import Enum, auto
 import unittest
+from enum import Enum, auto
+
 from status_machina import (
-    Condition, Definition, DiagramLabels, Disposition, InspectionError,
-    InspectionLimits, State, Transition,
+    Condition,
+    Definition,
+    DiagramLabels,
+    Disposition,
+    InspectionError,
+    InspectionLimits,
+    State,
+    Transition,
 )
+
 
 class Phase(Enum):
     READY = auto()

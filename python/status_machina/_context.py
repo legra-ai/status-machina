@@ -1,13 +1,14 @@
 """GC-visible native value ownership and synchronous callback invocation."""
 from __future__ import annotations
+
 import copy
-from contextlib import contextmanager
 import inspect
 import json
 import threading
+from contextlib import contextmanager
 from typing import NoReturn, TypeVar
-from . import _native
-from . import errors
+
+from . import _native, errors
 from .model import BehaviorRole, CapabilityStatus
 
 _ERROR_TYPES = {
@@ -189,3 +190,8 @@ _SnapshotT = TypeVar("_SnapshotT")
 
 def DEFAULT_SNAPSHOT(value: _SnapshotT) -> _SnapshotT:
     return copy.deepcopy(value)
+
+def is_asynchronous(value: object) -> bool:
+    """Whether calling ``value`` returns a coroutine: a coroutine function, or an
+    instance whose type defines ``async def __call__`` (special methods resolve on the type)."""
+    return inspect.iscoroutinefunction(value) or inspect.iscoroutinefunction(type(value).__call__)

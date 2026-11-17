@@ -1,14 +1,32 @@
 """Identity codecs are explicit, role-scoped and validated by the kernel IdentityMap."""
-from dataclasses import dataclass
-from enum import Enum, IntEnum, auto
 import itertools
 import unittest
+from dataclasses import dataclass
+from enum import Enum, IntEnum, auto
+
 from status_machina import (
-    BehaviorRef, BehaviorRegistry, Behavior, BehaviorRole, BehaviorUse, DefinitionRecord,
-    DuplicateIdentityError, DuplicateRepresentationError, Event, IdentityMap, IdentityMapError,
-    IdentityMapLimitError, IdentityRole, IdentityRoleError, LimitError, MachineIdentityMaps,
-    StateRecord, TransitionDefinitionRecord, UnknownIdentityError, UnknownRepresentationError,
+    Behavior,
+    BehaviorRef,
+    BehaviorRegistry,
+    BehaviorRole,
+    BehaviorUse,
+    DefinitionRecord,
+    DuplicateIdentityError,
+    DuplicateRepresentationError,
+    Event,
+    IdentityMap,
+    IdentityMapError,
+    IdentityMapLimitError,
+    IdentityRole,
+    IdentityRoleError,
+    LimitError,
+    MachineIdentityMaps,
+    StateRecord,
+    TransitionDefinitionRecord,
+    UnknownIdentityError,
+    UnknownRepresentationError,
 )
+
 
 class Phase(Enum):
     OPEN = "open"

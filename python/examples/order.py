@@ -1,7 +1,9 @@
 """Run with: python examples/order.py (after installing status-machina)."""
 from dataclasses import dataclass
 from enum import Enum, auto
+
 from status_machina import Action, Condition, Definition, DiagramLabels, Event, State, Transition
+
 
 class Phase(Enum):
     PENDING = auto()

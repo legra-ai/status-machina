@@ -6,21 +6,40 @@ rule. This module only lowers native values to private indexes and resolves the
 kernel's results back to the original native values.
 """
 from __future__ import annotations
-from contextlib import ExitStack
-from itertools import islice
+
 import json
 import threading
-from typing import Any, Hashable, Iterable, Mapping
-from . import _native
-from . import errors
+from collections.abc import Hashable, Iterable, Mapping
+from contextlib import ExitStack
+from itertools import islice
+from typing import Any
+
+from typing_extensions import Self
+
+from . import _native, errors
 from ._compile import UNKNOWN_EVENT, Identities
 from ._context import Context, exception
 from .machine import Machine, decode_outcome
 from .model import CapabilityReport, CapabilityStatus, EffectIntent, Event, OutputIntent
 from .routing import (
-    HARD_MAX_INSTANCES, HARD_MAX_ROUTES, AddressedEffect, Deferred, Delivery, InstanceAddress,
-    InstanceRegistry, PropagationLimits, PropagationReport, PropagationStatus, PropagationStep,
-    Route, Routed, RoutedBatch, Unmatched, read, representable, same,
+    HARD_MAX_INSTANCES,
+    HARD_MAX_ROUTES,
+    AddressedEffect,
+    Deferred,
+    Delivery,
+    InstanceAddress,
+    InstanceRegistry,
+    PropagationLimits,
+    PropagationReport,
+    PropagationStatus,
+    PropagationStep,
+    Route,
+    Routed,
+    RoutedBatch,
+    Unmatched,
+    read,
+    representable,
+    same,
 )
 
 _HARD_MAX_BATCH = 256
@@ -377,7 +396,7 @@ class BoundComposition:
 
     close = dispose
 
-    def __enter__(self) -> BoundComposition:
+    def __enter__(self) -> Self:
         if not self._contexts:
             raise errors.DisposedError("The composition binding has been disposed")
         return self

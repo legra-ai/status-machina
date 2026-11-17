@@ -6,10 +6,22 @@ skips payment and reports the bounded trace that falsified the assertion.
 """
 from dataclasses import dataclass, field
 from enum import Enum, auto
+
 from status_machina import (
-    Action, Definition, Event, Scenario, ScenarioAssertion, ScenarioLimits, ScenarioObservation, ScenarioReplay,
-    ScenarioSet, ScenarioStep, State, Transition,
+    Action,
+    Definition,
+    Event,
+    Scenario,
+    ScenarioAssertion,
+    ScenarioLimits,
+    ScenarioObservation,
+    ScenarioReplay,
+    ScenarioSet,
+    ScenarioStep,
+    State,
+    Transition,
 )
+
 
 class Phase(Enum):
     CART = auto()

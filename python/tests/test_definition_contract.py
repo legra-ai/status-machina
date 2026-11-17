@@ -1,13 +1,35 @@
 """Definitions, conditions, dispositions and the construction error taxonomy, row by row."""
+import unittest
 from enum import Enum, auto
 from itertools import count
-import unittest
+
 from status_machina import (
-    Action, AmbiguousTransitionError, CallbackError, Condition, Definition, DefinitionError, DefinitionLimitError,
-    Disposition, DuplicateIdentifierError, Event, Ignored, InitialInvariantError, InternalTransitionError,
-    InvalidConditionError, InvalidDispositionError, LimitError, Limits, Refused, State, StatusMachinaError,
-    TerminalTransitionError, Transition, UnknownStateError, UnreachableStateError,
+    Action,
+    AmbiguousTransitionError,
+    CallbackError,
+    Condition,
+    Definition,
+    DefinitionError,
+    DefinitionLimitError,
+    Disposition,
+    DuplicateIdentifierError,
+    Event,
+    Ignored,
+    InitialInvariantError,
+    InternalTransitionError,
+    InvalidConditionError,
+    InvalidDispositionError,
+    LimitError,
+    Limits,
+    Refused,
+    State,
+    StatusMachinaError,
+    TerminalTransitionError,
+    Transition,
+    UnknownStateError,
+    UnreachableStateError,
 )
+
 
 class Phase(Enum):
     OPEN = auto()

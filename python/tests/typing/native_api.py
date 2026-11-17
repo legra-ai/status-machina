@@ -1,7 +1,23 @@
 """Static contracts checked with mypy --warn-unused-ignores."""
 from enum import Enum, auto
+
 from typing_extensions import assert_type
-from status_machina import DiagramLabels, InspectionLimits, StructuralCoverage, Action, Capability, CapabilityReport, CapabilityStatus, Definition, Event, Machine, State, Transition
+
+from status_machina import (
+    Action,
+    Capability,
+    CapabilityReport,
+    CapabilityStatus,
+    Definition,
+    DiagramLabels,
+    Event,
+    InspectionLimits,
+    Machine,
+    State,
+    StructuralCoverage,
+    Transition,
+)
+
 
 class Phase(Enum):
     READY = auto()

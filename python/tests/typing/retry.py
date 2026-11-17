@@ -1,10 +1,20 @@
 """Static contracts for retry policies, schedules, correlations and wait sets."""
 from datetime import datetime, timedelta, timezone
 from enum import Enum, auto
+
 from typing_extensions import assert_type
+
 from status_machina import (
-    ExponentialBackoff, FixedDelay, RetryAt, RetryPolicy, RetrySchedule, RetryWaits, WaitCorrelation, WakeIntent,
+    ExponentialBackoff,
+    FixedDelay,
+    RetryAt,
+    RetryPolicy,
+    RetrySchedule,
+    RetryWaits,
+    WaitCorrelation,
+    WakeIntent,
 )
+
 
 class Op(Enum):
     FETCH = auto()

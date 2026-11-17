@@ -1,17 +1,58 @@
 """Kernel-decided composition between native machines: routing, binding and propagation."""
+import unittest
 from dataclasses import dataclass
 from enum import Enum, IntEnum, auto
-import unittest
+
 from status_machina import (
-    Action, AddressMismatchError, AliasedBindingError, BatchLimitError, BindingMismatchError, BusyError,
-    CallbackError, Capability, CapabilityReport, CapabilityStatus, CompositionError, CompositionLimitError,
-    Composition, Deferred, Definition, Delivery, DisposedError, DuplicateBindingError, DuplicateInstanceError,
-    DuplicateObservationError, DuplicateRouteError, Effect, Event, ForeignSnapshotError, InstanceAddress,
-    InstanceRegistry, InstanceRegistryLimitError, LimitError, MissingBindingError, OutputEvent, OutputIntent,
-    PropagationLimits, PropagationLimitsError, PropagationStatus, ReportInstanceMismatchError, Route, Routed,
-    State, Transition, Transitioned, UndeclaredCapabilityError, UndeclaredRouteEventError, Unmatched,
-    UnregisteredBindingError, UnregisteredRouteAddressError, UnregisteredSourceError, CapabilitySnapshotLimitError,
+    Action,
+    AddressMismatchError,
+    AliasedBindingError,
+    BatchLimitError,
+    BindingMismatchError,
+    BusyError,
+    CallbackError,
+    Capability,
+    CapabilityReport,
+    CapabilitySnapshotLimitError,
+    CapabilityStatus,
+    Composition,
+    CompositionError,
+    CompositionLimitError,
+    Deferred,
+    Definition,
+    Delivery,
+    DisposedError,
+    DuplicateBindingError,
+    DuplicateInstanceError,
+    DuplicateObservationError,
+    DuplicateRouteError,
+    Effect,
+    Event,
+    ForeignSnapshotError,
+    InstanceAddress,
+    InstanceRegistry,
+    InstanceRegistryLimitError,
+    LimitError,
+    MissingBindingError,
+    OutputEvent,
+    OutputIntent,
+    PropagationLimits,
+    PropagationLimitsError,
+    PropagationStatus,
+    ReportInstanceMismatchError,
+    Route,
+    Routed,
+    State,
+    Transition,
+    Transitioned,
+    UndeclaredCapabilityError,
+    UndeclaredRouteEventError,
+    Unmatched,
+    UnregisteredBindingError,
+    UnregisteredRouteAddressError,
+    UnregisteredSourceError,
 )
+
 
 class Order(Enum):
     OPEN = auto()
@@ -250,7 +291,6 @@ class RejectionTests(unittest.TestCase):
         self.assertEqual(pipeline.order.state, Order.OPEN)
 
     def test_reentrant_propagation_fails_the_step_without_acceptance(self):
-        pipeline = Pipeline()
         holder = {}
         def reenter(data, payload, facts):
             holder["bound"].propagate([], limits=LIMITS)

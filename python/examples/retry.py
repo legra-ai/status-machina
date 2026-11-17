@@ -3,13 +3,25 @@
 A fetch retries with capped exponential backoff. The caller owns the clock and
 the scheduler: the machine only records which wake it accepts.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum, auto
+
 from status_machina import (
-    Action, Condition, Definition, Disposition, Event, ExponentialBackoff, RetryAt, RetryPolicy, RetryWaits,
-    State, Transition, WaitCorrelation,
+    Action,
+    Condition,
+    Definition,
+    Disposition,
+    Event,
+    ExponentialBackoff,
+    RetryAt,
+    RetryPolicy,
+    RetryWaits,
+    State,
+    Transition,
+    WaitCorrelation,
 )
+
 
 class Phase(Enum):
     RUNNING = auto()

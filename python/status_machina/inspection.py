@@ -1,10 +1,13 @@
 """Bounded structural reports and explicit Mermaid labels, independent of identity."""
 from __future__ import annotations
-from collections.abc import Mapping
-from dataclasses import dataclass, field
+
 import json
-from typing import TYPE_CHECKING, Generic, Hashable
+from collections.abc import Hashable, Mapping
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Generic
+
 from typing_extensions import TypeVar
+
 from .errors import InspectionError
 
 if TYPE_CHECKING:

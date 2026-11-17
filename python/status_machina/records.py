@@ -6,14 +6,28 @@ resolves every use site through the caller's ``BehaviorRegistry`` with the Rust
 kernel's ``DefinitionRecord::bind``; nothing is imported or loaded implicitly.
 """
 from __future__ import annotations
+
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Generic, Hashable, Literal, TypeAlias
+from typing import Any, Generic, Literal, TypeAlias
+
 from typing_extensions import TypeVar
+
 from ._bounded import bounded
 from ._context import DEFAULT_SNAPSHOT
 from .errors import ConditionRecordError, LimitError, RecordError
 from .machine import Definition
-from .model import Action, BehaviorRef, BehaviorRegistry, Condition, Disposition, Effect, OutputEvent, State, Transition
+from .model import (
+    Action,
+    BehaviorRef,
+    BehaviorRegistry,
+    Condition,
+    Disposition,
+    Effect,
+    OutputEvent,
+    State,
+    Transition,
+)
 
 StateT = TypeVar("StateT", bound=Hashable)
 KindT = TypeVar("KindT", bound=Hashable)

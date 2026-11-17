@@ -1,12 +1,25 @@
 """Static contracts for portable records and role-aware identity codecs."""
+from collections.abc import Hashable
 from enum import Enum, auto
-from typing import Hashable
+
 from typing_extensions import assert_type
+
 from status_machina import (
-    BehaviorRef, BehaviorRegistry, BehaviorUse, ConditionRecord, Definition, DefinitionRecord,
-    IdentityMap, IdentityRole, MachineIdentityMaps, NotRecord, PredicateRecord, StateRecord,
+    BehaviorRef,
+    BehaviorRegistry,
+    BehaviorUse,
+    ConditionRecord,
+    Definition,
+    DefinitionRecord,
+    IdentityMap,
+    IdentityRole,
+    MachineIdentityMaps,
+    NotRecord,
+    PredicateRecord,
+    StateRecord,
     TransitionDefinitionRecord,
 )
+
 
 class Phase(Enum):
     OPEN = auto()
