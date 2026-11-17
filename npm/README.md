@@ -5,13 +5,16 @@ exceptions for caller-driven state machines. The transition kernel is shared
 with the Rust and Python packages. Evaluation is synchronous; applications own
 I/O, clocks, scheduling and external effect execution.
 
-Development is in progress. This package has not been published yet.
+Install the published package (Node.js 22.10 or newer; Linux, macOS, Windows):
 
-The current implementation supports checked definitions, dispatch, isolated
-snapshots, single-use decisions, exact callback causes and explicit disposal.
-Model parity is certified and installable artifacts are tested on every
-supported platform; publication remains under development; see the repository's
-binding design.
+```sh
+pnpm add @legra-ai/status-machina
+```
+
+It supports checked definitions, dispatch, isolated snapshots, single-use
+decisions, exact callback causes and explicit disposal. Model parity is
+certified and the published package is tested on every supported platform; see
+the repository's binding design.
 
 Capabilities are synchronous advisory policies over detached data and facts.
 The native instance identity and `bigint` revision accompany every report:

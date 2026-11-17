@@ -1,14 +1,13 @@
 # Native Python and Node.js APIs
 
-Status: implementation plan. The Rust core is published; the native language
-bindings are implemented and their installable artifacts are built and tested
-on every declared platform, but neither package is published yet. This document defines the acceptance
-boundary for both packages. A completed design is not a completed binding.
+Status: complete. The Rust core and both native packages are published from one
+tested revision, first at 0.1.14 (BND-08). This document defines the acceptance
+boundary for both packages and records its evidence.
 
 The Python distribution is `status-machina`, imported as `status_machina`.
 The npm package is `@legra-ai/status-machina`. Both live in this repository,
 use MIT OR Apache-2.0, and consume the same Rust transition kernel. The unscoped
-npm name is occupied. Availability checks do not reserve either unpublished name.
+npm name is occupied.
 
 ## Deliverables
 
@@ -21,7 +20,7 @@ npm name is occupied. Availability checks do not reserve either unpublished name
 | BND-05 | Native Story bindings, capabilities, bounded composition, retries and scenario coverage, with model-by-model parity evidence in both languages | BND-03, BND-04 | Done |
 | BND-06 | Installable wheels, source distribution and npm artifacts; complete examples and installed-artifact tests without a Rust toolchain | BND-05 | Done |
 | BND-07 | Extend the shared tested-revision pipeline to gate and publish all three ecosystems, with synchronized versions and interrupted-publication recovery | BND-06 | Done |
-| BND-08 | Initial native packages published and verified from the approved tested revision on every declared platform | BND-07 | Not started |
+| BND-08 | Initial native packages published and verified from the approved tested revision on every declared platform | BND-07 | Done |
 
 The kernel stays independent of Python, Node.js, their dependency graphs and
 execution environments. Existing Rust consumers can remain pinned to 0.1.0;
@@ -444,8 +443,40 @@ polling, and the OIDC trust checks (configured, rejected, missing identity).
 `scripts/test_maintenance.py` checks the job graph, step order, trust and
 token rules and the completion gate for every job result. The shared
 preservation is tested in legra-ai/github-actions
-(`tests/test_release_packages_preservation.py`). The first publication itself
-is BND-08, after the owner configures the PyPI and npm trusted publishers.
+(`tests/test_release_packages_preservation.py`).
+
+BND-08 is Done. The owner configured the PyPI trusted publisher
+(`legra-ai/status-machina`, `ci.yml`, environment `pypi`) and the npm trusted
+publisher for `@legra-ai/status-machina` (same workflow and environment). The
+releasable change, #44, merged as `73cb05d`. Its main run (44155180991) wrote
+the version commit `2c88624` (`chore(release): prepare 0.1.14`), which moves all
+eight version files: both Cargo manifests of the core and bridge, `Cargo.lock`,
+the PyO3 and napi manifests, `pyproject.toml`, `uv.lock` and `package.json`.
+That commit's own run (44156585027) passed every binding, artifact and
+installed-artifact job on all five runners, then published and verified all
+three registries and made release `v0.1.14` public with `release-packages.zip`
+(manifest revision `2c88624`, seven files). Independent verification after
+the run:
+
+- crates.io serves `status-machina` 0.1.14.
+- PyPI serves exactly the five abi3 wheels (manylinux_2_28 x86_64/aarch64,
+  macOS 26 arm64, win_amd64, win_arm64) and the sdist. Every downloaded file's
+  SHA-256 equals the bundle manifest. Every file has a PyPI attestation from
+  GitHub `legra-ai/status-machina`, `ci.yml`, environment `pypi`.
+- npm serves `@legra-ai/status-machina@0.1.14` as `latest`. Its tarball's
+  SHA-256 equals the bundle manifest, and its SLSA v1 provenance names
+  `.github/workflows/ci.yml` on `refs/heads/main` at commit `2c88624`.
+- On macOS ARM64, `pip install status-machina==0.1.14` into fresh Python 3.14
+  and 3.15 environments installs the macOS 26 wheel. All four examples print
+  the outputs in the Python README. The 113-test contract suite and the mypy
+  typing fixtures pass against the installed wheel. `pnpm add
+  @legra-ai/status-machina@0.1.14` into a fresh project on Node.js 24 runs all
+  four examples with the README outputs. 111 Node tests and `tsc -p tests/typing`
+  pass against the installed package.
+
+The other declared platforms are covered by the publishing run's own
+installed-artifact jobs. Those jobs ran the identical files that were later
+published (digests in the preserved manifest).
 
 Python and TypeScript static examples check state/event identity, initial data
 and data unions that functional actions can replace. They include deliberately
@@ -844,6 +875,6 @@ installed npm tarball on all five runners with Node.js 22 and 24 (see
 BND-05 is Done: every parity row above is Covered with evidence in both
 languages, and its BND-04 dependency is fully met.
 
-Installed-artifact and platform evidence is complete (BND-06), and the
-multi-registry release path with its recovery is in place (BND-07). The first
-registry publication remains outstanding (BND-08).
+Installed-artifact and platform evidence is complete (BND-06), the
+multi-registry release path with its recovery is in place (BND-07), and the
+first publication to all three registries is verified (BND-08).
