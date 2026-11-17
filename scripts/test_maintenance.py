@@ -301,6 +301,8 @@ class RegistryPublicationTests(unittest.TestCase):
         self.assertIn("if: steps.plan.outputs.npm-missing == 'true'", self.publish)
         self.assertIn('packages-dir: release/pending-python/', self.publish)
         self.assertRegex(self.publish, r'pypa/gh-action-pypi-publish@[0-9a-f]{40} # v')
+        npm_verify = self.publish.split('registry: npm\n', 1)[1].split('      - name:', 1)[0]
+        self.assertIn("timeout: '600'", npm_verify, 'npm staged publishing needs the full visibility budget')
 
     def test_trusted_publishing_without_long_lived_registry_tokens(self):
         self.assertIn('npm publish "./$NPM_ARCHIVE" --provenance --access public --ignore-scripts', self.publish)

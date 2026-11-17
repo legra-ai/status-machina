@@ -420,6 +420,12 @@ workflow, and the release completes only after all three registries verify:
 - The required `test` gate demands `publish-packages` success in a publishing
   run and a skip otherwise.
 
+npm's staged publishing first exposes a separate `<version>-stage` version and
+the real version minutes later. Only the exact version counts: a `-stage`
+version is never accepted as the release. `plan` waits (at most 600 seconds) for
+an earlier attempt's still-staged upload instead of uploading again, and npm
+verification polls up to its 600-second maximum for the exact version.
+
 Recovery: until the draft is published, the shared planner resumes the release
 at its tag on every later main or scheduled run, crates.io publication is
 skipped once verified, and `publish-packages` uploads only what is still
@@ -429,7 +435,7 @@ run does the same.
 `scripts/test_release_packages.py` tests the bundle identity (wrong version,
 revision, tampered or extra files), the resume plan (nothing published, an
 interrupted PyPI upload, complete publication, differing or foreign registry
-files), complete PyPI verification including the sdist, bounded visibility
+files, npm staged versions), complete PyPI verification including the sdist, bounded visibility
 polling, and the OIDC trust checks (configured, rejected, missing identity).
 `scripts/test_maintenance.py` checks the job graph, step order, trust and
 token rules and the completion gate for every job result. The shared

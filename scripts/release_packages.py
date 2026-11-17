@@ -200,13 +200,27 @@ class PyPI:
 
 
 class Npm:
+    # npm's staged publishing first exposes a separate `<version>-stage` version,
+    # then the real one minutes later. Only the exact version is the release.
+    STAGE_SUFFIX = '-stage'
+
     def __init__(self, http):
         self.http = http
 
-    def missing(self, version, directory, packages):
+    def metadata(self, version):
         metadata = self.http.json(f'https://registry.npmjs.org/{quote(NPM_PACKAGE, safe="@")}/{version}')
+        if metadata is not None and metadata['version'] != version:
+            raise ReleaseError(f'npm answered {metadata["version"]} for {version}')
+        return metadata
+
+    def missing(self, version, directory, packages):
+        """True when nothing is published; waits out a staged publication of this version."""
+        metadata = self.metadata(version)
         if metadata is None:
-            return True
+            if self.metadata(version + self.STAGE_SUFFIX) is None:
+                return True
+            # An earlier attempt's upload is still being staged: never upload twice.
+            raise NotVisible(f'npm {NPM_PACKAGE}@{version} is still staged as {version}{self.STAGE_SUFFIX}')
         with (Path(directory) / packages.npm).open('rb') as source:
             integrity = 'sha512-' + base64.b64encode(hashlib.file_digest(source, 'sha512').digest()).decode()
         if metadata['dist']['integrity'] != integrity:
@@ -287,7 +301,7 @@ def main(arguments=None):
         version, _ = release_identity()
         packages = PackageSet(version, (path.name for path in directory.iterdir()))
         python = PyPI(http).missing(version, directory, packages)
-        npm = Npm(http).missing(version, directory, packages)
+        npm = await_visibility(lambda: Npm(http).missing(version, directory, packages), 600)
         pending.mkdir()
         for name in python:
             shutil.copyfile(directory / name, pending / name)

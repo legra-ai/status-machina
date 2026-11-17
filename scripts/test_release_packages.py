@@ -68,7 +68,7 @@ class Fixture(unittest.TestCase):
         tarball = data or f'legra-ai-status-machina-{VERSION}.tgz'.encode()
         integrity = 'sha512-' + base64.b64encode(hashlib.sha512(tarball).digest()).decode()
         return {('GET', f'https://registry.npmjs.org/@legra-ai%2Fstatus-machina/{VERSION}'):
-                {'dist': {'integrity': integrity}}}
+                {'version': VERSION, 'dist': {'integrity': integrity}}}
 
 
 class BundleTests(Fixture):
@@ -134,6 +134,45 @@ class ResumeTests(Fixture):
         with self.assertRaises(release.ReleaseError):
             release.Npm(FakeHttp(self.npm(b'other'))).missing(VERSION, self.dist, self.packages)
 
+
+
+class StagedNpmTests(Fixture):
+    """npm staged publishing shows `<version>-stage` before the real version."""
+    URL = f'https://registry.npmjs.org/@legra-ai%2Fstatus-machina/{VERSION}'
+
+    def staged(self):
+        return {('GET', f'{self.URL}-stage'): {'version': f'{VERSION}-stage', 'dist': {'integrity': 'sha512-stage'}}}
+
+    def test_a_staged_upload_is_awaited_never_uploaded_again(self):
+        with self.assertRaises(release.NotVisible):
+            release.Npm(FakeHttp(self.staged())).missing(VERSION, self.dist, self.packages)
+        http = FakeHttp(self.staged())
+        npm = release.Npm(http)
+        attempts = []
+
+        def plan():
+            attempts.append(1)
+            if len(attempts) == 3:
+                # The real version appears minutes later, with the tested tarball.
+                http.responses.update({('GET', self.URL): {'version': VERSION, **self.npm()[('GET', self.URL)]}})
+            return npm.missing(VERSION, self.dist, self.packages)
+        self.assertFalse(release.await_visibility(plan, 600, clock=iter(range(10)).__next__, sleep=lambda _: None))
+        self.assertEqual(len(attempts), 3)
+
+    def test_a_publication_that_stays_staged_fails_within_the_bound(self):
+        with self.assertRaises(release.ReleaseError) as raised:
+            release.await_visibility(lambda: release.Npm(FakeHttp(self.staged())).missing(VERSION, self.dist, self.packages),
+                                     600, clock=iter([0, 1, 601]).__next__, sleep=lambda _: None)
+        self.assertNotIsInstance(raised.exception, release.NotVisible)
+
+    def test_a_stage_version_is_never_accepted_as_the_release(self):
+        http = FakeHttp({('GET', self.URL): {'version': f'{VERSION}-stage', 'dist': {'integrity': 'sha512-stage'}}})
+        with self.assertRaises(release.ReleaseError):
+            release.Npm(http).missing(VERSION, self.dist, self.packages)
+
+    def test_staged_versions_of_other_releases_do_not_block(self):
+        http = FakeHttp({('GET', 'https://registry.npmjs.org/@legra-ai%2Fstatus-machina/0.0.0-stage'): {'version': '0.0.0-stage'}})
+        self.assertTrue(release.Npm(http).missing(VERSION, self.dist, self.packages))
 
 class VerificationTests(Fixture):
     def test_public_pypi_must_hold_exactly_the_tested_wheels_and_sdist(self):

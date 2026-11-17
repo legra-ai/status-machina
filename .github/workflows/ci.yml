@@ -30,7 +30,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-    uses: legra-ai/github-actions/.github/workflows/cargo-maintenance.yml@8a2acedcbdc0596a37c389d7dc34a366d4d41aa7
+    uses: legra-ai/github-actions/.github/workflows/cargo-maintenance.yml@4821c86278ed3b0a7d9b51504a42b4b777863aa0
     with:
       crate-name: status-machina
       kind: library
@@ -664,22 +664,25 @@ jobs:
           " || exit 1
           npm publish "./$NPM_ARCHIVE" --provenance --access public --ignore-scripts
       - name: Verify crates.io publication
-        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@8a2acedcbdc0596a37c389d7dc34a366d4d41aa7
+        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@4821c86278ed3b0a7d9b51504a42b4b777863aa0
         with:
           registry: crates
           package: status-machina
           version: ${{ needs.ci.outputs.version }}
           revision: ${{ needs.ci.outputs.revision }}
       - name: Verify npm publication
-        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@8a2acedcbdc0596a37c389d7dc34a366d4d41aa7
+        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@4821c86278ed3b0a7d9b51504a42b4b777863aa0
         with:
           registry: npm
           package: '@legra-ai/status-machina'
           version: ${{ needs.ci.outputs.version }}
           revision: ${{ needs.ci.outputs.revision }}
           archive: release/release-packages.zip
+          # npm staged publishing exposes `<version>-stage` first; the exact
+          # version alone verifies, polled for up to the action's maximum.
+          timeout: '600'
       - name: Verify PyPI wheels publication
-        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@8a2acedcbdc0596a37c389d7dc34a366d4d41aa7
+        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@4821c86278ed3b0a7d9b51504a42b4b777863aa0
         with:
           registry: pypi
           package: status-machina
