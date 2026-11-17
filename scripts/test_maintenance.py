@@ -12,7 +12,9 @@ import unittest
 ROOT = Path(__file__).resolve().parent.parent
 # Every native build, packaging and installed-artifact job; each gates publication.
 NATIVE_JOBS = ('python-bindings', 'node-bindings', 'python-wheels', 'python-sdist', 'node-addons',
-               'npm-package', 'python-installed', 'node-installed')
+               'npm-package', 'python-installed', 'node-installed', 'release-packages')
+# Publishes PyPI and npm after the shared pipeline; it never gates the shared call.
+PUBLISH_JOB = 'publish-packages'
 RUNNERS = '[ubuntu-24.04, ubuntu-24.04-arm, macos-latest, windows-latest, windows-11-arm]'
 
 
@@ -44,20 +46,29 @@ class MaintenancePolicyTests(unittest.TestCase):
         self.assertIn('  test:\n', workflow)
         gate = workflow.split('  test:\n', 1)[1]
         self.assertIn('if: always()', gate)
-        jobs = {f'{job.upper().replace("-", "_")}_RESULT': job for job in ('prepare', 'ci', *NATIVE_JOBS)}
+        jobs = {f'{job.upper().replace("-", "_")}_RESULT': job
+                for job in ('prepare', 'ci', *NATIVE_JOBS, PUBLISH_JOB)}
         needs = re.search(r'^    needs: \[([^\]]*)\]\n', gate, flags=re.MULTILINE)
         self.assertEqual({name.strip() for name in needs.group(1).split(',')}, set(jobs.values()))
         for variable, job in jobs.items():
             self.assertIn(f'{variable}: ${{{{ needs.{job}.result }}}}', gate)
+        self.assertIn('CI_PUBLISH: ${{ needs.ci.outputs.publish }}', gate)
         script = textwrap.dedent(gate.split("python3 - <<'PYTHON'\n", 1)[1].split('          PYTHON', 1)[0])
-        passing = dict.fromkeys(jobs, 'success')
-        cases = [passing] + [{**passing, variable: outcome} for variable in jobs
-                             for outcome in ('failure', 'cancelled', 'skipped')]
-        for results in cases:
+        publish = 'PUBLISH_PACKAGES_RESULT'
+        cases = []
+        for publishing in ('true', 'false'):
+            passing = {**dict.fromkeys(jobs, 'success'), 'CI_PUBLISH': publishing,
+                       publish: 'success' if publishing == 'true' else 'skipped'}
+            cases.append((passing, True))
+            for variable in jobs:
+                for outcome in ('success', 'failure', 'cancelled', 'skipped'):
+                    if outcome != passing[variable]:
+                        cases.append(({**passing, variable: outcome}, False))
+        for results, accepted in cases:
             with self.subTest(**results):
                 result = subprocess.run([sys.executable, '-c', script], capture_output=True,
                                         env={**os.environ, **results})
-                self.assertEqual(result.returncode == 0, results == passing)
+                self.assertEqual(result.returncode == 0, accepted)
 
     def test_release_path_waits_for_every_build_job(self):
         # Either all builds are ok or nothing gets published: the shared release
@@ -76,7 +87,7 @@ class MaintenancePolicyTests(unittest.TestCase):
         self.assertIsNotNone(needs, 'the release call must declare its build dependencies')
         required = {name.strip() for name in needs.group(1).split(',')}
         builds = {name for name, body in bodies.items()
-                  if name not in ('ci', 'test') and re.search(r'^    steps:\n', body, flags=re.MULTILINE)}
+                  if name not in ('ci', 'test', PUBLISH_JOB) and re.search(r'^    steps:\n', body, flags=re.MULTILINE)}
         self.assertEqual(builds, {'prepare', *NATIVE_JOBS})
         self.assertEqual(required, builds)
         # always() or a result filter would let a failed, cancelled or skipped build through.
@@ -248,6 +259,57 @@ class NativeArtifactTests(unittest.TestCase):
             self.assertIn(name, files)
             for copy in (ROOT / 'python/licenses' / name, ROOT / 'npm' / name):
                 self.assertEqual(copy.read_bytes(), (ROOT / name).read_bytes(), copy)
+
+
+
+class RegistryPublicationTests(unittest.TestCase):
+    """PyPI and npm publish only the preserved, tested packages, through OIDC, resumably."""
+
+    def setUp(self):
+        self.workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        self.publish = job_body(self.workflow, PUBLISH_JOB)
+
+    def test_shared_pipeline_preserves_packages_and_leaves_completion_to_this_workflow(self):
+        shared = job_body(self.workflow, 'ci')
+        self.assertIn('      release-packages: release-packages\n', shared)
+        self.assertIn('      complete-release: false\n', shared)
+        self.assertIn('      actions: read\n', shared)
+        bundle = job_body(self.workflow, 'release-packages')
+        needs = re.search(r'^    needs: \[([^\]]*)\]\n', bundle, flags=re.MULTILINE).group(1)
+        self.assertEqual({name.strip() for name in needs.split(',')},
+                         {'python-wheels', 'python-sdist', 'npm-package', 'python-installed', 'node-installed'})
+        self.assertIn('release_packages.py bundle', bundle)
+        self.assertIn('name: release-packages\n', bundle)
+
+    def test_publication_runs_only_in_the_publishing_run_after_the_shared_pipeline(self):
+        self.assertIn('    needs: ci\n', self.publish)
+        self.assertIn("    if: needs.ci.outputs.publish == 'true'\n", self.publish)
+        self.assertIn('    environment: pypi\n', self.publish)
+        self.assertIn('      id-token: write\n', self.publish)
+        self.assertIn('      contents: read\n', self.publish)
+        self.assertIn('cancel-in-progress: false', self.publish)
+
+    def test_only_preserved_packages_are_published_and_only_where_missing(self):
+        order = ['gh release download "v$RELEASE_VERSION"', 'release_packages.py extract',
+                 'release_packages.py plan', 'release_packages.py preflight',
+                 'pypa/gh-action-pypi-publish@', 'npm publish', 'registry: crates', 'registry: npm',
+                 'registry: pypi', 'release_packages.py verify-pypi', '--draft=false']
+        positions = [self.publish.index(step) for step in order]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('download-artifact', self.publish)
+        self.assertIn("if: steps.plan.outputs.python-missing == 'true'", self.publish)
+        self.assertIn("if: steps.plan.outputs.npm-missing == 'true'", self.publish)
+        self.assertIn('packages-dir: release/pending-python/', self.publish)
+        self.assertRegex(self.publish, r'pypa/gh-action-pypi-publish@[0-9a-f]{40} # v')
+
+    def test_trusted_publishing_without_long_lived_registry_tokens(self):
+        self.assertIn('npm publish "./$NPM_ARCHIVE" --provenance --access public --ignore-scripts', self.publish)
+        for forbidden in ('NODE_AUTH_TOKEN', 'NPM_TOKEN', 'PYPI', 'password:', 'registry-url', 'continue-on-error'):
+            self.assertNotIn(forbidden, self.publish.replace('environment: pypi', ''))
+        secrets = set(re.findall(r'secrets\.([A-Z_]+)', self.publish))
+        self.assertEqual(secrets, {'RELEASE_WRITER_APP_ID', 'RELEASE_WRITER_APP_KEY'})
+        preflight = self.publish.split('release_packages.py preflight', 1)[0].rsplit('      - name:', 1)[1]
+        self.assertNotIn('if:', preflight, 'a missing trust configuration must fail, never skip')
 
 
 class CommitMessageTests(unittest.TestCase):
