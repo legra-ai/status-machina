@@ -20,7 +20,7 @@ npm name is occupied. Availability checks do not reserve either unpublished name
 | BND-04 | Node.js checked construction, native values, execution and inspection through napi-rs, with JavaScript and TypeScript APIs | BND-02 | Done |
 | BND-05 | Native Story bindings, capabilities, bounded composition, retries and scenario coverage, with model-by-model parity evidence in both languages | BND-03, BND-04 | Done |
 | BND-06 | Installable wheels, source distribution and npm artifacts; complete examples and installed-artifact tests without a Rust toolchain | BND-05 | Done |
-| BND-07 | Extend the shared tested-revision pipeline to gate and publish all three ecosystems, with synchronized versions and interrupted-publication recovery | BND-06 | Partial |
+| BND-07 | Extend the shared tested-revision pipeline to gate and publish all three ecosystems, with synchronized versions and interrupted-publication recovery | BND-06 | Done |
 | BND-08 | Initial native packages published and verified from the approved tested revision on every declared platform | BND-07 | Not started |
 
 The kernel stays independent of Python, Node.js, their dependency graphs and
@@ -366,7 +366,7 @@ fixtures. The required `test` gate fails unless every one of them passes. They
 test the checkout; the [installable artifacts](#installable-artifacts) jobs
 test what users install.
 
-BND-07 is Partial: native checks now gate the sole publisher. The shared
+BND-07 is Done. Native checks gate the sole publisher. The shared
 `cargo-maintenance.yml` call (`ci`) declares `needs:` on `prepare`, both
 binding jobs and every artifact build and installed-artifact job, without
 `always()`. Its version commit and its crates.io
@@ -385,8 +385,63 @@ which rewrites the binding crates, `pyproject.toml`, `uv.lock` and `package.json
 to the crate version before `Cargo.lock` is refreshed. The shared release
 script commits every changed file, so the version commit, and every artifact
 built from it, carries one version. With the pinned `cargo-version-info@1.0.13`
-a `bump --no-commit` moves all eight files. PyPI/npm publication from that
-revision's artifacts and multi-registry recovery remain outstanding (BND-07/08).
+a `bump --no-commit` moves all eight files.
+
+PyPI and npm publish from that revision's own tested artifacts, in this
+workflow, and the release completes only after all three registries verify:
+
+- `release-packages` runs after every wheel, sdist, npm and installed-artifact
+  job. `scripts/release_packages.py bundle` writes `release-packages.zip`: the
+  five wheels, the sdist and the npm tarball (exactly the declared set, at the
+  crate version) with a `manifest.json` of version, the run's revision and each
+  file's SHA-256. The shared call `needs:` it like every build job.
+- The shared pipeline (`release-packages: release-packages`,
+  `complete-release: false`) attaches that bundle to the draft release before
+  crates.io, and only when its manifest names the release revision. A resumed
+  release keeps and re-verifies the original asset, so a later run's packages,
+  tested at another revision, can never replace it. It then publishes and
+  verifies crates.io, and leaves the draft.
+- `publish-packages` runs only when the shared `publish` output is `true`, after
+  the whole shared call succeeded, in environment `pypi` with `id-token: write`
+  and no registry token. It downloads the preserved bundle from the draft,
+  extracts it only for the exact release version and revision with every
+  digest intact, and compares it with both registries (`plan`). Files already
+  published with the tested digest are skipped; missing ones are published; any
+  differing or foreign file under the version fails. Before either upload,
+  `preflight` exchanges the job's OIDC identity with PyPI (`mint-token`) and
+  npm (`oidc/token/exchange`) for each registry that still needs an upload, so
+  a missing trusted publisher fails the job loudly instead of skipping. It then
+  publishes the missing wheels/sdist with `pypa/gh-action-pypi-publish` and the
+  tarball with `npm publish --provenance --access public --ignore-scripts`
+  (npm 11.5.1 or newer required). It verifies crates.io, npm and PyPI with
+  `verify-registry-publication`, then `verify-pypi` requires PyPI's file set to
+  be exactly the bundle's, downloading and hashing every wheel and the sdist
+  (the shared check covers wheels only). Only then does it publish the draft.
+- The required `test` gate demands `publish-packages` success in a publishing
+  run and a skip otherwise.
+
+npm's staged publishing first exposes a separate `<version>-stage` version and
+the real version minutes later. Only the exact version counts: a `-stage`
+version is never accepted as the release. `plan` waits (at most 600 seconds) for
+an earlier attempt's still-staged upload instead of uploading again, and npm
+verification polls up to its 600-second maximum for the exact version.
+
+Recovery: until the draft is published, the shared planner resumes the release
+at its tag on every later main or scheduled run, crates.io publication is
+skipped once verified, and `publish-packages` uploads only what is still
+missing from the preserved asset. Re-running the failed job of the original
+run does the same.
+
+`scripts/test_release_packages.py` tests the bundle identity (wrong version,
+revision, tampered or extra files), the resume plan (nothing published, an
+interrupted PyPI upload, complete publication, differing or foreign registry
+files, npm staged versions), complete PyPI verification including the sdist, bounded visibility
+polling, and the OIDC trust checks (configured, rejected, missing identity).
+`scripts/test_maintenance.py` checks the job graph, step order, trust and
+token rules and the completion gate for every job result. The shared
+preservation is tested in legra-ai/github-actions
+(`tests/test_release_packages_preservation.py`). The first publication itself
+is BND-08, after the owner configures the PyPI and npm trusted publishers.
 
 Python and TypeScript static examples check state/event identity, initial data
 and data unions that functional actions can replace. They include deliberately
@@ -785,6 +840,6 @@ installed npm tarball on all five runners with Node.js 22 and 24 (see
 BND-05 is Done: every parity row above is Covered with evidence in both
 languages, and its BND-04 dependency is fully met.
 
-Installed-artifact and platform evidence is complete (BND-06). Registry
-publication from the tested revision and its recovery remain outstanding
-(BND-07, BND-08).
+Installed-artifact and platform evidence is complete (BND-06), and the
+multi-registry release path with its recovery is in place (BND-07). The first
+registry publication remains outstanding (BND-08).
