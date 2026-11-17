@@ -32,6 +32,7 @@ jobs:
       contents: read
     uses: legra-ai/github-actions/.github/workflows/cargo-maintenance.yml@4821c86278ed3b0a7d9b51504a42b4b777863aa0
     with:
+      breaking-change-bump: minor
       crate-name: status-machina
       kind: library
       release-bump: patch
