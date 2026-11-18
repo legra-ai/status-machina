@@ -9,6 +9,7 @@ mod bindings;
 mod error;
 mod inspection;
 mod instantiate;
+mod restore;
 mod state;
 pub use error::{
     DefinitionBuildError,
@@ -20,6 +21,10 @@ pub use inspection::{
     InspectionLimitsBuilder,
     StateCoverage,
     StructuralCoverage,
+};
+pub use restore::{
+    RestoreError,
+    RestoreResult,
 };
 pub use state::{
     StateDefinition,
