@@ -108,6 +108,8 @@ pub use definition::{
     InspectionLimits,
     InspectionLimitsBuilder,
     MachineDefinition,
+    RestoreError,
+    RestoreResult,
     StateCoverage,
     StateDefinition,
     StateDefinitionBuilder,
