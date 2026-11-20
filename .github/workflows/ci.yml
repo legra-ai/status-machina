@@ -30,7 +30,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-    uses: legra-ai/github-actions/.github/workflows/cargo-maintenance.yml@b3cebd0e56098fb20bbf8bc2d5770b82d9020ddd
+    uses: legra-ai/github-actions/.github/workflows/cargo-maintenance.yml@65a22bfa9534499fa5a9dcb44c519b5ad8c6cf9d
     with:
       breaking-change-bump: minor
       crate-name: status-machina
@@ -696,14 +696,14 @@ jobs:
           " || exit 1
           npm publish "./$NPM_ARCHIVE" --provenance --access public --ignore-scripts
       - name: Verify crates.io publication
-        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@b3cebd0e56098fb20bbf8bc2d5770b82d9020ddd
+        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@65a22bfa9534499fa5a9dcb44c519b5ad8c6cf9d
         with:
           registry: crates
           package: status-machina
           version: ${{ needs.ci.outputs.version }}
           revision: ${{ needs.ci.outputs.revision }}
       - name: Verify npm publication
-        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@b3cebd0e56098fb20bbf8bc2d5770b82d9020ddd
+        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@65a22bfa9534499fa5a9dcb44c519b5ad8c6cf9d
         with:
           registry: npm
           package: '@legra-ai/status-machina'
@@ -714,7 +714,7 @@ jobs:
           # version alone verifies, polled for up to the action's maximum.
           timeout: '600'
       - name: Verify PyPI wheels publication
-        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@b3cebd0e56098fb20bbf8bc2d5770b82d9020ddd
+        uses: legra-ai/github-actions/.github/actions/verify-registry-publication@65a22bfa9534499fa5a9dcb44c519b5ad8c6cf9d
         with:
           registry: pypi
           package: status-machina
