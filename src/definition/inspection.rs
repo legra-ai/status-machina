@@ -34,7 +34,8 @@ pub struct InspectionLimitsBuilder {
 }
 
 impl InspectionLimitsBuilder {
-    /// Limit the combined states, transitions and disposition records.
+    /// Limit the combined states, transitions and disposition records;
+    /// structural coverage also counts forbidden edges.
     #[must_use]
     pub const fn max_entries(mut self, limit: usize) -> Self {
         self.max_entries = limit;
@@ -94,6 +95,22 @@ impl<D, E, F, X, O, I: crate::MachineIds> MachineDefinition<D, E, F, X, O, I> {
             .checked_add(self.transitions.len())
             .and_then(|count| count.checked_add(self.dispositions.len()));
         if total.is_none_or(|count| count > limits.max_entries) {
+            return Err(InspectionError::EntryLimit {
+                limit: limits.max_entries,
+            });
+        }
+        Ok(())
+    }
+
+    /// Coverage also reports forbidden edges, so they count against its
+    /// budget; diagrams never render them and do not count them.
+    fn check_coverage_limit(&self, limits: &InspectionLimits) -> Result<(), InspectionError> {
+        self.check_inspection_limit(limits)?;
+        let total = self.states.len()
+            + self.transitions.len()
+            + self.dispositions.len()
+            + self.forbidden_edges.len();
+        if total > limits.max_entries {
             return Err(InspectionError::EntryLimit {
                 limit: limits.max_entries,
             });

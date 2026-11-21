@@ -41,7 +41,9 @@ where
     ///
     /// Labels include declared guard identities and dispositions without
     /// executing them. Sorting by identifier makes output independent of
-    /// declaration order.
+    /// declaration order. Forbidden edges are constraints, not routes, so the
+    /// diagram never renders them; inspect them through
+    /// [`MachineDefinition::forbidden_edges`] or structural coverage.
     ///
     /// # Errors
     /// Rejects an oversized graph or output before exceeding the configured

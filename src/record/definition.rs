@@ -7,6 +7,7 @@ use super::{
 use crate::{
     BehaviorRegistry,
     DefaultIds,
+    ForbiddenEdge,
     MachineDefinition,
     MachineIds,
 };
@@ -34,9 +35,13 @@ pub struct DefinitionRecord<'a, I: MachineIds = DefaultIds> {
     pub transitions: &'a [TransitionDefinitionRecord<'a, I>],
     /// Harmless event dispositions, subject to the native cap.
     pub dispositions: &'a [DispositionRecord<'a, I>],
+    /// Explicit forbidden source/destination pairs, at most 128. They pass
+    /// through the same builder check as native prohibitions.
+    pub forbidden_edges: &'a [ForbiddenEdge<I>],
 }
 impl<'a, I: MachineIds> DefinitionRecord<'a, I> {
-    /// Describe a graph with native default limits and no dispositions.
+    /// Describe a graph with native default limits, no dispositions and no
+    /// forbidden edges.
     pub const fn new(
         id: I::Definition,
         initial: I::State,
@@ -51,6 +56,7 @@ impl<'a, I: MachineIds> DefinitionRecord<'a, I> {
             max_states: crate::definition::DEFAULT_MAX_STATES,
             max_transitions: crate::definition::DEFAULT_MAX_TRANSITIONS,
             dispositions: &[],
+            forbidden_edges: &[],
         }
     }
     /// Resolve every behavior and validate through the native builders.
@@ -65,6 +71,14 @@ impl<'a, I: MachineIds> DefinitionRecord<'a, I> {
         &self,
         registry: &BehaviorRegistry<D, E, F, X, O, I>,
     ) -> RecordBuildResult<MachineDefinition<D, E, F, X, O, I>, I> {
+        // Reject an oversized constraint inventory before binding allocates
+        // anything; the builder enforces the same bound per prohibition.
+        if self.forbidden_edges.len() > crate::definition::MAX_FORBIDDEN_EDGES {
+            return Err(crate::DefinitionBuildError::ForbiddenEdgeLimitExceeded {
+                limit: crate::definition::MAX_FORBIDDEN_EDGES,
+            }
+            .into());
+        }
         let mut builder =
             MachineDefinition::builder_with_effects_and_output_events(self.id.clone())
                 .initial(self.initial.clone())
@@ -77,6 +91,9 @@ impl<'a, I: MachineIds> DefinitionRecord<'a, I> {
         }
         for disposition in self.dispositions {
             builder = builder.disposition(disposition.bind(registry)?)?;
+        }
+        for edge in self.forbidden_edges {
+            builder = builder.forbid(edge.clone())?;
         }
         Ok(builder.build()?)
     }

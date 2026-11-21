@@ -7,6 +7,7 @@ use crate::{
 
 mod bindings;
 mod error;
+mod forbidden;
 mod inspection;
 mod instantiate;
 mod restore;
@@ -15,6 +16,7 @@ pub use error::{
     DefinitionBuildError,
     DefinitionResult,
 };
+pub use forbidden::ForbiddenEdge;
 pub use inspection::{
     InspectionError,
     InspectionLimits,
@@ -34,6 +36,8 @@ pub use state::{
 pub(crate) const DEFAULT_MAX_STATES: usize = 128;
 pub(crate) const DEFAULT_MAX_TRANSITIONS: usize = 512;
 const DEFAULT_MAX_DISPOSITIONS: usize = 128;
+/// Fixed bound on explicit forbidden-edge constraints per definition.
+pub(crate) const MAX_FORBIDDEN_EDGES: usize = 128;
 
 /// Immutable, validated machine definition.
 pub struct MachineDefinition<D, E, F, X = (), O = (), I: crate::MachineIds = crate::DefaultIds> {
@@ -42,6 +46,7 @@ pub struct MachineDefinition<D, E, F, X = (), O = (), I: crate::MachineIds = cra
     states: Vec<StateDefinition<D, E, F, X, I>>,
     transitions: Vec<Transition<D, E, F, X, O, I>>,
     dispositions: Vec<EventDisposition<D, E, F, I>>,
+    forbidden_edges: Vec<ForbiddenEdge<I>>,
 }
 
 impl<D, E, F, I: crate::MachineIds> MachineDefinition<D, E, F, (), (), I>
@@ -57,6 +62,7 @@ where
             states: Vec::new(),
             transitions: Vec::new(),
             dispositions: Vec::new(),
+            forbidden_edges: Vec::new(),
             max_states: DEFAULT_MAX_STATES,
             max_transitions: DEFAULT_MAX_TRANSITIONS,
         }
@@ -76,6 +82,7 @@ where
             states: Vec::new(),
             transitions: Vec::new(),
             dispositions: Vec::new(),
+            forbidden_edges: Vec::new(),
             max_states: DEFAULT_MAX_STATES,
             max_transitions: DEFAULT_MAX_TRANSITIONS,
         }
@@ -95,6 +102,7 @@ where
             states: Vec::new(),
             transitions: Vec::new(),
             dispositions: Vec::new(),
+            forbidden_edges: Vec::new(),
             max_states: DEFAULT_MAX_STATES,
             max_transitions: DEFAULT_MAX_TRANSITIONS,
         }
@@ -117,6 +125,7 @@ where
             states: Vec::new(),
             transitions: Vec::new(),
             dispositions: Vec::new(),
+            forbidden_edges: Vec::new(),
             max_states: DEFAULT_MAX_STATES,
             max_transitions: DEFAULT_MAX_TRANSITIONS,
         }
@@ -139,6 +148,16 @@ where
     pub(crate) fn dispositions(&self) -> &[EventDisposition<D, E, F, I>] {
         &self.dispositions
     }
+
+    /// Return the explicit forbidden-edge constraints in declaration order.
+    ///
+    /// No declared transition matches any of them. They are structural
+    /// constraints only: dispatch never consults them, because every
+    /// undeclared edge is already refused.
+    #[must_use]
+    pub fn forbidden_edges(&self) -> &[ForbiddenEdge<I>] {
+        &self.forbidden_edges
+    }
 }
 
 /// Bounded builder for a machine definition.
@@ -148,6 +167,7 @@ pub struct DefinitionBuilder<D, E, F, X = (), O = (), I: crate::MachineIds = cra
     states: Vec<StateDefinition<D, E, F, X, I>>,
     transitions: Vec<Transition<D, E, F, X, O, I>>,
     dispositions: Vec<EventDisposition<D, E, F, I>>,
+    forbidden_edges: Vec<ForbiddenEdge<I>>,
     max_states: usize,
     max_transitions: usize,
 }
@@ -235,12 +255,33 @@ impl<D, E, F, X, O, I: crate::MachineIds> DefinitionBuilder<D, E, F, X, O, I> {
         Ok(self)
     }
 
+    /// Forbid every transition between a typed source/destination pair.
+    ///
+    /// The prohibition applies to the finished definition: [`Self::build`]
+    /// rejects a matching transition whatever the declaration order, event,
+    /// kind or guard. A definition holds at most 128 prohibitions; the bound is
+    /// checked before the prohibition is stored.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the forbidden-edge bound has been reached.
+    pub fn forbid(mut self, edge: ForbiddenEdge<I>) -> Result<Self, DefinitionBuildError<I>> {
+        if self.forbidden_edges.len() == MAX_FORBIDDEN_EDGES {
+            return Err(DefinitionBuildError::ForbiddenEdgeLimitExceeded {
+                limit: MAX_FORBIDDEN_EDGES,
+            });
+        }
+        self.forbidden_edges.push(edge);
+        Ok(self)
+    }
+
     /// Validate graph references, uniqueness, and reachability.
     ///
     /// # Errors
     ///
     /// Returns an error for missing or duplicate states/edges, missing
-    /// endpoints, or states unreachable from the initial state.
+    /// endpoints, unknown or duplicate forbidden edges, a transition that
+    /// joins a forbidden pair, or states unreachable from the initial state.
     pub fn build(self) -> DefinitionResult<MachineDefinition<D, E, F, X, O, I>, I> {
         let initial = self
             .initial
@@ -252,6 +293,7 @@ impl<D, E, F, X, O, I: crate::MachineIds> DefinitionBuilder<D, E, F, X, O, I> {
         }
         self.validate_transitions(&state_ids)?;
         self.validate_dispositions(&state_ids)?;
+        self.validate_forbidden_edges(&state_ids)?;
         self.validate_reachability(&initial, &state_ids)?;
         Ok(MachineDefinition {
             id: self.id,
@@ -259,6 +301,7 @@ impl<D, E, F, X, O, I: crate::MachineIds> DefinitionBuilder<D, E, F, X, O, I> {
             states: self.states,
             transitions: self.transitions,
             dispositions: self.dispositions,
+            forbidden_edges: self.forbidden_edges,
         })
     }
 
