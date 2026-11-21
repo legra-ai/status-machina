@@ -3,7 +3,7 @@
 // exact BehaviorRef selections only: no functions, module specifiers or string
 // codec. DefinitionRecord.bind resolves every use site through the caller's
 // BehaviorRegistry with the Rust kernel's DefinitionRecord::bind.
-const { BehaviorRef, BehaviorRegistry, bounded } = require('./compile.cjs');
+const { BehaviorRef, BehaviorRegistry, ForbiddenEdge, bounded } = require('./compile.cjs');
 const { bindRecord } = require('./machine.cjs');
 const { ConditionRecordError, DefinitionError, LimitError, RecordError } = require('./errors.cjs');
 const MAX_CONDITION_DEPTH = 32;
@@ -127,13 +127,14 @@ function inventory(values, max, label, Type) {
 }
 class DefinitionRecord {
   constructor(options) {
-    fields(options, ['id', 'initial', 'states', 'transitions', 'dispositions', 'maxStates', 'maxTransitions'],
+    fields(options, ['id', 'initial', 'states', 'transitions', 'dispositions', 'forbiddenEdges', 'maxStates', 'maxTransitions'],
       'definition record', ['id', 'initial', 'states', 'transitions']);
     this.id = options.id; this.initial = options.initial;
     this.maxStates = limit(options.maxStates, 128, 'maxStates'); this.maxTransitions = limit(options.maxTransitions, 512, 'maxTransitions');
     this.states = inventory(options.states, this.maxStates, 'states', StateRecord);
     this.transitions = inventory(options.transitions, this.maxTransitions, 'transitions', TransitionDefinitionRecord);
     this.dispositions = inventory(options.dispositions === undefined ? [] : options.dispositions, 128, 'dispositions', DispositionRecord);
+    this.forbiddenEdges = inventory(options.forbiddenEdges === undefined ? [] : options.forbiddenEdges, 128, 'forbiddenEdges', ForbiddenEdge);
     Object.freeze(this);
   }
   bind(behaviors, options = {}) {
@@ -141,7 +142,7 @@ class DefinitionRecord {
     fields(options, ['snapshot', 'inputSnapshot', 'maxValues'], 'record binding');
     const specification = { id: this.id, initial: this.initial, behaviors,
       states: this.states.map(value => value[LOWER]()), transitions: this.transitions.map(value => value[LOWER]()),
-      dispositions: this.dispositions.map(value => value[LOWER]()),
+      dispositions: this.dispositions.map(value => value[LOWER]()), forbiddenEdges: this.forbiddenEdges,
       limits: { maxStates: this.maxStates, maxTransitions: this.maxTransitions, maxCallbacks: 4096,
         ...(options.maxValues === undefined ? {} : { maxValues: options.maxValues }) } };
     if (options.snapshot !== undefined) specification.snapshot = options.snapshot;

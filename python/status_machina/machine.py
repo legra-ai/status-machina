@@ -27,6 +27,7 @@ from .model import (
     Disposition,
     EffectIntent,
     Event,
+    ForbiddenEdge,
     Ignored,
     Limits,
     OutputIntent,
@@ -69,9 +70,10 @@ class Definition(Generic[StateT, KindT, DataT]):
             states: Iterable[State[StateT, DataT]], transitions: Iterable[Transition[StateT, KindT, DataT]],
             capabilities: Iterable[Capability[StateT, DataT]] = (),
             dispositions: Iterable[Disposition] = (), behaviors: BehaviorRegistry = BehaviorRegistry(),
-            snapshot: Callable[[DataT], DataT] = DEFAULT_SNAPSHOT, input_snapshot: Callable[[Any], Any] = DEFAULT_SNAPSHOT, limits: Limits = Limits()) -> None:
+            snapshot: Callable[[DataT], DataT] = DEFAULT_SNAPSHOT, input_snapshot: Callable[[Any], Any] = DEFAULT_SNAPSHOT, limits: Limits = Limits(),
+            forbidden_edges: Iterable[ForbiddenEdge[StateT]] = ()) -> None:
         self._record: DefinitionRecord[StateT, KindT] | None = None
-        self._build(id, initial, states, transitions, capabilities, dispositions, behaviors,
+        self._build(id, initial, states, transitions, capabilities, dispositions, forbidden_edges, behaviors,
             snapshot, input_snapshot, limits, _native._Definition)
 
     @classmethod
@@ -85,11 +87,11 @@ class Definition(Generic[StateT, KindT, DataT]):
         states, transitions, dispositions = record._specifications()
         definition = cls.__new__(cls)
         definition._record = record
-        definition._build(record.id, record.initial, states, transitions, (), dispositions, behaviors,
-            snapshot, input_snapshot, limits, _native._Definition.bind_record)
+        definition._build(record.id, record.initial, states, transitions, (), dispositions, record.forbidden_edges,
+            behaviors, snapshot, input_snapshot, limits, _native._Definition.bind_record)
         return definition
 
-    def _build(self, id, initial, states, transitions, capabilities, dispositions, behaviors,
+    def _build(self, id, initial, states, transitions, capabilities, dispositions, forbidden_edges, behaviors,
             snapshot, input_snapshot, limits, native) -> None:
         for function in (snapshot, input_snapshot):
             if not callable(function) or is_asynchronous(function):
@@ -101,6 +103,7 @@ class Definition(Generic[StateT, KindT, DataT]):
         self._states = readahead(states, limits.max_states)
         self._transitions = readahead(transitions, limits.max_transitions)
         self._dispositions = readahead(dispositions, 128)
+        self._forbidden_edges = readahead(forbidden_edges, 128)
         self._capabilities = bounded(capabilities, 4096, "capability inventory")
         self._behaviors = behaviors
         self._snapshot = snapshot
@@ -115,6 +118,7 @@ class Definition(Generic[StateT, KindT, DataT]):
             "states": [compiler.state(state) for state in self._states],
             "transitions": [compiler.transition(edge) for edge in self._transitions],
             "dispositions": [compiler.disposition(rule) for rule in self._dispositions],
+            "forbidden_edges": [compiler.forbidden_edge(edge) for edge in self._forbidden_edges],
             "behaviors": compiler.behaviors(behaviors),
             "capabilities": [{"id": compiler.ids.intern("capability", value.id),
                 "implementation": compiler.implementation(value.evaluate)} for value in self._capabilities]}
@@ -150,6 +154,11 @@ class Definition(Generic[StateT, KindT, DataT]):
     def capabilities(self) -> tuple[Capability[StateT, DataT], ...]:
         return self._capabilities
 
+    @property
+    def forbidden_edges(self) -> tuple[ForbiddenEdge[StateT], ...]:
+        """Explicit prohibitions in declaration order; no declared transition joins any of them."""
+        return self._forbidden_edges
+
     def structural_coverage(self, *, limits: InspectionLimits = InspectionLimits()) -> StructuralCoverage[StateT]:
         """Inspect declared graph structure without evaluating any behavior."""
         try:
@@ -160,7 +169,9 @@ class Definition(Generic[StateT, KindT, DataT]):
         return StructuralCoverage(tuple(StateCoverage(cast(StateT, ids.resolve("state", row["id"])),
             row["initial"], row["terminal"], row["incoming"], row["outgoing"], row["dispositions"]) for row in raw["states"]),
             tuple(ids.resolve("transition", value) for value in raw["transitions"]),
-            tuple(ids.resolve("disposition", value) for value in raw["dispositions"]))
+            tuple(ids.resolve("disposition", value) for value in raw["dispositions"]),
+            tuple(ForbiddenEdge(cast(StateT, ids.resolve("state", edge["source"])),
+                cast(StateT, ids.resolve("state", edge["target"]))) for edge in raw["forbidden_edges"]))
 
     def diagram(self, labels: DiagramLabels[StateT, KindT], *, limits: InspectionLimits = InspectionLimits()) -> str:
         """Render bounded Mermaid with explicit text labels independent of identity."""

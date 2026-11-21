@@ -48,6 +48,13 @@ class Identities {
 class BehaviorRef {
   constructor(story, implementation) { this.story = story; this.implementation = implementation; Object.freeze(this); }
 }
+/**
+ * A source/target state pair no declared transition may join, whatever its declaration
+ * order, event, internal flag or guard. At most 128 per definition.
+ */
+class ForbiddenEdge {
+  constructor(source, target) { this.source = source; this.target = target; Object.freeze(this); }
+}
 const CapabilityStatus = Object.freeze({ Available: 'available', Unavailable: 'unavailable', Unknown: 'unknown' });
 const BehaviorRole = Object.freeze({ Action: 'action', Condition: 'condition', Invariant: 'invariant',
   Effect: 'effect', Output: 'output', Capability: 'capability', Assertion: 'assertion' });
@@ -114,9 +121,14 @@ class Compiler {
     return { id: this.ids.intern('disposition', value.id), source: this.ids.intern('state', value.source),
       event: this.ids.intern('event', value.event), condition: this.condition(value.condition), reason: value.reason };
   }
+  forbiddenEdge(value) {
+    if (!(value instanceof ForbiddenEdge)) throw new DefinitionError('forbiddenEdges must contain ForbiddenEdge values');
+    return { source: this.ids.intern('state', value.source), target: this.ids.intern('state', value.target) };
+  }
   behaviors(registry) {
     return registry.implementations.map(value => ({ reference: this.reference(value.reference),
       role: value.role, callback: this.implementation(value.callback, value.update).callback }));
   }
 }
-module.exports = { CapabilityStatus, bounded, readahead, checkedLimits, Compiler, BehaviorRef, BehaviorRegistry, BehaviorRole };
+module.exports = { CapabilityStatus, bounded, readahead, checkedLimits, Compiler, BehaviorRef, BehaviorRegistry, BehaviorRole,
+  ForbiddenEdge };

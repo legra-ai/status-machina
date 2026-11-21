@@ -1,5 +1,5 @@
 import {
-  BehaviorRef, BehaviorRegistry, BehaviorUse, DefinitionRecord, IdentityMap, IdentityRole, MachineIdentityMaps,
+  BehaviorRef, BehaviorRegistry, BehaviorUse, DefinitionRecord, ForbiddenEdge, IdentityMap, IdentityRole, MachineIdentityMaps,
   NotRecord, PredicateRecord, StateRecord, TransitionDefinitionRecord, type ConditionRecord, type Definition,
 } from '@legra-ai/status-machina';
 
@@ -25,6 +25,15 @@ new StateRecord({ id: Phase.Open, invariant: () => true });
 new BehaviorUse(Symbol(), () => undefined);
 // @ts-expect-error Binding needs an explicit BehaviorRegistry.
 record.bind([]);
+const forbidding = new DefinitionRecord<Phase, Input>({ id: Symbol(), initial: Phase.Open, states: [], transitions: [],
+  forbiddenEdges: [new ForbiddenEdge(Phase.Done, Phase.Open)] });
+const forbiddenSource: Phase = forbidding.forbiddenEdges[0].source;
+const boundEdges: readonly ForbiddenEdge<Phase>[] = forbidding.bind(new BehaviorRegistry()).forbiddenEdges;
+void forbiddenSource; void boundEdges;
+// @ts-expect-error A prohibition keeps the record's state type.
+new DefinitionRecord<Phase, Input>({ id: Symbol(), initial: Phase.Open, states: [], transitions: [], forbiddenEdges: [new ForbiddenEdge(Wrong.Other, Wrong.Other)] });
+// @ts-expect-error Records take ForbiddenEdge values, not plain pairs.
+new DefinitionRecord<Phase, Input>({ id: Symbol(), initial: Phase.Open, states: [], transitions: [], forbiddenEdges: [{ source: Phase.Done, target: Phase.Open }] });
 
 const states = new IdentityMap({ role: IdentityRole.State, entries: [[Phase.Open, 'ex:Open'] as const] });
 const events = new IdentityMap({ role: IdentityRole.Event, entries: [[Input.Finish, 'ex:finish'] as const] });

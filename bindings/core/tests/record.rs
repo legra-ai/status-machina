@@ -60,7 +60,7 @@ fn transition(guard: &str, actions: &str, internal: bool, target: u32) -> String
 }
 fn definition(states: &str, transitions: &str, dispositions: &str, behaviors: &str) -> String {
     format!(
-        r#"{{"initial":0,"max_states":4,"max_transitions":4,"max_bindings":8,"capabilities":[],"states":[{states}],"transitions":[{transitions}],"dispositions":[{dispositions}],"behaviors":[{behaviors}]}}"#
+        r#"{{"initial":0,"max_states":4,"max_transitions":4,"max_bindings":8,"capabilities":[],"states":[{states}],"transitions":[{transitions}],"forbidden_edges":[],"dispositions":[{dispositions}],"behaviors":[{behaviors}]}}"#
     )
 }
 fn behavior(role: &str, story: u32, implementation: u32) -> String {

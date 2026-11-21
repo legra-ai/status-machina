@@ -148,10 +148,13 @@ impl<I: status_machina::MachineIds> Rejection for DefinitionBuildError<I> {
             Self::EvaluationFailed { .. } => "callback",
             Self::UnknownInitialState { .. }
             | Self::UnknownTransitionState { .. }
-            | Self::UnknownDispositionState { .. } => "unknown_state",
+            | Self::UnknownDispositionState { .. }
+            | Self::UnknownForbiddenEdgeState { .. } => "unknown_state",
             Self::DuplicateState { .. }
             | Self::DuplicateTransition { .. }
-            | Self::DuplicateDisposition { .. } => "duplicate_identifier",
+            | Self::DuplicateDisposition { .. }
+            | Self::DuplicateForbiddenEdge { .. } => "duplicate_identifier",
+            Self::ForbiddenTransition { .. } => "forbidden_transition",
             Self::UnreachableState { .. } => "unreachable_state",
             Self::TerminalHasOutgoingTransition { .. } => "terminal_transition",
             Self::InitialInvariantFailed { .. } => "initial_invariant",
@@ -161,7 +164,8 @@ impl<I: status_machina::MachineIds> Rejection for DefinitionBuildError<I> {
             | Self::LimitsBelowCurrentSize
             | Self::StateLimitExceeded { .. }
             | Self::TransitionLimitExceeded { .. }
-            | Self::DispositionLimitExceeded { .. } => "definition_limit",
+            | Self::DispositionLimitExceeded { .. }
+            | Self::ForbiddenEdgeLimitExceeded { .. } => "definition_limit",
             Self::MissingInitialState => "definition",
         }
     }
@@ -182,6 +186,10 @@ impl<I: status_machina::MachineIds> Rejection for DefinitionBuildError<I> {
             Self::StateLimitExceeded { .. } => "state_limit_exceeded",
             Self::TransitionLimitExceeded { .. } => "transition_limit_exceeded",
             Self::DispositionLimitExceeded { .. } => "disposition_limit_exceeded",
+            Self::ForbiddenEdgeLimitExceeded { .. } => "forbidden_edge_limit_exceeded",
+            Self::UnknownForbiddenEdgeState { .. } => "unknown_forbidden_edge_state",
+            Self::DuplicateForbiddenEdge { .. } => "duplicate_forbidden_edge",
+            Self::ForbiddenTransition { .. } => "forbidden_transition",
             Self::TerminalHasOutgoingTransition { .. } => "terminal_has_outgoing_transition",
             Self::StateActionLimitExceeded { .. } => "state_action_limit_exceeded",
             Self::InitialInvariantFailed { .. } => "initial_invariant_failed",

@@ -40,7 +40,7 @@ class Definition {
   constructor(specification, token = undefined, record = undefined) {
     if (token !== undefined && token !== RECORD) throw new DefinitionError('Bind portable records through DefinitionRecord.bind');
     const fromRecord = token === RECORD;
-    checked.fields(specification, ['id', 'initial', 'states', 'transitions', 'capabilities', 'dispositions', 'behaviors', 'snapshot', 'inputSnapshot', 'limits'], 'definition', ['id', 'initial', 'states', 'transitions']);
+    checked.fields(specification, ['id', 'initial', 'states', 'transitions', 'capabilities', 'dispositions', 'forbiddenEdges', 'behaviors', 'snapshot', 'inputSnapshot', 'limits'], 'definition', ['id', 'initial', 'states', 'transitions']);
     if (!Object.hasOwn(specification, 'id') || !Object.hasOwn(specification, 'initial')) throw new DefinitionError('Definition requires explicit id and initial values');
     const limits = checkedLimits(specification.limits);
     const compiler = new Compiler(limits);
@@ -48,6 +48,7 @@ class Definition {
     const states = Object.freeze(readahead(specification.states, limits.maxStates).map(checked.state));
     const transitions = Object.freeze(readahead(specification.transitions, limits.maxTransitions).map(checked.transition));
     const dispositions = Object.freeze(readahead(specification.dispositions === undefined ? [] : specification.dispositions, 128).map(checked.disposition));
+    const forbiddenEdges = readahead(specification.forbiddenEdges === undefined ? [] : specification.forbiddenEdges, 128);
     const capabilities = Object.freeze(bounded(specification.capabilities === undefined ? [] : specification.capabilities, 4096, 'capability inventory').map(checked.capability));
     const behaviors = specification.behaviors === undefined ? new BehaviorRegistry() : specification.behaviors;
     const copy = specification.snapshot === undefined ? snapshot : specification.snapshot;
@@ -59,7 +60,8 @@ class Definition {
     const source = { initial: compiler.ids.intern('state', specification.initial),
       max_states: limits.maxStates, max_transitions: limits.maxTransitions, max_bindings: behaviors.maxBindings,
       states: states.map(value => compiler.state(value)), transitions: transitions.map(value => compiler.transition(value)),
-      dispositions: dispositions.map(value => compiler.disposition(value)), behaviors: compiler.behaviors(behaviors), capabilities: capabilities.map(value => ({ id: compiler.ids.intern('capability', value.id), implementation: compiler.implementation(value.evaluate) })) };
+      dispositions: dispositions.map(value => compiler.disposition(value)),
+      forbidden_edges: forbiddenEdges.map(value => compiler.forbiddenEdge(value)), behaviors: compiler.behaviors(behaviors), capabilities: capabilities.map(value => ({ id: compiler.ids.intern('capability', value.id), implementation: compiler.implementation(value.evaluate) })) };
     let executable;
     try { executable = fromRecord ? native.NativeDefinition.bindRecord(JSON.stringify(source)) : new native.NativeDefinition(JSON.stringify(source)); }
     catch (error) { translate(error, compiler.ids); }
@@ -68,6 +70,7 @@ class Definition {
     Object.defineProperties(this, { id: { value: specification.id, enumerable: true },
       initial: { value: specification.initial, enumerable: true }, states: { value: states, enumerable: true },
       capabilities: { value: capabilities, enumerable: true }, transitions: { value: transitions, enumerable: true },
+      forbiddenEdges: { value: forbiddenEdges, enumerable: true },
       record: { value: fromRecord ? record : undefined, enumerable: true } });
     // Callbacks and native resources are bound to this Node environment and
     // thread: postMessage/workerData must reject the object, not clone it empty.

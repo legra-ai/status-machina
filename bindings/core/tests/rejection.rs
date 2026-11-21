@@ -37,7 +37,7 @@ fn transition(id: u32, target: u32) -> String {
 fn spec(states: &[String], transitions: &[String], behaviors: &str) -> String {
     format!(
         r#"{{"initial":0,"max_states":128,"max_transitions":512,"max_bindings":128,"capabilities":[],
-        "states":[{}],"transitions":[{}],"dispositions":[],"behaviors":{behaviors}}}"#,
+        "states":[{}],"transitions":[{}],"forbidden_edges":[],"dispositions":[],"behaviors":{behaviors}}}"#,
         states.join(","),
         transitions.join(",")
     )

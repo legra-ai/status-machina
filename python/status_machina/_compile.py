@@ -7,7 +7,7 @@ from typing import cast
 
 from ._context import is_asynchronous
 from .errors import DefinitionError, DefinitionLimitError, LimitError
-from .model import Action, BehaviorRef, BehaviorRegistry, Condition, Limits
+from .model import Action, BehaviorRef, BehaviorRegistry, Condition, ForbiddenEdge, Limits
 
 UNKNOWN_EVENT = 2**32 - 1
 
@@ -126,6 +126,11 @@ class Compiler:
         return {"id": self.ids.intern("disposition", value.id), "source": self.ids.intern("state", value.source),
             "event": self.ids.intern("event", value.event), "condition": self.condition(value.condition),
             "reason": value.reason}
+
+    def forbidden_edge(self, value) -> dict:
+        if not isinstance(value, ForbiddenEdge):
+            raise DefinitionError("forbidden_edges must contain ForbiddenEdge values")
+        return {"source": self.ids.intern("state", value.source), "target": self.ids.intern("state", value.target)}
 
     def behaviors(self, registry: BehaviorRegistry) -> list[dict]:
         result = []

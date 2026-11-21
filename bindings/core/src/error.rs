@@ -96,6 +96,10 @@ pub struct Failure {
     pub effect: Option<u32>,
     pub event: Option<u32>,
     pub capability: Option<u32>,
+    /// Source state of a forbidden edge.
+    pub source: Option<u32>,
+    /// Destination state of a forbidden edge.
+    pub target: Option<u32>,
     pub story: Option<u32>,
     pub implementation: Option<u32>,
     pub expected_role: Option<&'static str>,
@@ -200,6 +204,8 @@ impl<H: Host> Error<H> {
             effect: None,
             event: None,
             capability: None,
+            source: None,
+            target: None,
             story: None,
             implementation: None,
             expected_role: None,
@@ -370,9 +376,28 @@ fn definition<H: Host>(error: &DefinitionBuildError<Ids<H>>, f: &mut Failure) {
             f.disposition = Some(*disposition);
             f.state = Some(*state);
         }
+        DefinitionBuildError::UnknownForbiddenEdgeState { from, to, state } => {
+            f.source = Some(*from);
+            f.target = Some(*to);
+            f.state = Some(*state);
+        }
+        DefinitionBuildError::DuplicateForbiddenEdge { from, to } => {
+            f.source = Some(*from);
+            f.target = Some(*to);
+        }
+        DefinitionBuildError::ForbiddenTransition {
+            transition,
+            from,
+            to,
+        } => {
+            f.transition = Some(*transition);
+            f.source = Some(*from);
+            f.target = Some(*to);
+        }
         DefinitionBuildError::StateLimitExceeded { limit }
         | DefinitionBuildError::TransitionLimitExceeded { limit }
-        | DefinitionBuildError::DispositionLimitExceeded { limit } => f.limit = Some(*limit),
+        | DefinitionBuildError::DispositionLimitExceeded { limit }
+        | DefinitionBuildError::ForbiddenEdgeLimitExceeded { limit } => f.limit = Some(*limit),
         DefinitionBuildError::EvaluationFailed { .. }
         | DefinitionBuildError::MissingInitialState
         | DefinitionBuildError::EmptyLimits

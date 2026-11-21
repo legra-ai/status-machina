@@ -71,6 +71,13 @@ pub struct Coverage {
     pub states: Vec<StateCoverage>,
     pub transitions: Vec<u32>,
     pub dispositions: Vec<u32>,
+    /// Forbidden pairs in the kernel's source/destination order.
+    pub forbidden_edges: Vec<ForbiddenEdge>,
+}
+#[derive(Serialize)]
+pub struct ForbiddenEdge {
+    pub source: u32,
+    pub target: u32,
 }
 #[derive(Serialize)]
 pub struct StateCoverage {
@@ -219,6 +226,14 @@ impl<H: Host> Template<H> {
                 .collect(),
             transitions: coverage.transitions().to_vec(),
             dispositions: coverage.dispositions().to_vec(),
+            forbidden_edges: coverage
+                .forbidden_edges()
+                .iter()
+                .map(|edge| ForbiddenEdge {
+                    source: *edge.from(),
+                    target: *edge.to(),
+                })
+                .collect(),
         })
     }
     pub fn diagram(&self, source: &str, entries: usize, bytes: usize) -> Result<String, Error<H>> {

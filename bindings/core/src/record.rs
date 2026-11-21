@@ -11,6 +11,7 @@ use status_machina::{
     ConditionRecord,
     DefinitionRecord,
     DispositionRecord,
+    ForbiddenEdge,
     StateRecord,
     TransitionDefinitionRecord,
     TransitionKind,
@@ -163,7 +164,7 @@ impl<'a, H: Host> Storage<'a, H> {
 impl<H: Host> Template<H> {
     /// Bind a reference-only portable record against its explicit registry.
     pub fn bind_record(source: &str) -> Result<Self, Error<H>> {
-        let spec = Self::read(source)?;
+        let mut spec = Self::read(source)?;
         if !spec.capabilities.is_empty() {
             return Err(Error::construction(
                 "record",
@@ -171,16 +172,8 @@ impl<H: Host> Template<H> {
             ));
         }
         let labels = crate::inspection::LabelInventory::from_spec(&spec);
-        let registry = Self::registry(spec.behaviors, spec.max_bindings)?;
-        let definition = Self::bind_view(
-            &registry,
-            spec.initial,
-            spec.max_states,
-            spec.max_transitions,
-            spec.states,
-            spec.transitions,
-            spec.dispositions,
-        )?;
+        let registry = Self::registry(std::mem::take(&mut spec.behaviors), spec.max_bindings)?;
+        let definition = Self::bind_view(&registry, spec)?;
         Ok(Self {
             definition: Arc::new(definition),
             registry,
@@ -190,36 +183,39 @@ impl<H: Host> Template<H> {
     }
     fn bind_view(
         registry: &Registry<H>,
-        initial: u32,
-        max_states: usize,
-        max_transitions: usize,
-        states: Vec<spec::State>,
-        transitions: Vec<spec::Transition>,
-        dispositions: Vec<spec::Disposition>,
+        spec: spec::Definition,
     ) -> Result<crate::build::Definition<H>, Error<H>> {
         let storage = Storage::<H>::new();
         // bounded: each inventory is capped by the transport size and native
         // limits.
-        let mut state_records = Vec::with_capacity(states.len());
-        for state in states {
+        let mut state_records = Vec::with_capacity(spec.states.len());
+        for state in spec.states {
             state_records.push(storage.state(state)?);
         }
-        let mut transition_records = Vec::with_capacity(transitions.len());
-        for transition in transitions {
+        let mut transition_records = Vec::with_capacity(spec.transitions.len());
+        for transition in spec.transitions {
             transition_records.push(storage.transition(transition)?);
         }
-        let mut disposition_records = Vec::with_capacity(dispositions.len());
-        for disposition in dispositions {
+        let mut disposition_records = Vec::with_capacity(spec.dispositions.len());
+        for disposition in spec.dispositions {
             disposition_records.push(storage.disposition(disposition)?);
         }
+        // bounded: the transport is capped at 1 MiB; the kernel rejects more
+        // than its fixed prohibition bound before binding anything.
+        let forbidden_records: Vec<ForbiddenEdge<Ids<H>>> = spec
+            .forbidden_edges
+            .iter()
+            .map(|edge| edge.lower())
+            .collect();
         let record = DefinitionRecord {
             id: uuid::Uuid::now_v7(),
-            initial,
-            max_states,
-            max_transitions,
+            initial: spec.initial,
+            max_states: spec.max_states,
+            max_transitions: spec.max_transitions,
             states: &state_records,
             transitions: &transition_records,
             dispositions: &disposition_records,
+            forbidden_edges: &forbidden_records,
         };
         record.bind(registry).map_err(Error::Record)
     }

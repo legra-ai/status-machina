@@ -78,7 +78,7 @@ Consider something else when:
 ## Define and run a machine
 
 `new Definition({ id, initial, states, transitions, dispositions,
-capabilities, behaviors, snapshot, inputSnapshot, limits })` is the one checked
+forbiddenEdges, capabilities, behaviors, snapshot, inputSnapshot, limits })` is the one checked
 constructor; the kernel validates the whole graph before any instance exists.
 Identifiers are any values compared with `Map` semantics, so symbols and object
 tokens compare by identity. Unknown specification fields are rejected.
@@ -101,6 +101,8 @@ tokens compare by identity. Unknown specification fields are rejected.
 - Dispositions `{ id, source, event, condition, reason }` accept a harmless
   event without a state change: `{ kind: 'ignored' }`, not `'refused'`, and the
   revision does not advance. The reason holds 1 to 256 non-whitespace bytes.
+- `new ForbiddenEdge(source, target)` forbids every transition between two
+  declared states. See below.
 - Any behavior may be an exact `new BehaviorRef(story, implementation)`
   resolved from a `BehaviorRegistry`; a state invariant so bound is the Rust
   `BoundInvariant`.
@@ -119,6 +121,43 @@ revision without running callbacks. `state`, `revision` and `data` (a detached
 snapshot) read the instance; `dispose()` or `Symbol.dispose` releases it, after
 which every operation throws `DisposedError`.
 
+### Default refusal, forbidden edges and terminal states
+
+Three rules keep a machine from moving where it should not:
+
+- **Default refusal**: an event with no declared edge from the current state
+  returns `{ kind: 'refused' }` and changes nothing. No prohibition is needed
+  for an edge that is simply absent.
+- **Selective prohibition**: `forbiddenEdges: [new ForbiddenEdge(Phase.Sealing,
+  Phase.Cancelled)]` guards against a later edit adding that edge. A definition
+  that declares the edge too throws `ForbiddenTransitionError` with
+  `context.transition`, `context.source` and `context.target`, whatever the
+  declaration order, event, `internal` flag or guard; a guard that is always
+  false does not help. A same-state pair forbids both self-transition kinds. An
+  undeclared endpoint throws `UnknownStateError` and a repeated pair throws
+  `DuplicateIdentifierError`. A definition holds at most 128 prohibitions
+  (`DefinitionLimitError`); they are explicit `ForbiddenEdge` values, never a
+  complement.
+- **Terminal states**: an outgoing edge from a terminal state throws
+  `TerminalTransitionError`, with or without a prohibition.
+
+Dispositions are unaffected. `definition.forbiddenEdges` and
+`structuralCoverage().forbiddenEdges` expose the pairs; diagrams never draw
+them. `new DefinitionRecord({ ..., forbiddenEdges })` binds through the same
+kernel check, so its errors carry the same `reason` and context as a
+`RecordError`.
+
+```js
+import { ForbiddenEdge, ForbiddenTransitionError } from '@legra-ai/status-machina';
+try {
+  new Definition({ id: 'session', initial: Phase.Open, states,
+    transitions: [...legal, { id: 'abandon', source: Phase.Sealing, event: Input.Cancel, target: Phase.Cancelled }],
+    forbiddenEdges: [new ForbiddenEdge(Phase.Sealing, Phase.Cancelled)] });
+} catch (error) {
+  if (!(error instanceof ForbiddenTransitionError)) throw error;
+}
+```
+
 ## Errors
 
 Every error is a `StatusMachinaError` whose `context` names native identities
@@ -128,7 +167,8 @@ the kernel variant as `reason`. Callback failures keep the original error as
 `cause`.
 
 - `DefinitionError`: `UnknownStateError`, `DuplicateIdentifierError`,
-  `UnreachableStateError`, `TerminalTransitionError`, `InternalTransitionError`,
+  `UnreachableStateError`, `TerminalTransitionError`, `ForbiddenTransitionError`,
+  `InternalTransitionError`,
   `InvalidConditionError`, `InvalidDispositionError`, `DefinitionLimitError`,
   `InitialInvariantError`, `UnknownCapabilityError`, `BindingError`
   (`UnknownBehaviorError`, `UnknownImplementationError`, `RoleMismatchError`,
