@@ -10,6 +10,7 @@ pub struct StructuralCoverage<I: crate::MachineIds = crate::DefaultIds> {
     states: Vec<StateCoverage<I>>,
     transitions: Vec<I::Transition>,
     dispositions: Vec<I::Disposition>,
+    forbidden_edges: Vec<crate::ForbiddenEdge<I>>,
 }
 
 impl<I: crate::MachineIds> StructuralCoverage<I> {
@@ -27,6 +28,14 @@ impl<I: crate::MachineIds> StructuralCoverage<I> {
     #[must_use]
     pub fn dispositions(&self) -> &[I::Disposition] {
         &self.dispositions
+    }
+    /// Return explicit forbidden edges ordered by source, then destination.
+    ///
+    /// They are constraints, not edges: no transition joins any of them, and
+    /// they contribute to no state's incoming or outgoing count.
+    #[must_use]
+    pub fn forbidden_edges(&self) -> &[crate::ForbiddenEdge<I>] {
+        &self.forbidden_edges
     }
 }
 
@@ -86,12 +95,13 @@ where
     /// coverage.
     ///
     /// # Errors
-    /// Rejects a graph whose total records exceed the inspection entry budget.
+    /// Rejects a graph whose total records, forbidden edges included, exceed
+    /// the inspection entry budget.
     pub fn structural_coverage(
         &self,
         limits: &InspectionLimits,
     ) -> Result<StructuralCoverage<I>, InspectionError> {
-        self.check_inspection_limit(limits)?;
+        self.check_coverage_limit(limits)?;
         // bounded: the combined output records passed the caller's entry limit.
         let mut states: Vec<StateCoverage<I>> = self
             .states
@@ -132,10 +142,17 @@ where
             .map(|rule| rule.id.clone())
             .collect();
         dispositions.sort_unstable();
+        // bounded: combined records, prohibitions included, checked before
+        // allocation.
+        let mut forbidden_edges = self.forbidden_edges.clone();
+        forbidden_edges.sort_unstable_by(|left, right| {
+            (left.from(), left.to()).cmp(&(right.from(), right.to()))
+        });
         Ok(StructuralCoverage {
             states,
             transitions,
             dispositions,
+            forbidden_edges,
         })
     }
 }

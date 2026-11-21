@@ -66,6 +66,13 @@ pub struct Disposition {
     pub condition: Condition,
     pub reason: String,
 }
+/// A forbidden source/destination state pair.
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ForbiddenEdge {
+    pub source: u32,
+    pub target: u32,
+}
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Behavior {
@@ -93,6 +100,7 @@ pub struct Definition {
     pub states: Vec<State>,
     pub transitions: Vec<Transition>,
     pub dispositions: Vec<Disposition>,
+    pub forbidden_edges: Vec<ForbiddenEdge>,
     pub behaviors: Vec<Behavior>,
     pub capabilities: Vec<Named>,
     pub max_bindings: usize,

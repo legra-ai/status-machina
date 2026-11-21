@@ -11,6 +11,7 @@ from status_machina import (
     Definition,
     DiagramLabels,
     Event,
+    ForbiddenEdge,
     InspectionLimits,
     Machine,
     State,
@@ -60,3 +61,12 @@ labels = DiagramLabels[Phase, Input](states={Phase.READY: "Ready", Phase.DONE: "
 assert_type(definition.diagram(labels), str)
 wrong_labels = DiagramLabels[Wrong, Input]()
 definition.diagram(wrong_labels)  # type: ignore[arg-type]
+
+forbidding = Definition[Phase, Input, None](id=object(), initial=Phase.READY,
+    states=(State(Phase.READY), State(Phase.DONE, terminal=True)),
+    transitions=(Transition(id=object(), source=Phase.READY, event=Input.FINISH, target=Phase.DONE),),
+    forbidden_edges=(ForbiddenEdge(Phase.DONE, Phase.READY),))
+assert_type(forbidding.forbidden_edges, tuple[ForbiddenEdge[Phase], ...])
+assert_type(coverage.forbidden_edges[0].source, Phase)
+Definition[Phase, Input, None](id=object(), initial=Phase.READY, states=(), transitions=(),
+    forbidden_edges=(ForbiddenEdge(Wrong.FINISH, Wrong.FINISH),))  # type: ignore[arg-type]

@@ -78,7 +78,7 @@ Consider something else when:
 ## Define and run a machine
 
 `Definition(id=, initial=, states=, transitions=, dispositions=, capabilities=,
-behaviors=, snapshot=, input_snapshot=, limits=)` is the one checked
+behaviors=, snapshot=, input_snapshot=, limits=, forbidden_edges=)` is the one checked
 constructor; the kernel validates the whole graph before any instance exists.
 Identifiers are any hashable native values, compared type-qualified, so
 `Phase.OPEN`, `1` and `True` never alias. Specifications are frozen dataclasses:
@@ -102,6 +102,8 @@ Identifiers are any hashable native values, compared type-qualified, so
 - `Disposition(id, source, event, condition, reason)` accepts a harmless event
   without a state change: the outcome is `Ignored`, not `Refused`, and the
   revision does not advance. The reason holds 1 to 256 non-whitespace bytes.
+- `ForbiddenEdge(source, target)` forbids every transition between two
+  declared states. See below.
 - Any behavior may be an exact `BehaviorRef(story, implementation)` resolved
   from `BehaviorRegistry((Behavior(reference, role, callback), ...))`; a state
   invariant so bound is the Rust `BoundInvariant`.
@@ -120,6 +122,40 @@ instance and its revision without running callbacks. `state`, `revision` and
 `data` (a detached snapshot) read the instance; `dispose()` or the context
 manager releases it, after which every operation raises `DisposedError`.
 
+### Default refusal, forbidden edges and terminal states
+
+Three rules keep a machine from moving where it should not:
+
+- **Default refusal**: an event with no declared edge from the current state
+  returns `Refused` and changes nothing. No prohibition is needed for an edge
+  that is simply absent.
+- **Selective prohibition**: `forbidden_edges=(ForbiddenEdge(Phase.SEALING,
+  Phase.CANCELLED),)` guards against a later edit adding that edge. A
+  definition that declares the edge too raises `ForbiddenTransitionError` with
+  `context['transition']`, `['source']` and `['target']`, whatever the declaration
+  order, event, `internal` flag or guard; a guard that is always false does not
+  help. A same-state pair forbids both self-transition kinds. An undeclared
+  endpoint raises `UnknownStateError` and a repeated pair raises
+  `DuplicateIdentifierError`. A definition holds at most 128 prohibitions
+  (`DefinitionLimitError`); they are explicit pairs, never a complement.
+- **Terminal states**: an outgoing edge from a terminal state raises
+  `TerminalTransitionError`, with or without a prohibition.
+
+Dispositions are unaffected. `definition.forbidden_edges` and
+`structural_coverage().forbidden_edges` expose the pairs; diagrams never draw
+them. `DefinitionRecord(..., forbidden_edges=...)` binds through the same kernel
+check, so its errors carry the same `reason` and context as a `RecordError`.
+
+```python
+from status_machina import ForbiddenEdge, ForbiddenTransitionError
+try:
+    Definition(id="session", initial=Phase.OPEN, states=states,
+        transitions=(*legal, Transition("abandon", Phase.SEALING, Input.CANCEL, Phase.CANCELLED)),
+        forbidden_edges=(ForbiddenEdge(Phase.SEALING, Phase.CANCELLED),))
+except ForbiddenTransitionError as error:
+    assert error.context["transition"] == "abandon"
+```
+
 ## Errors
 
 Every error is a `StatusMachinaError` whose `context` names native identities
@@ -129,7 +165,8 @@ the kernel variant as `reason`. Callback failures keep the original exception as
 `__cause__`.
 
 - `DefinitionError`: `UnknownStateError`, `DuplicateIdentifierError`,
-  `UnreachableStateError`, `TerminalTransitionError`, `InternalTransitionError`,
+  `UnreachableStateError`, `TerminalTransitionError`, `ForbiddenTransitionError`,
+  `InternalTransitionError`,
   `InvalidConditionError`, `InvalidDispositionError`, `DefinitionLimitError`
   (also a `LimitError`), `InitialInvariantError`, `UnknownCapabilityError`
   (also a `LookupError`), `BindingError` (`UnknownBehaviorError`,

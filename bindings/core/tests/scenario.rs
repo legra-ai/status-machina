@@ -67,7 +67,7 @@ const SPEC: &str = r#"{
   {"id":1,"terminal":true,"invariant":null,"entry_actions":[],"exit_actions":[],"entry_effects":[],"exit_effects":[]}
  ],
  "transitions":[{"id":0,"source":0,"event":0,"target":1,"internal":false,"guard":null,
- "postconditions":[],"actions":[],"effects":[],"outputs":[]}],"dispositions":[],"behaviors":[]
+ "postconditions":[],"actions":[],"effects":[],"outputs":[]}],"forbidden_edges":[],"dispositions":[],"behaviors":[]
 }"#;
 fn template() -> Template<NativeHost> {
     Template::parse(SPEC).unwrap()

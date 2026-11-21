@@ -136,6 +136,18 @@ class Disposition(Generic[StateT, KindT]):
     reason: str
 
 @dataclass(frozen=True)
+class ForbiddenEdge(Generic[StateT]):
+    """A source/target state pair no declared transition may join.
+
+    Construction rejects a transition between the pair whatever the declaration order,
+    event, internal/external kind or guard; a same-state pair forbids both
+    self-transition kinds. Undeclared edges are already refused, so a prohibition only
+    guards against a later edit adding the edge. At most 128 per definition.
+    """
+    source: StateT
+    target: StateT
+
+@dataclass(frozen=True)
 class Limits:
     max_states: int = 128
     max_transitions: int = 512

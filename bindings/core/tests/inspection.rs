@@ -28,7 +28,7 @@ const SPEC: &str = r#"{
   {"id":1,"terminal":true,"invariant":null,"entry_actions":[],"exit_actions":[],"entry_effects":[],"exit_effects":[]}
  ],
  "transitions":[{"id":0,"source":0,"event":0,"target":1,"internal":false,"guard":null,
- "postconditions":[],"actions":[],"effects":[],"outputs":[]}],"dispositions":[],"behaviors":[]
+ "postconditions":[],"actions":[],"effects":[],"outputs":[]}],"forbidden_edges":[],"dispositions":[],"behaviors":[]
 }"#;
 const LABELS: &str = r#"{
  "states":[{"id":0,"text":"Same"},{"id":1,"text":"Same"}],

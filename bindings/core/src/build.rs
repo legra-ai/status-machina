@@ -8,6 +8,7 @@ use status_machina::{
     Condition,
     Effect,
     EventDisposition,
+    ForbiddenEdge,
     LocalAction,
     MachineDefinition,
     OutputEvent,
@@ -81,6 +82,11 @@ impl<H: Host> Template<H> {
                     )
                 })?;
             definition = definition.disposition(d)?;
+        }
+        // The kernel bounds the prohibitions and checks them against every
+        // transition at build, exactly as for portable records.
+        for edge in spec.forbidden_edges {
+            definition = definition.forbid(edge.lower())?;
         }
         if spec.capabilities.len() > 4096 {
             return Err(Error::construction(
@@ -163,6 +169,11 @@ impl<H: Host> Template<H> {
             .map_err(|e| Error::binding("Story registry", None, e))?;
         }
         Ok(registry.build())
+    }
+}
+impl spec::ForbiddenEdge {
+    pub(crate) const fn lower<H: Host>(self) -> ForbiddenEdge<Ids<H>> {
+        ForbiddenEdge::new(self.source, self.target)
     }
 }
 pub(crate) fn reference<H: Host>(value: spec::Reference) -> BehaviorRef<Ids<H>> {

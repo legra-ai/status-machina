@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Generic
 from typing_extensions import TypeVar
 
 from .errors import InspectionError
+from .model import ForbiddenEdge
 
 if TYPE_CHECKING:
     from ._compile import Identities
@@ -42,10 +43,16 @@ class StateCoverage(Generic[StateT]):
 
 @dataclass(frozen=True)
 class StructuralCoverage(Generic[StateT]):
-    """Immutable graph inventory in definition insertion order."""
+    """Immutable graph inventory in definition insertion order.
+
+    ``forbidden_edges`` follow the kernel's order: by source, then target state, in
+    state declaration order. They are constraints, not edges, and add to no state's
+    incoming or outgoing count.
+    """
     states: tuple[StateCoverage[StateT], ...]
     transitions: tuple[Hashable, ...]
     dispositions: tuple[Hashable, ...]
+    forbidden_edges: tuple[ForbiddenEdge[StateT], ...] = ()
 
 @dataclass(frozen=True)
 class DiagramLabels(Generic[StateT, KindT]):

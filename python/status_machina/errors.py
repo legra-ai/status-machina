@@ -43,13 +43,15 @@ class InspectionError(StatusMachinaError):
 # Checked construction: ``context['reason']`` is the kernel variant and the context
 # names the rejected element (``state``, ``transition``, ``condition``, ...) natively.
 class UnknownStateError(DefinitionError):
-    """The initial state, a transition endpoint or a disposition source is not declared."""
+    """The initial state, a transition or forbidden-edge endpoint or a disposition source is not declared."""
 class DuplicateIdentifierError(DefinitionError):
-    """Two states, transitions, dispositions or capabilities share one identity."""
+    """Two states, transitions, dispositions, capabilities or forbidden edges share one identity."""
 class UnreachableStateError(DefinitionError):
     """``context['state']`` cannot be reached from the initial state."""
 class TerminalTransitionError(DefinitionError):
     """The terminal ``context['state']`` declares an outgoing transition."""
+class ForbiddenTransitionError(DefinitionError):
+    """``context['transition']`` joins the forbidden ``context['source']`` and ``context['target']``."""
 class InternalTransitionError(DefinitionError):
     """An internal transition must leave and re-enter no state: its target is its source."""
 class InvalidConditionError(DefinitionError):

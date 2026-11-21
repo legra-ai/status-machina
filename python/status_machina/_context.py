@@ -30,7 +30,8 @@ _ERROR_TYPES = {
     "unreachable_state": errors.UnreachableStateError, "terminal_transition": errors.TerminalTransitionError,
     "internal_transition": errors.InternalTransitionError, "invalid_condition": errors.InvalidConditionError,
     "invalid_disposition": errors.InvalidDispositionError, "definition_limit": errors.DefinitionLimitError,
-    "initial_invariant": errors.InitialInvariantError, "unknown_capability": errors.UnknownCapabilityError,
+    "initial_invariant": errors.InitialInvariantError,
+    "forbidden_transition": errors.ForbiddenTransitionError, "unknown_capability": errors.UnknownCapabilityError,
 }
 _CONTEXT_ROLES = ("state", "condition", "transition", "disposition", "action", "effect", "event", "capability",
     "story", "implementation")
@@ -48,6 +49,10 @@ def exception(error, ids=None) -> errors.StatusMachinaError:
     for role in _CONTEXT_ROLES:
         if role in context and ids is not None:
             context[role] = ids.resolve(role, context[role])
+    # Forbidden-edge endpoints are states.
+    for key in ("source", "target"):
+        if key in context and ids is not None:
+            context[key] = ids.resolve("state", context[key])
     for key in ("expected", "actual"):
         if f"{key}_role" in context:
             context[key] = BehaviorRole(context.pop(f"{key}_role"))

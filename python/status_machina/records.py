@@ -24,6 +24,7 @@ from .model import (
     Condition,
     Disposition,
     Effect,
+    ForbiddenEdge,
     OutputEvent,
     State,
     Transition,
@@ -209,6 +210,8 @@ class DefinitionRecord(Generic[StateT, KindT]):
     dispositions: tuple[DispositionRecord[StateT, KindT], ...] = ()
     max_states: int = 128
     max_transitions: int = 512
+    forbidden_edges: tuple[ForbiddenEdge[StateT], ...] = ()
+    """Explicit prohibitions, at most 128, checked by the same kernel builder as native ones."""
     def __post_init__(self) -> None:
         for name in ("max_states", "max_transitions"):
             value = getattr(self, name)
@@ -217,7 +220,7 @@ class DefinitionRecord(Generic[StateT, KindT]):
         _identity(self.id, "DefinitionRecord.id")
         for name, limit, kind in (("states", self.max_states, StateRecord),
                 ("transitions", self.max_transitions, TransitionDefinitionRecord),
-                ("dispositions", 128, DispositionRecord)):
+                ("dispositions", 128, DispositionRecord), ("forbidden_edges", 128, ForbiddenEdge)):
             values = bounded(getattr(self, name), limit, f"{name} record inventory")
             for value in values:
                 if not isinstance(value, kind):

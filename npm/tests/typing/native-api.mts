@@ -1,4 +1,4 @@
-import { Definition, CapabilityStatus, type Capability, type CapabilityReport, type StructuralCoverage, type DiagramLabels, type Machine } from '@legra-ai/status-machina';
+import { Definition, CapabilityStatus, ForbiddenEdge, type Capability, type CapabilityReport, type StructuralCoverage, type DiagramLabels, type Machine } from '@legra-ai/status-machina';
 
 enum Phase { Ready, Done }
 enum Input { Finish }
@@ -36,3 +36,13 @@ definition.diagram({ states: new Map([[Wrong.Finish, 'Wrong']]) });
 // @ts-expect-error Label values must be strings rather than domain objects.
 definition.diagram({ states: new Map([[Phase.Ready, { label: 'Ready' }]]) });
 void [coverage, mermaid];
+
+const forbidding = new Definition<Phase, Input, null>({ id: Symbol(), initial: Phase.Ready,
+  states: [{ id: Phase.Ready }, { id: Phase.Done, terminal: true }],
+  transitions: [{ id: Symbol(), source: Phase.Ready, event: Input.Finish, target: Phase.Done }],
+  forbiddenEdges: [new ForbiddenEdge(Phase.Done, Phase.Ready)] });
+const forbiddenTarget: Phase = forbidding.forbiddenEdges[0].target;
+const coveredTarget: Phase = forbidding.structuralCoverage().forbiddenEdges[0].target;
+void forbiddenTarget; void coveredTarget;
+// @ts-expect-error A prohibition keeps the definition's state type.
+new Definition<Phase, Input, null>({ id: Symbol(), initial: Phase.Ready, states: [], transitions: [], forbiddenEdges: [new ForbiddenEdge(Wrong.Finish, Wrong.Finish)] });

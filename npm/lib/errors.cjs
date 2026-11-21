@@ -38,6 +38,8 @@ class UnknownStateError extends DefinitionError {}
 class DuplicateIdentifierError extends DefinitionError {}
 class UnreachableStateError extends DefinitionError {}
 class TerminalTransitionError extends DefinitionError {}
+/** `context.transition` joins the forbidden `context.source` and `context.target`. */
+class ForbiddenTransitionError extends DefinitionError {}
 class InternalTransitionError extends DefinitionError {}
 class InvalidConditionError extends DefinitionError {}
 class InvalidDispositionError extends DefinitionError {}
@@ -118,7 +120,7 @@ const types = Object.freeze({ inspection: InspectionError, definition: Definitio
   terminal_transition: TerminalTransitionError, internal_transition: InternalTransitionError,
   invalid_condition: InvalidConditionError, invalid_disposition: InvalidDispositionError,
   definition_limit: DefinitionLimitError, initial_invariant: InitialInvariantError,
-  unknown_capability: UnknownCapabilityError });
+  unknown_capability: UnknownCapabilityError, forbidden_transition: ForbiddenTransitionError });
 const contextRoles = Object.freeze(['state', 'condition', 'transition', 'disposition', 'action', 'effect', 'event', 'capability',
   'story', 'implementation']);
 /** True for a typed failure thrown by the native addon. */
@@ -142,6 +144,10 @@ function exception(error, ids) {
   for (const role of contextRoles) {
     if (Object.hasOwn(context, role) && ids !== undefined) context[role] = ids.resolve(role, context[role]);
   }
+  // Forbidden-edge endpoints are states.
+  for (const name of ['source', 'target']) {
+    if (Object.hasOwn(context, name) && ids !== undefined) context[name] = ids.resolve('state', context[name]);
+  }
   for (const name of ['expected', 'actual']) {
     // BehaviorRole values are the kernel's wire names, so they map one to one.
     if (Object.hasOwn(context, `${name}_role`)) { context[name] = context[`${name}_role`]; delete context[`${name}_role`]; }
@@ -163,6 +169,6 @@ module.exports = { StatusMachinaError, DefinitionError, DispatchError, CallbackE
   ScenarioError, ScenarioLimitsError, ScenarioSetError, EmptyScenarioSetError, ScenarioCountLimitError,
   ScenarioStepLimitError, ScenarioNodeLimitError, ScenarioAssertionError, MissingAssertionPredicateError,
   ScenarioReplayError, AssertionLimitError, DuplicateImplementationError, UnknownStateError, DuplicateIdentifierError,
-  UnreachableStateError, TerminalTransitionError, InternalTransitionError, InvalidConditionError,
+  UnreachableStateError, TerminalTransitionError, ForbiddenTransitionError, InternalTransitionError, InvalidConditionError,
   InvalidDispositionError, DefinitionLimitError, InitialInvariantError, UnknownCapabilityError,
   translate, exception, isNative };

@@ -126,6 +126,38 @@ Each phase permits 16 effects, giving at most 48 per external transition; output
 events remain bounded at 16 per transition. Constructors describe work; the caller
 executes it only after acceptance.
 
+## Default refusal, forbidden edges and terminal states
+
+Three separate rules keep a definition from moving where it should not:
+
+- **Default refusal.** Dispatch refuses any event with no declared edge from the
+  current state. A refusal leaves state, data and revision unchanged and
+  returns no intents. No deny-list is needed for an edge that is simply absent.
+- **Selective prohibition.** `DefinitionBuilder::forbid(ForbiddenEdge::new(from,
+  to))` declares a typed source/destination pair that no transition may join,
+  protecting the definition against a later edit that adds the edge. A
+  definition that declares both the edge and its prohibition is contradictory:
+  `build` returns `DefinitionBuildError::ForbiddenTransition` naming the
+  transition and both endpoints, whatever the declaration order, event, kind or
+  guard. A false guard does not help, and no allow/deny precedence exists. A
+  same-state pair forbids internal and external self-transitions. Unknown
+  endpoints (`UnknownForbiddenEdgeState`) and duplicate pairs
+  (`DuplicateForbiddenEdge`) are errors. Prohibitions are explicit pairs, at most
+  128 per definition, checked before each is stored
+  (`ForbiddenEdgeLimitExceeded`); no complement of all state pairs exists.
+- **Terminal states.** Construction already rejects every outgoing edge of a
+  terminal state (`TerminalHasOutgoingTransition`), a stronger rule that needs
+  no prohibitions.
+
+Explicit event dispositions stay distinct from transitions and are unaffected by
+prohibitions. `MachineDefinition::forbidden_edges` and
+`StructuralCoverage::forbidden_edges` expose the typed pairs (coverage orders
+them by source, then destination); diagrams never render them as routes.
+`DefinitionRecord::forbidden_edges` passes record prohibitions through the same
+builder check, so native and record-bound definitions validate identically.
+Validation runs no callbacks. See the compiled
+[forbidden-edge example](examples/forbidden_edges.rs).
+
 ## Current boundaries
 
 - This is a flat EFSM, without hierarchical states or orthogonal regions.

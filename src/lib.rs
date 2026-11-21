@@ -104,6 +104,7 @@ pub use definition::{
     DefinitionBuildError,
     DefinitionBuilder,
     DefinitionResult,
+    ForbiddenEdge,
     InspectionError,
     InspectionLimits,
     InspectionLimitsBuilder,

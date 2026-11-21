@@ -62,7 +62,7 @@ fn emitter() -> Template<TestHost> {
     "outputs":[{{"id":1,"implementation":{{"callback":0,"reference":null}}}}]}},
   {{"id":1,"source":1,"event":0,"target":0,"internal":false,"guard":null,"postconditions":[],"actions":[],"effects":[],
     "outputs":[{{"id":1,"implementation":{{"callback":0,"reference":null}}}}]}}],
- "dispositions":[],"behaviors":[]}}"#
+ "forbidden_edges":[],"dispositions":[],"behaviors":[]}}"#
     ))
     .unwrap()
 }
@@ -73,7 +73,7 @@ fn receiver() -> Template<TestHost> {
  "transitions":[{{"id":0,"source":0,"event":0,"target":1,"internal":false,"guard":null,"postconditions":[],
    "actions":[{{"id":0,"implementation":{{"callback":1,"reference":null}}}}],
    "effects":[{{"id":0,"implementation":{{"callback":2,"reference":null}}}}],"outputs":[]}}],
- "dispositions":[],"behaviors":[]}}"#
+ "forbidden_edges":[],"dispositions":[],"behaviors":[]}}"#
     ))
     .unwrap()
 }

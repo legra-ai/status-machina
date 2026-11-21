@@ -92,6 +92,43 @@ pub enum DefinitionBuildError<I: crate::MachineIds = crate::DefaultIds> {
         /// Configured maximum disposition count.
         limit: usize,
     },
+    /// The forbidden-edge count reached its fixed bound.
+    #[error("machine forbidden-edge count exceeds limit {limit}")]
+    ForbiddenEdgeLimitExceeded {
+        /// Fixed maximum forbidden-edge count.
+        limit: usize,
+    },
+    /// A forbidden edge names a state the definition does not declare.
+    #[error("forbidden edge {from:?} -> {to:?} refers to unknown state {state:?}")]
+    UnknownForbiddenEdgeState {
+        /// Forbidden source state.
+        from: I::State,
+        /// Forbidden destination state.
+        to: I::State,
+        /// The undeclared endpoint.
+        state: I::State,
+    },
+    /// The same source/destination pair is forbidden twice.
+    #[error("duplicate forbidden edge {from:?} -> {to:?}")]
+    DuplicateForbiddenEdge {
+        /// Forbidden source state.
+        from: I::State,
+        /// Forbidden destination state.
+        to: I::State,
+    },
+    /// A declared transition connects a forbidden source/destination pair.
+    ///
+    /// No precedence applies: the definition is contradictory whatever the
+    /// declaration order, event, kind or guard of the transition.
+    #[error("transition {transition:?} declares forbidden edge {from:?} -> {to:?}")]
+    ForbiddenTransition {
+        /// The transition that declares the forbidden edge.
+        transition: I::Transition,
+        /// Its source state.
+        from: I::State,
+        /// Its destination state.
+        to: I::State,
+    },
     /// A terminal state declared an outgoing edge.
     #[error("terminal state {state:?} has an outgoing transition")]
     TerminalHasOutgoingTransition {

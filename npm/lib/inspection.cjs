@@ -1,5 +1,6 @@
 'use strict';
 const { InspectionError } = require('./errors.cjs');
+const { ForbiddenEdge } = require('./compile.cjs');
 const roles = Object.freeze({ states: 'state', transitions: 'transition', events: 'event', conditions: 'condition', dispositions: 'disposition' });
 function limits(options = {}) {
   if (options === null || typeof options !== 'object') throw new InspectionError('Inspection limits must be an object');
@@ -52,6 +53,7 @@ function labels(source, inventory, ids, limits) {
 function coverage(raw, ids) {
   return Object.freeze({ states: Object.freeze(raw.states.map(state => Object.freeze({ ...state, id: ids.resolve('state', state.id) }))),
     transitions: Object.freeze(raw.transitions.map(id => ids.resolve('transition', id))),
-    dispositions: Object.freeze(raw.dispositions.map(id => ids.resolve('disposition', id))) });
+    dispositions: Object.freeze(raw.dispositions.map(id => ids.resolve('disposition', id))),
+    forbiddenEdges: Object.freeze(raw.forbidden_edges.map(edge => new ForbiddenEdge(ids.resolve('state', edge.source), ids.resolve('state', edge.target)))) });
 }
 module.exports = { limits, labels, coverage };

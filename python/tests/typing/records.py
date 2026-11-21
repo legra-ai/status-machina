@@ -11,6 +11,7 @@ from status_machina import (
     ConditionRecord,
     Definition,
     DefinitionRecord,
+    ForbiddenEdge,
     IdentityMap,
     IdentityRole,
     MachineIdentityMaps,
@@ -46,6 +47,17 @@ DefinitionRecord[Phase, Input](id=object(), initial=Wrong.OTHER, states=(), tran
 StateRecord(Phase.OPEN, invariant=lambda data: True)  # type: ignore[arg-type]
 BehaviorUse(object(), lambda: None)  # type: ignore[arg-type]
 record.bind(())  # type: ignore[arg-type]
+
+forbidding = DefinitionRecord[Phase, Input](
+    id=object(), initial=Phase.OPEN,
+    states=(StateRecord(Phase.OPEN), StateRecord(Phase.DONE, terminal=True)),
+    transitions=(), forbidden_edges=(ForbiddenEdge(Phase.DONE, Phase.OPEN),),
+)
+assert_type(forbidding.forbidden_edges, tuple[ForbiddenEdge[Phase], ...])
+assert_type(forbidding.bind(BehaviorRegistry()).forbidden_edges, tuple[ForbiddenEdge[Phase], ...])
+assert_type(definition.structural_coverage().forbidden_edges, tuple[ForbiddenEdge[Phase], ...])
+DefinitionRecord[Phase, Input](id=object(), initial=Phase.OPEN, states=(), transitions=(),
+    forbidden_edges=(ForbiddenEdge(Wrong.OTHER, Wrong.OTHER),))  # type: ignore[arg-type]
 
 states = IdentityMap[Phase, str](IdentityRole.STATE, ((Phase.OPEN, "ex:Open"),))
 assert_type(states.encode(Phase.OPEN), str)

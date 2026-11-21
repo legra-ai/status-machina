@@ -29,6 +29,22 @@ export interface StateCoverage<S extends Identity> {
 export interface StructuralCoverage<S extends Identity> {
   readonly states: readonly StateCoverage<S>[];
   readonly transitions: readonly Identity[]; readonly dispositions: readonly Identity[];
+  /**
+   * Explicit prohibitions by source, then target, in state declaration order. They are
+   * constraints, not edges, and add to no state's incoming or outgoing count.
+   */
+  readonly forbiddenEdges: readonly ForbiddenEdge<S>[];
+}
+/**
+ * A source/target state pair no declared transition may join. Construction rejects a
+ * matching transition whatever its declaration order, event, `internal` flag or guard;
+ * a same-state pair forbids both self-transition kinds. At most 128 per definition.
+ */
+export class ForbiddenEdge<S extends Identity = Identity> {
+  constructor(source: S, target: S);
+  private readonly _brand;
+  readonly source: S;
+  readonly target: S;
 }
 export interface Limits { maxStates?: number; maxTransitions?: number; maxValues?: number; maxCallbacks?: number; }
 export class BehaviorRef<S extends Identity = Identity, I extends Identity = Identity> {
@@ -98,6 +114,8 @@ export interface DefinitionOptions<S extends Identity, K extends Identity, D, P 
   readonly transitions: Iterable<Transition<S, K, D, P, F>>;
   readonly capabilities?: Iterable<Capability<S, D, F>>;
   readonly dispositions?: Iterable<Disposition<S, K, D, P, F>>;
+  /** Pairs no transition may join; at most 128. */
+  readonly forbiddenEdges?: Iterable<ForbiddenEdge<S>>;
   readonly behaviors?: BehaviorRegistry;
   readonly snapshot?: (data: D) => D;
   readonly inputSnapshot?: <T>(value: T) => T;
@@ -125,6 +143,8 @@ export class Definition<S extends Identity, K extends Identity, D = unknown, P =
   readonly states: readonly State<S, D, P, F>[];
   readonly transitions: readonly Transition<S, K, D, P, F>[];
   readonly capabilities: readonly Capability<S, D, F>[];
+  /** Explicit prohibitions in declaration order; no declared transition joins any of them. */
+  readonly forbiddenEdges: readonly ForbiddenEdge<S>[];
   structuralCoverage(limits?: InspectionLimits): StructuralCoverage<S>;
   diagram(labels: DiagramLabels<S, K>, limits?: InspectionLimits): string;
   instantiate(options: { id: Identity; data: D }): Machine<S, K, D, P, F>;
@@ -198,6 +218,8 @@ export class DuplicateIdentifierError extends DefinitionError {}
 export class UnreachableStateError extends DefinitionError {}
 /** The terminal `context.state` declares an outgoing transition. */
 export class TerminalTransitionError extends DefinitionError {}
+/** `context.transition` joins the forbidden `context.source` and `context.target`. */
+export class ForbiddenTransitionError extends DefinitionError {}
 /** An internal transition's target must be its source. */
 export class InternalTransitionError extends DefinitionError {}
 /** A condition expression is malformed: an empty group, a missing operand or too deep. */
@@ -318,6 +340,8 @@ export class DefinitionRecord<S extends Identity = Identity, K extends Identity 
     readonly states: Iterable<StateRecord<S>>;
     readonly transitions: Iterable<TransitionDefinitionRecord<S, K>>;
     readonly dispositions?: Iterable<DispositionRecord<S, K>>;
+    /** Explicit prohibitions, at most 128, checked by the same kernel builder as native ones. */
+    readonly forbiddenEdges?: Iterable<ForbiddenEdge<S>>;
     readonly maxStates?: number; readonly maxTransitions?: number;
   });
   readonly id: Identity;
@@ -325,6 +349,7 @@ export class DefinitionRecord<S extends Identity = Identity, K extends Identity 
   readonly states: readonly StateRecord<S>[];
   readonly transitions: readonly TransitionDefinitionRecord<S, K>[];
   readonly dispositions: readonly DispositionRecord<S, K>[];
+  readonly forbiddenEdges: readonly ForbiddenEdge<S>[];
   readonly maxStates: number;
   readonly maxTransitions: number;
   /**
