@@ -1,6 +1,6 @@
 {
   "name": "@legra-ai/status-machina",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "description": "Native typed, caller-driven state machines with checked composition",
   "type": "module",
   "main": "./index.mjs",
